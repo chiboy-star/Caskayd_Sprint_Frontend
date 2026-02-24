@@ -7,22 +7,27 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
   EyeIcon, 
-  EyeSlashIcon, 
   CheckCircleIcon,
   XCircleIcon,
   ArrowUpTrayIcon,
   XMarkIcon
 } from "@heroicons/react/24/outline";
-import Loader from "@/components/Loader"; // IMPORT LOADER
+import Loader from "@/components/Loader"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
-const BASE_URL = "http://localhost:3000";
+// --- FIX 1: DYNAMIC BASE URL ---
+// Use environment variable if available, otherwise default to localhost
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const URL_REGEX = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+
+// --- FIX 2: UPDATED URL REGEX ---
+// Now allows "localhost" with ports for testing
+const URL_REGEX = /^(https?:\/\/)?(([\da-z\.-]+)\.([a-z\.]{2,6})|localhost(:\d{1,5})?)([\/\w \.-]*)*\/?$/;
 
 const AVAILABLE_INDUSTRIES = ["fitness", "education", "fashion", "beauty", "tech", 
-  "lifestyle", "business", "travel", "education", "Food", "entertainment"];/*Food, fashion, beauty, fitness, tech, education, travel, lifestyle, business, entertainment */
+  "lifestyle", "business", "travel", "Food", "entertainment"];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {
@@ -56,7 +61,7 @@ export default function BusinessSignup() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false); // LOADER STATE
+  const [isRedirecting, setIsRedirecting] = useState(false); 
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
   const [isIndustryModalOpen, setIsIndustryModalOpen] = useState(false);
 
@@ -112,16 +117,19 @@ export default function BusinessSignup() {
 
     if (!formData.businessName || !formData.website) return showError("Please fill in all details");
     if (formData.industryTags.length === 0) return showError("Please select an industry");
-    if (!URL_REGEX.test(formData.website)) return showError("Please enter a valid website URL");
+    
+    // Updated Regex Check
+    if (!URL_REGEX.test(formData.website)) return showError("Please enter a valid website URL (e.g., website.com)");
 
     setIsLoading(true);
 
     try {
+        console.log("Using Backend URL:", BASE_URL); // Debugging check
+
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                username: formData.username,
                 email: formData.email,
                 password: formData.password,
                 role: "business"
@@ -154,7 +162,7 @@ export default function BusinessSignup() {
         setToast({ message: "Account created! Welcome aboard.", type: "success", isVisible: true });
         localStorage.setItem("accessToken", token);
         
-        setIsRedirecting(true); // START LOADER
+        setIsRedirecting(true); 
         await new Promise(resolve => setTimeout(resolve, 2000));
         router.push("/business/dashboard");
 
@@ -164,7 +172,6 @@ export default function BusinessSignup() {
     }
   };
 
-  // USE SHARED LOADER
   if (isRedirecting) return <Loader />;
 
   return (
@@ -225,16 +232,16 @@ export default function BusinessSignup() {
                 <form onSubmit={handleNextStep} className="space-y-8 px-1">
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Username</label>
-                        <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your username" />
+                        <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your username" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your email" />
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your email" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                         <div className="relative">
-                            <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
+                            <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
                             <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"><EyeIcon className="h-5 w-5" /></button>
                         </div>
                     </div>
@@ -257,17 +264,17 @@ export default function BusinessSignup() {
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
-                        <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Your Company Ltd" />
+                        <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Your Company Ltd" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Industry <span className="text-gray-400 font-normal text-xs ml-1">(Max 3)</span></label>
-                        <div onClick={() => setIsIndustryModalOpen(true)} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-indigo-500 hover:bg-white transition-all flex items-center rounded-t-md">
+                        <div onClick={() => setIsIndustryModalOpen(true)} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-indigo-500  transition-all flex items-center rounded-t-md">
                             {formData.industryTags.length > 0 ? <span className="text-gray-900 font-medium">{formData.industryTags.join(", ")}</span> : <span className="text-gray-400">Select industries (e.g. Fashion, Retail)</span>}
                         </div>
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Website URL</label>
-                        <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://yourbusiness.com" />
+                        <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://yourbusiness.com" />
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
                         <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 flex justify-center gap-2">

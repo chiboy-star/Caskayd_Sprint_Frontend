@@ -18,7 +18,7 @@ import Loader from "@/components/Loader";
 const inter = Inter({ subsets: ["latin"] });
 
 // --- CONFIGURATION ---
-const BASE_URL = "http://localhost:3000"; 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 const AVAILABLE_NICHES = [
   "fitness", "education", "fashion", "beauty", "tech", 
@@ -208,7 +208,6 @@ export default function CreatorSignup() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                username: formData.username,
                 email: formData.email,
                 password: formData.password,
                 role: "creator"
@@ -330,16 +329,16 @@ export default function CreatorSignup() {
                 <form onSubmit={handleNextStep} className="space-y-8 px-1">
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Username</label>
-                        <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your username" />
+                        <input type="text" name="username" value={formData.username} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your username" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your email" />
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your email" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                         <div className="relative">
-                            <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
+                            <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"><EyeIcon className="h-5 w-5" /></button>
                         </div>
                     </div>
@@ -361,7 +360,7 @@ export default function CreatorSignup() {
                     
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Location</label>
-                        <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="City, Country" />
+                        <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="City, Country" />
                     </div>
 
                     <div className="relative">
@@ -373,27 +372,27 @@ export default function CreatorSignup() {
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Base Rate (Starting At)</label>
-                        <input type="number" name="rate" min="0" value={formData.rate} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦ 50,000" />
+                        <input type="number" name="rate" min="0" value={formData.rate} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦ 50,000" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
                             <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Post</label>
-                            <input type="number" name="pricePerPost" min="0" value={formData.pricePerPost} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
+                            <input type="number" name="pricePerPost" min="0" value={formData.pricePerPost} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative">
                             <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Story</label>
-                            <input type="number" name="pricePerStory" min="0" value={formData.pricePerStory} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
+                            <input type="number" name="pricePerStory" min="0" value={formData.pricePerStory} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative col-span-2">
                             <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Video</label>
-                            <input type="number" name="pricePerVideo" min="0" value={formData.pricePerVideo} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
+                            <input type="number" name="pricePerVideo" min="0" value={formData.pricePerVideo} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                     </div>
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Bio</label>
-                        <textarea name="bio" value={formData.bio} onChange={handleChange} rows={2} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 resize-none text-sm" placeholder="Tell us about yourself..." />
+                        <textarea name="bio" value={formData.bio} onChange={handleChange} rows={2} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 resize-none text-sm" placeholder="Tell us about yourself..." />
                     </div>
 
                     <div className="pt-2 flex flex-col gap-2">
@@ -408,11 +407,11 @@ export default function CreatorSignup() {
                 <form onSubmit={handleFinalSubmit} className="space-y-6 px-1">
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Instagram URL</label>
-                        <input type="text" name="instagram" value={formData.instagram} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://instagram.com/username" />
+                        <input type="text" name="instagram" value={formData.instagram} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://instagram.com/username" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">TikTok URL</label>
-                        <input type="text" name="tiktok" value={formData.tiktok} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://tiktok.com/@username" />
+                        <input type="text" name="tiktok" value={formData.tiktok} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://tiktok.com/@username" />
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Bank Name</label>
@@ -433,7 +432,7 @@ export default function CreatorSignup() {
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Account Number</label>
-                        <input type="text" name="accountNumber" maxLength={10} value={formData.accountNumber} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setFormData(prev => ({...prev, accountNumber: val})) }} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="0000000000" />
+                        <input type="text" name="accountNumber" maxLength={10} value={formData.accountNumber} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setFormData(prev => ({...prev, accountNumber: val})) }} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="0000000000" />
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
                         <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 flex justify-center gap-2">

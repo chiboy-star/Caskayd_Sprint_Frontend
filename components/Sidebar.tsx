@@ -4,103 +4,100 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   Squares2X2Icon, 
-  GlobeAltIcon, 
   ChatBubbleLeftRightIcon, 
-  ArrowLeftOnRectangleIcon,
+  ArrowLeftOnRectangleIcon, 
   XMarkIcon,
-  BriefcaseIcon
+  WalletIcon,
+  GlobeAltIcon
 } from "@heroicons/react/24/outline";
+import Image from "next/image";
 
 interface SidebarProps {
-    className?: string;
-    onClose?: () => void;
-    role?: "business" | "creator"; // Added Role Prop
+  role?: "business" | "creator"; // Added 'creator' role
+  onClose?: () => void;
+  className?: string;
 }
 
-const SidebarItem = ({ icon: Icon, label, href, onClick }: { icon: any, label: string, href: string, onClick?: () => void }) => {
+export default function Sidebar({ role = "business", onClose, className = "" }: SidebarProps) {
   const pathname = usePathname();
-  const isActive = pathname === href;
-
-  return (
-    <Link 
-      href={href}
-      onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-        isActive 
-        ? "text-emerald-600 font-semibold bg-emerald-50" 
-        : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-      }`}
-    >
-      <Icon className="w-6 h-6" />
-      <span>{label}</span>
-    </Link>
-  );
-};
-
-export default function Sidebar({ className = "", onClose, role = "business" }: SidebarProps) {
   const router = useRouter();
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
-    router.push(`/${role}/login`);
+    router.push(role === "business" ? "/business/login" : "/creator/login");
   };
 
+  // Define menu items based on role
   const menuItems = role === "business" ? [
-      { label: "Dashboard", href: "/business/dashboard", icon: Squares2X2Icon },
-      { label: "Discover", href: "/business/discover", icon: GlobeAltIcon },
-      { label: "Messages", href: "/business/messages", icon: ChatBubbleLeftRightIcon },
+    { name: "Dashboard", href: "/business/dashboard", icon: Squares2X2Icon },
+    { name: "Discover", href: "/business/discover", icon: GlobeAltIcon },
+    { name: "Messages", href: "/business/messages", icon: ChatBubbleLeftRightIcon },
   ] : [
-      { label: "Dashboard", href: "/creator/dashboard", icon: Squares2X2Icon },
-      { label: "Find Jobs", href: "/creator/jobs", icon: BriefcaseIcon }, // Different for Creator
-      { label: "Messages", href: "/creator/messages", icon: ChatBubbleLeftRightIcon },
+    // Creator Menu Items
+    { name: "Dashboard", href: "/creator/dashboard", icon: Squares2X2Icon },
+    { name: "Wallet", href: "/creator/wallet", icon: WalletIcon },
+    { name: "Messages", href: "/creator/messages", icon: ChatBubbleLeftRightIcon },
   ];
 
   return (
-    <aside className={`flex flex-col justify-between p-6 bg-white h-full ${className}`}>
+    <div className={`bg-[#F9FAFB] h-full flex flex-col justify-between p-6 ${className}`}>
+      
+      {/* Top Section */}
       <div>
         <div className="flex justify-between items-center mb-10">
-            <h1 className="text-2xl font-extrabold text-black">Caskayd</h1>
-            {onClose && (
-                <button onClick={onClose} className="md:hidden p-1 rounded-full hover:bg-gray-100">
-                    <XMarkIcon className="w-6 h-6 text-gray-500" />
-                </button>
-            )}
+          <h1 className="text-2xl font-extrabold text-black tracking-tight">Caskayd</h1>
+          {onClose && (
+            <button onClick={onClose} className="md:hidden p-1 rounded-md hover:bg-gray-200">
+              <XMarkIcon className="w-6 h-6 text-gray-500" />
+            </button>
+          )}
         </div>
-        
+
         <nav className="space-y-2">
-            {menuItems.map((item) => (
-                <SidebarItem 
-                    key={item.label}
-                    href={item.href} 
-                    icon={item.icon} 
-                    label={item.label} 
-                    onClick={onClose} 
-                />
-            ))}
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link 
+                key={item.name} 
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
+                  isActive 
+                    ? "text-[#165E3D] bg-white shadow-sm border border-gray-100" // Active style
+                    : "text-gray-500 hover:text-black hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${isActive ? "text-[#165E3D]" : "text-gray-400"}`} />
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
+      {/* Bottom Section */}
       <div>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white font-bold">
-             {role === "business" ? "HP" : "ME"}
-          </div>
-          <div className="overflow-hidden">
-              <p className="text-sm font-bold text-gray-900 truncate">{role === "business" ? "Business User" : "Creator User"}</p>
-              <p className="text-xs text-gray-500 truncate">{role === "business" ? "Marketing Director" : "Content Creator"}</p>
-          </div>
+        {/* User Profile Snippet (Optional - Static for now) */}
+        <div className="flex items-center gap-3 mb-6 px-2">
+            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden relative">
+                 {/* Placeholder Avatar */}
+                 <Image src="/images/avatar_placeholder.png" alt="User" width={40} height={40} className="object-cover" />
+            </div>
+            <div className="overflow-hidden">
+                <p className="text-sm font-bold text-gray-900 truncate">{role === 'business' ? 'Marketing Director' : 'Creator Account'}</p>
+                <p className="text-xs text-gray-400 truncate">user@caskayd.com</p>
+            </div>
         </div>
 
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
         >
-          <ArrowLeftOnRectangleIcon className="w-4 h-4" />
-          Logout
+          <ArrowLeftOnRectangleIcon className="w-5 h-5" /> Logout
         </button>
         
-        <p className="text-[10px] text-gray-400 mt-4 text-center">© 2026 Caskayd Enterprises</p>
+        <p className="text-[10px] text-gray-400 text-center mt-4">© 2026 Caskayd Enterprises</p>
       </div>
-    </aside>
+    </div>
   );
 }
