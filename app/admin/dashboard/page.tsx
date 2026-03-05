@@ -21,7 +21,7 @@ const BASE_URL = "http://localhost:3000";
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onClose, 3000); 
+      const timer = setTimeout(onClose, 3000);
       return () => clearTimeout(timer);
     }
   }, [isVisible, onClose]);
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
         
         // Reset form except ID for faster entry
         setFormData(prev => ({ ...prev, followers: "", avgLikes: "", avgComments: "" }));
-
+ 
     } catch (error: any) {
         setToast({ message: error.message || "Something went wrong", type: "error", isVisible: true });
     } finally {

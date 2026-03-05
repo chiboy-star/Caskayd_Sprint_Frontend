@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
-import Sidebar from "@/components/Sidebar"; 
+import CreatorNavigationPill from "@/components/CreatorNavigationPill"; 
 import { 
-  Bars3Icon, 
   BanknotesIcon, 
   ChartBarIcon, 
   ClockIcon,
   LinkIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ArrowsRightLeftIcon // Added for Transactions
 } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -29,7 +29,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
     if (!isVisible) return null;
 
     return (
-        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
+        <div className={`fixed top-28 left-1/2 transform -translate-x-1/2 z-[60] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-[#00D68F] text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-6 h-6"/> : <XCircleIcon className="w-6 h-6"/>}
@@ -41,8 +41,14 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 export default function CreatorDashboard() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
+  
+  // Updated state to handle the object structure from the API
+  const [earningsData, setEarningsData] = useState({
+      totalEarned: 0,
+      totalTransactions: 0
+  }); 
+  
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
@@ -57,51 +63,84 @@ export default function CreatorDashboard() {
     } else {
       setIsAuthenticated(true);
       fetchRequests(token);
+      fetchEarnings(token);
     }
   }, [router]);
 
+  // --- 1. FETCH CHAT REQUESTS ---
   const fetchRequests = async (token: string) => {
       try {
+          console.log("🔵 [API Request] GET /chat-requests/creator");
           const res = await fetch(`${BASE_URL}/chat-requests/creator`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              // Assuming the API returns an array of request objects
+              console.log("🟢 [API Response] GET /chat-requests/creator SUCCESS:", data);
               setInvites(data);
+          } else {
+              console.error("🔴 [API Error] GET /chat-requests/creator FAILED:", await res.text());
           }
       } catch (error) {
-          console.error("Failed to fetch requests", error);
+          console.error("🔴 [Network Error] GET /chat-requests/creator crashed:", error);
       } finally {
           setLoading(false);
       }
   };
 
+  // --- 2. FETCH EARNINGS ---
+  const fetchEarnings = async (token: string) => {
+      try {
+          console.log("🔵 [API Request] GET /payments/earnings");
+          const res = await fetch(`${BASE_URL}/payments/earnings`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
+              
+              // Set the state using the exact keys from the backend response
+              setEarningsData({
+                  totalEarned: data?.totalEarned || 0,
+                  totalTransactions: data?.totalTransactions || 0
+              });
+          } else {
+              console.error("🔴 [API Error] GET /payments/earnings FAILED:", await res.text());
+          }
+      } catch (error) {
+          console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
+      }
+  };
+
+  // --- 3. HANDLE ACCEPT/REJECT ---
   const handleAction = async (id: string, action: "accept" | "reject") => {
       const token = localStorage.getItem("accessToken");
       if (!token) return;
 
       try {
+          console.log(`🔵 [API Request] PATCH /chat-requests/${id}/${action}`);
           const res = await fetch(`${BASE_URL}/chat-requests/${id}/${action}`, {
               method: "PATCH",
               headers: { "Authorization": `Bearer ${token}` }
           });
 
           if (res.ok) {
+              console.log(`🟢 [API Response] PATCH /chat-requests/${id}/${action} SUCCESS`);
               showToast(`Request ${action}ed successfully`, "success");
-              // Remove the processed invite from the list locally to update UI immediately
               setInvites(prev => prev.filter(invite => invite.id !== id));
           } else {
               const errorData = await res.json();
+              console.error(`🔴 [API Error] PATCH /chat-requests/${id}/${action} FAILED:`, errorData);
               throw new Error(errorData.message || "Action failed");
           }
       } catch (error: any) {
+          console.error("🔴 [Network Error] Handle Action crashed:", error);
           showToast(error.message || "Something went wrong", "error");
       }
   };
 
-  // Helper to format date range simply (e.g. "Jun 1 - Jun 21")
   const formatDateRange = (start: string, end: string) => {
       if(!start || !end) return "Flexible Dates";
       const s = new Date(start);
@@ -113,7 +152,7 @@ export default function CreatorDashboard() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className={`flex min-h-screen bg-white ${inter.className}`}>
+    <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className}`}>
       
       <Toast 
         message={toast.message} 
@@ -122,62 +161,44 @@ export default function CreatorDashboard() {
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
       />
 
-      {/* Sidebar Desktop */}
-      <div className="hidden md:block w-64 fixed h-full z-20">
-        <Sidebar role="creator" className="border-r border-gray-100" />
-      </div>
+      {/* TOP PILL NAVIGATION */}
+      <CreatorNavigationPill />
 
-      {/* Sidebar Mobile */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
-      <div className={`fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 md:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <Sidebar role="creator" onClose={() => setIsMobileMenuOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 w-full bg-white">
+      {/* MAIN CONTENT */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pb-12 pt-32">
         
-        {/* Mobile Header */}
-        <div className="md:hidden flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-black">Caskayd</h1>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-gray-50 rounded-lg">
-                <Bars3Icon className="w-6 h-6 text-black" />
-            </button>
-        </div>
-
-        {/* --- MAIN DASHBOARD CONTAINER (Lilac) --- */}
-        <div className="bg-[#DEDBF9] rounded-[2.5rem] p-6 md:p-10 shadow-sm min-h-[85vh] relative">
+        {/* --- MAIN DASHBOARD CONTAINER --- */}
+        <div className="bg-[#EBE9FE] rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
           
           {/* Top Metrics Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             
-            {/* Total Earnings - Green */}
-            <div className="bg-[#D1F7C4] border-2 border-[#26A17B] rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-sm h-32">
-                <div className="flex items-center gap-2 mb-1 text-[#1B5E20] font-bold text-sm">
-                    <BanknotesIcon className="w-5 h-5" /> Total Earnings
+            {/* Total Earnings - Green Border */}
+            <div className="bg-white border-2 border-[#34D399] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-bold text-sm tracking-wide">
+                    <BanknotesIcon className="w-5 h-5 text-[#34D399]" /> Total Earnings
                 </div>
-                <div className="text-2xl md:text-3xl font-extrabold text-[#1B5E20] tracking-tight">
-                    ₦ 0.00
+                <div className="text-4xl md:text-5xl font-extrabold text-[#10B981] tracking-tight">
+                    ₦ {earningsData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+            </div> 
+
+            {/* Total Transactions (Replaced Active Jobs) - Purple Border */}
+            <div className="bg-white border-2 border-[#818CF8] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-bold text-sm tracking-wide">
+                    <ArrowsRightLeftIcon className="w-5 h-5 text-[#818CF8]" /> Total Transactions
+                </div>
+                <div className="text-4xl md:text-5xl font-extrabold text-[#5B4DFF] tracking-tight">
+                    {earningsData.totalTransactions}
                 </div>
             </div>
 
-            {/* Active Jobs - Pink/Red */}
-            <div className="bg-[#F6A5B6] border-2 border-[#C0392B] rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-sm h-32">
-                <div className="flex items-center gap-2 mb-1 text-[#922B21] font-bold text-sm">
-                    <ChartBarIcon className="w-5 h-5" /> Active Jobs
+            {/* New Invites - Orange Border */}
+            <div className="bg-white border-2 border-[#FBBF24] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-bold text-sm tracking-wide">
+                    <ClockIcon className="w-5 h-5 text-[#FBBF24]" /> New Invites
                 </div>
-                <div className="text-3xl font-extrabold text-[#922B21]">
-                    0
-                </div>
-            </div>
-
-            {/* New Invites - Orange */}
-            <div className="bg-[#FAD7A0] border-2 border-[#D35400] rounded-2xl p-6 flex flex-col items-center justify-center text-center shadow-sm h-32">
-                <div className="flex items-center gap-2 mb-1 text-[#A04000] font-bold text-sm">
-                    <ClockIcon className="w-5 h-5" /> New Invites
-                </div>
-                <div className="text-3xl font-extrabold text-[#A04000]">
+                <div className="text-4xl md:text-5xl font-extrabold text-[#F59E0B] tracking-tight">
                     {invites.length}
                 </div>
             </div>
@@ -185,70 +206,77 @@ export default function CreatorDashboard() {
           </div>
 
           {/* New Invites List */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-black mb-4 ml-1">New Invites</h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-6 px-2">New Invites</h2>
 
-            {loading ? (
-                <div className="text-center py-10 text-gray-500">Loading invites...</div>
-            ) : invites.length > 0 ? (
-                invites.map((invite) => (
-                    <div 
-                        key={invite.id} 
-                        className="bg-white rounded-2xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm hover:shadow-md transition-shadow gap-4"
-                    >
-                        <div className="flex-1">
-                            <span className="text-[#C0392B] text-[10px] font-bold uppercase tracking-wide bg-[#FADBD8] px-2 py-1 rounded-md inline-block mb-1">
-                                {formatDateRange(invite.startDate, invite.endDate)}
-                            </span>
-                            <h3 className="text-lg font-bold text-gray-900 mt-1">
-                                {invite.message}
-                            </h3>
-                            <div className="flex gap-2 mt-1">
-                                <span className="text-xs text-gray-500 font-medium">Budget: ₦{Number(invite.proposedPrice).toLocaleString()}</span>
-                                {invite.business && (
-                                    <span className="text-xs text-indigo-600 font-medium">• {invite.business.businessName}</span>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                            {invite.briefUrl && (
-                                <a 
-                                    href={invite.briefUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-black font-semibold text-xs hover:underline decoration-black underline-offset-2 mr-2"
-                                >
-                                    See deliverables <LinkIcon className="w-3 h-3" />
-                                </a>
-                            )}
-                            
-                            <div className="flex gap-2 w-full md:w-auto">
-                                <button 
-                                    onClick={() => handleAction(invite.id, "accept")}
-                                    className="flex-1 md:flex-none bg-[#00D68F] hover:bg-[#00c080] text-white font-bold py-2 px-6 rounded-lg text-sm transition-colors shadow-sm"
-                                >
-                                    Accept
-                                </button>
-                                <button 
-                                    onClick={() => handleAction(invite.id, "reject")}
-                                    className="flex-1 md:flex-none bg-[#FF0000] hover:bg-[#d90000] text-white font-bold py-2 px-6 rounded-lg text-sm transition-colors shadow-sm"
-                                >
-                                    Decline
-                                </button>
-                            </div>
-                        </div>
+            <div className="space-y-4">
+                {loading ? (
+                    <div className="text-center py-12 text-gray-500 font-medium bg-white rounded-3xl border border-gray-100 shadow-sm">
+                        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        Loading invites...
                     </div>
-                ))
-            ) : (
-                <div className="text-center py-10 text-gray-500 bg-white/50 rounded-2xl">
-                    No new invites at the moment.
-                </div>
-            )}
+                ) : invites.length > 0 ? (
+                    invites.map((invite) => (
+                        <div 
+                            key={invite.id} 
+                            className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm hover:shadow-md transition-shadow gap-6"
+                        >
+                            <div className="flex-1">
+                                <span className="text-[#C0392B] text-[10px] font-bold uppercase tracking-wide bg-[#FADBD8] px-2.5 py-1 rounded-md inline-block mb-2">
+                                    {formatDateRange(invite.startDate, invite.endDate)}
+                                </span>
+                                <h3 className="text-xl font-bold text-gray-900 mt-1">
+                                    {invite.message}
+                                </h3>
+                                <div className="flex items-center gap-3 mt-2">
+                                    <span className="text-sm text-gray-600 font-medium bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
+                                        Budget: ₦{Number(invite.proposedPrice).toLocaleString()}
+                                    </span>
+                                    {invite.business && (
+                                        <span className="text-sm text-[#5B4DFF] font-bold">• {invite.business.businessName}</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                                {invite.briefUrl && (
+                                    <a 
+                                        href={invite.briefUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-1.5 text-gray-700 font-bold text-sm hover:text-black transition-colors w-full sm:w-auto"
+                                    >
+                                        See deliverables <LinkIcon className="w-4 h-4" />
+                                    </a>
+                                )}
+                                
+                                <div className="flex gap-3 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => handleAction(invite.id, "accept")}
+                                        className="flex-1 sm:flex-none bg-[#00D68F] hover:bg-[#00c080] text-black font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95"
+                                    >
+                                        Accept
+                                    </button>
+                                    <button 
+                                        onClick={() => handleAction(invite.id, "reject")}
+                                        className="flex-1 sm:flex-none bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95"
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center py-16 text-gray-500 bg-white rounded-3xl border border-gray-100 font-medium shadow-sm">
+                        No new invites at the moment.
+                    </div>
+                )}
+            </div>
           </div>
 
         </div>
       </main>
     </div>
-  );
+  ); 
 }

@@ -14,6 +14,6 @@ export default function Loading() {
       <p className="mt-4 text-sm font-semibold text-gray-500 animate-pulse tracking-widest">
         CASKAYD
       </p>
-    </div>
-  );
+    </div> 
+  ); 
 }

@@ -1,79 +1,59 @@
 import Link from "next/link";
 import { Inter } from "next/font/google";
+import LandingNavigationPill from "@/components/LandingNavigationPill"; 
 
-// Initialize the font
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
   return (
-    <div className={`h-screen w-full flex flex-col relative overflow-hidden ${inter.className}`}>
+    // h-screen + overflow-hidden prevents scrolling. flex-col organizes vertical spacing.
+    <div className={`h-screen w-full flex flex-col relative overflow-hidden bg-[#F8F9FA] ${inter.className}`}>
       
       {/* --- BACKGROUND GRADIENT MESH --- */}
-      <div className="absolute inset-0 z-0 bg-[#F8F9FA] pointer-events-none">
+      <div className="absolute inset-0 z-0 pointer-events-none select-none">
         {/* Top Right Purple Glow */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-100/60 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute top-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-purple-200/40 rounded-full blur-[80px] animate-pulse"></div>
         {/* Bottom Left Green Glow */}
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-50/80 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[45vw] h-[45vw] bg-emerald-100/60 rounded-full blur-[100px]"></div>
       </div>
 
-      {/* --- HEADER --- */}
-      <header className="w-full max-w-7xl mx-auto px-6 py-5 flex justify-between items-center relative z-20 shrink-0">
-        
-        {/* Logo */}
-        <div className="text-xl md:text-2xl font-extrabold text-black tracking-tight">
-          Caskayd
-        </div>
+      {/* --- NAVIGATION --- */}
+      <LandingNavigationPill />
 
-        {/* Auth Links (Text Only) */}
-        <nav className="flex items-center gap-6 text-sm md:text-base font-medium">
-          <Link 
-            href="/business/login" 
-            className="text-indigo-600 hover:text-indigo-800 hover:underline transition-all"
-          >
-            Login as Business
-          </Link>
-
-          <Link 
-            href="/creator/login" 
-            className="text-emerald-600 hover:text-emerald-800 hover:underline transition-all"
-          >
-            Login as Creator
-          </Link>
-        </nav>
-      </header>
-
-      {/* --- HERO SECTION --- */}
-      {/* flex-1 ensures it takes available space, items-center/justify-center locks it in middle */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
+      {/* --- MAIN CONTENT (Centered) --- */}
+      {/* pt-20 accounts for the header. flex-1 + justify-center centers it vertically. */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 relative z-10 w-full pt-20">
         
         {/* White Glassmorphism Card */}
-        {/* Reduced padding from md:p-20 to md:p-12 to reduce empty space */}
-        <div className="w-full max-w-4xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-xl rounded-[2.5rem] p-8 md:p-12 text-center mx-auto">
+        {/* Max-height helps prevent it from getting too tall on large screens */}
+        <div className="w-full max-w-4xl bg-white/40 backdrop-blur-lg border border-white/60 shadow-[0_8px_40px_rgba(0,0,0,0.04)] rounded-[2.5rem] p-8 md:p-14 text-center mx-auto transition-transform duration-700 flex flex-col items-center justify-center gap-6">
           
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1] max-w-3xl">
             Connect Brands With Top <br className="hidden md:block" />
-            <span className="text-indigo-500">Content Creators</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#8B5CF6]">
+                Content Creators
+            </span>
           </h1>
 
-          <p className="mt-5 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed font-medium">
             Scale your ROI with data-driven creator partnerships. Our platform
-            helps you find, manage and track high-performing content at scale.
+            helps you find, manage, and track high-performing content at scale.
           </p>
 
           {/* Action Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
+          <div className="mt-4 flex flex-col sm:flex-row gap-4 w-full justify-center">
             <Link 
               href="/business/signup"
-              className="min-w-[180px] px-8 py-3.5 bg-indigo-500 text-white font-semibold rounded-lg shadow-md shadow-indigo-200 hover:bg-indigo-600 transition-all transform hover:-translate-y-0.5 text-center"
+              className="min-w-[200px] px-8 py-3.5 bg-[#6366F1] text-white font-bold text-base md:text-lg rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all transform hover:-translate-y-1"
             >
               Hire a Creator
             </Link>
             
             <Link 
               href="/creator/signup"
-              className="min-w-[180px] px-8 py-3.5 bg-emerald-500 text-white font-semibold rounded-lg shadow-md shadow-emerald-200 hover:bg-emerald-600 transition-all transform hover:-translate-y-0.5 text-center"
+              className="min-w-[200px] px-8 py-3.5 bg-[#10B981] text-white font-bold text-base md:text-lg rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-600 hover:shadow-emerald-300 transition-all transform hover:-translate-y-1"
             >
-              Join as a creator
+              Join as a Creator
             </Link>
           </div>
 
@@ -81,8 +61,9 @@ export default function Home() {
       </main>
 
       {/* --- FOOTER --- */}
-      <footer className="w-full py-4 text-center text-xs text-slate-500 relative z-10 shrink-0">
-        <p>© 2026 Caskayd Enterprises. All rights reserved</p>
+      {/* pb-6 ensures it sits nicely at the bottom */}
+      <footer className="w-full py-6 text-center text-xs sm:text-sm font-medium text-slate-400 relative z-10 shrink-0">
+        <p>© 2026 Caskayd Enterprises. All rights reserved.</p>
       </footer>
 
     </div>

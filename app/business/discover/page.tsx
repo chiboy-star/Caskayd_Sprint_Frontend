@@ -8,20 +8,36 @@ import {
   MagnifyingGlassIcon, 
   ChevronDownIcon, 
   XMarkIcon, 
-  Squares2X2Icon,
-  MapPinIcon,
-  ArrowUpTrayIcon,
-  CalendarDaysIcon,
-  BanknotesIcon,
-  ArrowLeftIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
-  DocumentIcon
+  DocumentIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowLeftIcon,
+  ArrowUpTrayIcon
+  // FIXED: Removed unused MapPinIcon
 } from "@heroicons/react/24/outline";
-import Sidebar from "@/components/Sidebar"; 
+import { CheckBadgeIcon } from "@heroicons/react/24/solid"; 
+import NavigationPill from "@/components/NavigationPill"; 
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = "http://localhost:3000";
+
+// --- TYPES (FIXED: Replaced 'any' with explicit types) ---
+type FilterOption = string | { label: string; value: string };
+
+interface CreatorProfile {
+    id?: string;
+    userId?: string;
+    profileImageUrl?: string;
+    instagram?: string;
+    tiktok?: string;
+    instagramFollowers?: number;
+    tiktokFollowers?: number;
+    instagramEngagementRate?: number;
+    tiktokEngagementRate?: number;
+    pricePerPost?: number | string;
+    location?: string;
+}
 
 // --- CONFIGURATION ---
 const FILTER_OPTIONS = {
@@ -36,6 +52,22 @@ const FILTER_OPTIONS = {
   platform: ["instagram", "tiktok"]
 };
 
+// --- PLACEHOLDER IMAGES ---
+const PLACEHOLDERS = [
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500&auto=format&fit=crop&q=60"
+];
+
+// --- UTILS ---
+const formatNumber = (num: number | undefined) => {
+    if (!num) return "0";
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+};
+
 // --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -48,9 +80,9 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
     if (!isVisible) return null;
 
     return (
-        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-100 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
-        } ${type === "success" ? "bg-[#00D68F] text-black" : "bg-red-500 text-white"}`}>
+        } ${type === "success" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-6 h-6"/> : <ExclamationCircleIcon className="w-6 h-6"/>}
             <span className="font-bold text-sm">{message}</span>
         </div>
@@ -66,21 +98,16 @@ const InstagramIcon = ({ className }: { className?: string }) => (
 
 const TiktokIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.49-3.35-3.98-5.6-.54-2.49.42-5.18 2.45-6.83 1.98-1.63 4.81-1.82 7.01-.52.14.09.28.19.42.29-.01 1.33-.01 2.66-.01 4-.08-.03-.17-.07-.25-.11-.95-.49-2.05-.64-3.11-.42-1.18.24-2.19 1.05-2.67 2.17-.5 1.17-.37 2.54.34 3.59.83 1.25 2.51 1.74 3.94 1.13.92-.38 1.63-1.16 1.93-2.1.26-.81.25-1.68.25-2.53-.02-5.24-.02-10.49-.02-15.73z" />
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.89-.31-4.08-1.03-2.02-1.19-3.49-3.35-3.98-5.6-.54-2.49.42-5.18 2.45-6.83 1.98-1.63 4.81-1.82 7.01-.52.14.09.28.19.42.29-.01 1.33-.01 2.66-.01 4-.08-.03-.17-.07-.25-.11-.95-.49-2.05-.64-3.11-.42-1.18.24-2.19 1.05-2.67 2.17-.5 1.17-.37 2.54.34 3.59.83 1.25 2.51 1.74 3.94 1.13.92-.38 1.63-1.16 1.93-2.1.26-.81.25-1.68.25-2.53-.02-5.24-.02-10.49-.02-15.73z" />
   </svg>
 );
 
-const formatNumber = (num: number) => {
-    if (!num) return "0";
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
-    return num.toString();
-};
-
-const FilterDropdown = ({ label, options, onSelect }: { label: string, options: any[], onSelect: (val: string) => void }) => {
+// FIXED: Replaced 'any[]' with 'FilterOption[]'
+const FilterDropdown = ({ label, options, onSelect }: { label: string, options: FilterOption[], onSelect: (val: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Flow: Closes dropdown if user clicks outside of it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -95,35 +122,41 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm text-sm font-medium transition-all ${isOpen ? 'text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-700 hover:bg-gray-50'}`}
+        className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen ? 'text-black' : 'text-gray-500 hover:text-black'}`}
       >
         {label}
         <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      <div className={`absolute top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-30 transition-all duration-200 origin-top ${isOpen ? 'opacity-100 scale-y-100 translate-y-0' : 'opacity-0 scale-y-95 -translate-y-2 pointer-events-none'}`}>
-        <div className="py-2">
-          {options.map((option, idx) => {
-            const displayLabel = typeof option === 'object' ? option.label : option;
-            const returnValue = typeof option === 'object' ? option.value : option;
-            return (
-                <button 
-                  key={idx} 
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                  onClick={() => { onSelect(returnValue); setIsOpen(false); }}
-                >
-                  {displayLabel}
-                </button>
-            );
-          })}
-        </div>
-      </div>
+      {isOpen && (
+          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+            <div className="py-2">
+              {options.map((option, idx) => {
+                const displayLabel = typeof option === 'object' ? option.label : option;
+                const returnValue = typeof option === 'object' ? option.value : option;
+                return (
+                    <button 
+                      key={idx} 
+                      className="w-full text-left px-4 py-3 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-50 last:border-0"
+                      onClick={() => { onSelect(returnValue); setIsOpen(false); }}
+                    >
+                      {displayLabel}
+                    </button>
+                );
+              })}
+            </div>
+          </div>
+      )}
     </div>
   );
 };
 
-const CreatorCard = ({ creator, onInvite }: { creator: any, onInvite: (c: any) => void }) => {
+// FIXED: Replaced 'any' with 'CreatorProfile'
+const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, onInvite: (c: CreatorProfile) => void, index: number }) => {
     const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
+
+    // Cycle through placeholders if no image is provided
+    const placeholderImg = PLACEHOLDERS[index % PLACEHOLDERS.length];
 
     const togglePlatform = (e: React.MouseEvent) => {
         e.stopPropagation(); 
@@ -143,75 +176,88 @@ const CreatorCard = ({ creator, onInvite }: { creator: any, onInvite: (c: any) =
     };
 
     const handle = getHandle();
+    const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
+    const location = creator.location || "Unknown";
 
     return (
-        <div className="relative group aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-300 bg-gray-200">
-            {creator.profileImageUrl ? (
+        <div className="bg-white rounded-4xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full border border-transparent hover:border-gray-100">
+            {/* Image Container */}
+            <div className="relative aspect-4/5 w-full rounded-3xl overflow-hidden bg-gray-100 mb-4">
                 <Image 
-                    src={creator.profileImageUrl} 
+                    src={creator.profileImageUrl || placeholderImg} 
                     alt={handle} 
                     fill 
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100 flex-col gap-2">
-                    <span className="text-sm font-medium">No Image</span>
-                </div>
-            )}
-            
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-
-            <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onInvite(creator); }}
-                    className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-white text-xs font-medium hover:bg-white/25 transition-colors backdrop-blur-sm"
-                >
-                    + Invite
-                </button>
-                <button 
-                    onClick={togglePlatform}
-                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md bg-white/20 hover:bg-white/30 transition-colors z-20"
-                >
-                     {platform === 'tiktok' ? <TiktokIcon className="w-5 h-5 text-white" /> : <InstagramIcon className="w-5 h-5 text-white" />}
-                </button>
             </div>
-
-            <div className="absolute bottom-0 left-0 w-full p-4 text-white">
-                <p className="font-bold text-lg mb-1">{handle}</p>
-                <p className="text-xs text-gray-300 mb-2 truncate">{creator.bio || "No bio"}</p>
-                <div className="flex items-center gap-2 text-xs text-gray-200 mb-2">
-                    <span className="bg-white/10 px-2 py-0.5 rounded backdrop-blur-sm">{formatNumber(followers)} Follows</span>
-                    <span className="bg-white/10 px-2 py-0.5 rounded backdrop-blur-sm flex items-center gap-1">
-                        <MapPinIcon className="w-3 h-3" /> {creator.location || "Unknown"}
-                    </span>
+            
+            {/* Text Content */}
+            <div className="flex flex-col gap-3 flex-1 px-1">
+                {/* Name & Verification */}
+                <div className="flex items-center gap-1.5">
+                    <h3 className="font-bold text-lg text-slate-900 truncate">{handle}</h3>
+                    <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />
                 </div>
-                <div className="flex justify-between items-center text-xs font-medium border-t border-white/20 pt-2 mt-2">
-                    <span className="text-gray-100">
-                        {creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A"}
-                    </span>
-                    <span className="text-emerald-400">
-                        Eng: {engagement ? Number(engagement).toFixed(1) : "0"}%
-                    </span>
+ 
+                {/* Stats Section - 2 Lines */}
+                <div className="flex flex-col gap-1.5 pb-1">
+                    {/* Line 1: Followers | Price */}
+                    <div className="flex items-center text-xs text-gray-500 font-medium">
+                        <span className="text-gray-400 mr-1">Followers:</span>
+                        <span className="text-slate-900 font-bold">{formatNumber(followers)}</span>
+                        <span className="mx-2 text-gray-300">|</span>
+                        <span className="text-gray-400 mr-1">Price:</span>
+                        <span className="text-slate-900 font-bold">{price}</span>
+                    </div>
+
+                    {/* Line 2: Location | Eng Rate */}
+                    <div className="flex items-center text-xs text-gray-500 font-medium">
+                        <span className="text-gray-400 mr-1">Loc:</span>
+                        <span className="text-slate-900 font-bold truncate max-w-20">{location}</span>
+                        <span className="mx-2 text-gray-300">|</span>
+                        <span className="text-gray-400 mr-1">Eng Rate:</span>
+                        <span className="text-slate-900 font-bold">{engagement ? Number(engagement).toFixed(1) : "0"}%</span>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between mt-auto pt-1 gap-3">
+                     {/* Platform Pill */}
+                    <button 
+                        onClick={togglePlatform}
+                        className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 ${
+                            platform === 'instagram' 
+                            ? 'bg-linear-to-tr from-[#833AB4] via-[#FD1D1D] to-[#FCAF45] hover:shadow-orange-200' 
+                            : 'bg-black hover:shadow-gray-300'
+                        }`}
+                    >
+                        {platform === 'instagram' ? <InstagramIcon className="w-4 h-4" /> : <TiktokIcon className="w-4 h-4" />}
+                    </button>
+
+                    {/* Invite Button */}
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onInvite(creator); }}
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold rounded-full transition-colors text-center text-xs active:scale-95"
+                    >
+                        Invite to Campaign +
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
 
-// --- NEW INVITE FLOW COMPONENT ---
-const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolean, onClose: () => void, creator: any, onShowToast: (msg: string, type: "success"|"error") => void }) => {
+// FIXED: Replaced 'any' with 'CreatorProfile | null'
+const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onShowToast: (msg: string, type: "success"|"error") => void }) => {
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
-        title: "",
-        startDate: "",
-        endDate: "",
-        budget: "",
-        file: null as File | null
+        title: "", startDate: "", endDate: "", budget: "", file: null as File | null
     });
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Flow: Resets modal state whenever it is opened
     useEffect(() => {
         if(isOpen) {
             setStep(1);
@@ -225,208 +271,121 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             onShowToast("Please fill in all fields before proceeding.", "error");
             return;
         }
-        
-        const start = new Date(formData.startDate);
-        const end = new Date(formData.endDate);
-
-        if (end < start) {
-            onShowToast("End date cannot be before start date.", "error");
-            return;
-        }
-
         setStep(2);
     };
 
+    // Flow: Submits the chat request to backend
     const handleSubmit = async () => {
         if (!formData.budget) {
             onShowToast("Please enter a budget.", "error");
             return;
         }
-        if (Number(formData.budget) < 0) {
-            onShowToast("Budget cannot be negative.", "error");
-            return;
-        }
-
         setIsSubmitting(true);
-
         try {
-            // Retrieve token
             const token = localStorage.getItem("accessToken");
-            if (!token) {
-                onShowToast("You are not logged in.", "error");
-                setIsSubmitting(false);
-                return;
-            }
+            if (!token) { onShowToast("You are not logged in.", "error"); return; }
 
-            // Construct payload
             const payload = {
-                creatorId: creator.userId, // Ensure creator object has an ID
+                creatorId: creator?.userId, 
                 message: `Campaign Request: ${formData.title}`,
-                briefUrl: "https://file.pdf", // Static URL as requested
+                briefUrl: "https://file.pdf", // TODO: Needs implementation with /upload endpoint
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 proposedPrice: Number(formData.budget)
             };
-            console.log("what is being sent",payload)
+            
+            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
+            
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.message || "Failed to send request");
+                console.error("🔴 [API Error] POST /chat-requests FAILED:", await res.text());
+                throw new Error("Failed to send request");
             }
-
+            
+            console.log("🟢 [API Response] POST /chat-requests SUCCESS");
             onShowToast("Request Sent Successfully!", "success");
             onClose();
 
         } catch (error: any) {
-            console.error("Request Error:", error);
+            console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleFileClick = () => {
-        fileInputRef.current?.click();
-    };
-
+    const handleFileClick = () => fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFormData({ ...formData, file: e.target.files[0] });
-        }
+        if (e.target.files && e.target.files[0]) setFormData({ ...formData, file: e.target.files[0] });
     };
 
     if (!isOpen || !creator) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-            {/* Modal Container */}
-            <div className="w-full max-w-md bg-black/85 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white overflow-hidden">
-                
-                <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors z-10">
-                    <XMarkIcon className="w-5 h-5" />
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
+                <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <XMarkIcon className="w-5 h-5 text-gray-500" />
                 </button>
 
-                {/* ANIMATED STEPS CONTAINER */}
                 <div className={`transition-all duration-300 ease-in-out ${step === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 hidden'}`}>
                     {step === 1 && (
-                        <div className="space-y-8 mt-2">
-                            <h2 className="text-center text-sm font-semibold tracking-wide text-gray-300 uppercase">Step 1 of 2</h2>
-                            
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-200">Enter Campaign Title</label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({...formData, title: e.target.value})}
-                                        className="w-full bg-transparent border-b border-gray-600 py-2 text-lg focus:outline-none focus:border-[#00D68F] transition-colors placeholder-gray-600"
-                                        placeholder="e.g. Summer Launch"
-                                    />
+                        <div className="space-y-6 mt-2">
+                            <h2 className="text-center text-lg font-bold text-gray-900">Start a Campaign</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Campaign Title</label>
+                                    <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full mt-1 border-b border-gray-200 py-3 text-lg font-medium focus:outline-none focus:border-black transition-colors placeholder-gray-300" placeholder="e.g. Summer Launch" />
                                 </div>
-
-                                <div className="space-y-3">
-                                    <label className="text-sm font-medium text-gray-200">Product Timeline</label>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1 relative group">
-                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                                <CalendarDaysIcon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                                            </div>
-                                            <input 
-                                                type="date" 
-                                                value={formData.startDate}
-                                                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                                                className="w-full bg-gray-700/50 hover:bg-gray-700 rounded-lg py-3 pl-10 pr-4 text-gray-300 text-sm focus:outline-none focus:ring-1 focus:ring-[#00D68F] transition-all cursor-pointer"
-                                            />
-                                        </div>
-                                        <div className="flex-1 relative group">
-                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                                <CalendarDaysIcon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-                                            </div>
-                                            <input 
-                                                type="date" 
-                                                value={formData.endDate}
-                                                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                                                className="w-full bg-gray-700/50 hover:bg-gray-700 rounded-lg py-3 pl-10 pr-4 text-gray-300 text-sm focus:outline-none focus:ring-1 focus:ring-[#00D68F] transition-all cursor-pointer"
-                                            />
-                                        </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
+                                        <input aria-label="input-start-date" type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">End Date</label>
+                                        <input aria-label="input-end-date"type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black" />
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="flex justify-end pt-4">
-                                <button onClick={handleNext} className="bg-[#00D68F] text-black font-bold py-3 px-8 rounded-full hover:bg-[#00bfa5] transition-transform active:scale-95 flex items-center gap-2 shadow-[0_0_15px_rgba(0,214,143,0.3)]">
-                                    Next <span>→</span>
-                                </button>
-                            </div>
+                            <button onClick={handleNext} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200">Next Step</button>
                         </div>
                     )}
                 </div>
 
                 <div className={`transition-all duration-300 ease-in-out ${step === 2 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 hidden'}`}>
                     {step === 2 && (
-                        <div className="space-y-8 mt-2">
-                            <div className="flex items-center justify-between">
-                                <button onClick={() => setStep(1)} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm transition-colors">
-                                    <ArrowLeftIcon className="w-4 h-4" /> Back
-                                </button>
-                                <h2 className="text-center text-sm font-semibold tracking-wide text-gray-300 uppercase">Step 2 of 2</h2>
-                                <div className="w-10"></div> {/* Spacer for centering */}
+                        <div className="space-y-6 mt-2">
+                            <div className="flex items-center gap-2 mb-4">
+                                <button aria-label="Go back" onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-gray-100"><ArrowLeftIcon className="w-5 h-5" /></button>
+                                <h2 className="text-lg font-bold">Campaign Details</h2>
                             </div>
                             
-                            <div className="flex flex-col items-center justify-center space-y-4 py-4">
-                                <div 
-                                    onClick={handleFileClick}
-                                    className="w-24 h-24 bg-[#151520] rounded-full flex items-center justify-center border border-dashed border-gray-600 hover:border-[#00D68F] hover:bg-[#1a1a25] cursor-pointer transition-all group"
-                                >
-                                    {formData.file ? (
-                                        <DocumentIcon className="w-10 h-10 text-[#00D68F]" />
-                                    ) : (
-                                        <ArrowUpTrayIcon className="w-10 h-10 text-gray-400 group-hover:text-white transition-colors" />
-                                    )}
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-xs text-gray-300 font-medium">{formData.file ? formData.file.name : "Upload Campaign Brief Doc."}</p>
-                                    <p className="text-[10px] text-gray-500 mt-1">PDF, DOCX up to 5MB</p>
-                                </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.doc,.docx" />
+                            <div onClick={handleFileClick} className="w-full h-32 bg-gray-50 rounded-2xl border border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-black hover:bg-gray-50 transition-all">
+                                {formData.file ? <DocumentIcon className="w-8 h-8 text-black" /> : <ArrowUpTrayIcon className="w-8 h-8 text-gray-300" />}
+                                <p className="text-xs text-gray-500 mt-2 font-medium">{formData.file ? formData.file.name : "Upload Brief (PDF/Doc)"}</p>
+                                <input aria-label="file upload" type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.doc,.docx" />
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-sm font-medium text-gray-200">Enter Budget:</label>
-                                <div className="bg-gray-700/50 rounded-lg flex items-center px-4 py-3 border border-gray-700 focus-within:border-[#00D68F] transition-colors">
-                                    <span className="text-gray-400 mr-2 font-mono">₦</span>
-                                    <input 
-                                        type="number" 
-                                        value={formData.budget}
-                                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                                        placeholder="000000.00"
-                                        min="0"
-                                        className="bg-transparent w-full focus:outline-none text-white font-mono placeholder-gray-500 text-lg"
-                                    />
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Budget</label>
+                                <div className="relative mt-2">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₦</span>
+                                    <input type="number" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} placeholder="0.00" className="w-full bg-gray-50 rounded-2xl py-4 pl-10 pr-4 text-xl font-bold text-gray-900 focus:outline-none focus:ring-1 focus:ring-black" />
                                 </div>
                             </div>
 
-                            <div className="flex justify-center pt-4">
-                                <button 
-                                    onClick={handleSubmit} 
-                                    disabled={isSubmitting}
-                                    className="bg-[#00D68F] text-black font-bold py-3 px-12 rounded-full hover:bg-[#00bfa5] transition-transform active:scale-95 shadow-[0_0_15px_rgba(0,214,143,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isSubmitting ? "Sending..." : "Done"}
-                                </button>
-                            </div>
+                            <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 disabled:opacity-50">
+                                {isSubmitting ? "Sending Request..." : "Send Request"}
+                            </button>
                         </div>
                     )}
                 </div>
-
             </div>
         </div>
     );
@@ -436,8 +395,8 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
 export default function DiscoverPage() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedCreator, setSelectedCreator] = useState<any>(null);
+  // FIXED: Replaced 'any' with 'CreatorProfile | null'
+  const [selectedCreator, setSelectedCreator] = useState<CreatorProfile | null>(null);
   
   // TOAST STATE
   const [toast, setToast] = useState<{msg: string, type: "success"|"error", visible: boolean}>({ msg: "", type: "success", visible: false });
@@ -446,10 +405,15 @@ export default function DiscoverPage() {
       setToast({ msg, type, visible: true });
   };
 
-  const [creators, setCreators] = useState<any[]>([]);
+  // FIXED: Replaced 'any[]' with 'CreatorProfile[]'
+  const [creators, setCreators] = useState<CreatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // FILTER STATE
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ niche: "", price: "", platform: "" });
 
+  // Flow: Re-fetches the creators list every time a filter state changes
   useEffect(() => {
       const fetchCreators = async () => {
           setLoading(true);
@@ -458,18 +422,21 @@ export default function DiscoverPage() {
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               if (filters.price) params.append("maxPrice", filters.price); 
               
-              // Backend Endpoint: GET /creator
+              console.log(`🔵 [API Request] GET /creator?${params.toString()}`);
+              
               const res = await fetch(`${BASE_URL}/creator?${params.toString()}`, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
-              
+               
               if (res.ok) {
                   const data = await res.json();
-                  console.log("Data: ",data)
+                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
+              } else {
+                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
-              console.error("Failed to fetch creators", error);
+              console.error("🔴 [Network Error] GET /creator crashed:", error);
           } finally {
               setLoading(false);
           }
@@ -477,7 +444,7 @@ export default function DiscoverPage() {
       fetchCreators();
   }, [filters]);
 
-  const openInviteModal = (creator: any) => {
+  const openInviteModal = (creator: CreatorProfile) => {
       setSelectedCreator(creator);
       setIsModalOpen(true);
   };
@@ -487,7 +454,7 @@ export default function DiscoverPage() {
   };
 
   return (
-    <div className={`flex min-h-screen bg-white ${inter.className} overflow-x-hidden`}>
+    <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className} overflow-x-hidden`}>
       
       <Toast 
         message={toast.msg} 
@@ -503,62 +470,81 @@ export default function DiscoverPage() {
         onShowToast={showToast}
       />
 
-      <div className="hidden md:block w-64 fixed h-full z-20">
-        <Sidebar role="business" className="border-r border-gray-100" />
-      </div>
+      {/* --- TOP NAVIGATION PILL COMPONENT --- */}
+      <NavigationPill />
 
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden animate-in fade-in" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
-      
-      <div className={`fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 md:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <Sidebar onClose={() => setIsMobileMenuOpen(false)} />
-      </div>
-
-      <main className="flex-1 md:ml-64 w-full p-4 md:p-6 bg-white min-h-screen">
-        <div className="md:hidden flex justify-between items-center mb-6">
-            <h1 className="text-xl font-bold text-black">Caskayd</h1>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                <Squares2X2Icon className="w-6 h-6 text-gray-700" />
-            </button>
-        </div>
-
-        <div className="bg-[#EBEBFF] min-h-[calc(100vh-3rem)] rounded-[2rem] p-6 md:p-10 relative">
-            <div className="flex flex-col items-center mb-10 space-y-6">
-                <div className="relative w-full max-w-lg">
-                    <MagnifyingGlassIcon className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                    <input type="text" placeholder="Search creators..." className="w-full pl-12 pr-4 py-3 rounded-full bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700" />
+      {/* --- MAIN CONTENT AREA --- */}
+      <main className="w-full flex-1 pb-20 pt-15">
+        
+        {/* SEARCH & FILTERS SECTION */}
+        <div className="px-4 md:px-8 mt-8">
+            <div className="max-w-5xl mx-auto flex flex-col items-center gap-6">
+                
+                {/* Search Bar */}
+                <div className="w-full max-w-lg relative group">
+                    <input 
+                        type="text" 
+                        placeholder="Search here" 
+                        className="w-full bg-white rounded-full py-4 pl-8 pr-4 shadow-sm border border-gray-100 text-center text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100 transition-shadow" 
+                    />
                 </div>
 
-                <div className="flex flex-col items-center gap-2">
-                    <span className="text-sm text-gray-500 font-medium">Filters</span>
-                    <div className="flex flex-wrap justify-center gap-3">
-                        <FilterDropdown label={filters.niche || "Niche"} options={FILTER_OPTIONS.niche} onSelect={(val) => handleFilterSelect("niche", val)} />
-                        <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />
-                        {(filters.niche || filters.price) && (
-                            <button onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="px-3 py-2 text-xs font-medium text-red-500 hover:bg-red-50 rounded-full transition-colors">Reset</button>
-                        )}
-                    </div>
+                {/* Filters Row */}
+                <div className="flex flex-wrap justify-center items-center gap-2">
+                    {/* Filter Button (Black) */}
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg hover:bg-gray-900 transition-colors"
+                    >
+                        <AdjustmentsHorizontalIcon className="w-7 h-7 text-white" />
+                        Filter
+                    </button>
+
+                    {/* Conditional Filters (Shown when toggled) */}
+                    {showFilters && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                            <div className="bg-white rounded-full px-2 py-1 shadow-sm border border-gray-100 flex items-center">
+                                <FilterDropdown label={filters.niche || "Niche"} options={FILTER_OPTIONS.niche} onSelect={(val) => handleFilterSelect("niche", val)} />
+                                <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                                <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
+                            </div>
+                            
+                            {/* Reset Button */}
+                            {(filters.niche || filters.price || filters.platform) && (
+                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors">
+                                    <XMarkIcon className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
-
-            {loading ? (
-                <div className="flex justify-center py-20">
-                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                </div>
-            ) : creators.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {creators.map((creator: any) => (
-                        <CreatorCard key={creator.id || Math.random()} creator={creator} onInvite={openInviteModal} />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-20 text-gray-500">
-                    <p className="text-lg font-semibold">No creators found</p>
-                    <p className="text-sm">Try adjusting your filters</p>
-                </div>
-            )}
         </div>
+
+        {/* CREATORS GRID */}
+        <div className="px-4 md:px-8 mt-12">
+            <div className="max-w-7xl mx-auto">
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                    </div>
+                ) : creators.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {/* FIXED: Removed 'any' type definition in map parameter */}
+                        {creators.map((creator: CreatorProfile, idx: number) => (
+                            <CreatorCard key={creator.id || Math.random()} creator={creator} onInvite={openInviteModal} index={idx} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-20 text-gray-400">
+                        <MagnifyingGlassIcon className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p className="text-lg font-medium text-gray-500">No creators found</p>
+                        <p className="text-sm">Try adjusting your filters</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
       </main>
     </div>
   );

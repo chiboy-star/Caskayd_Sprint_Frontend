@@ -6,8 +6,8 @@ import Link from "next/link";
 import { Inter } from "next/font/google";
 import { 
   CheckCircleIcon,
-  XCircleIcon,
-  ShieldCheckIcon 
+  XCircleIcon, 
+  ShieldCheckIcon   
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader";
 

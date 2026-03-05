@@ -3,17 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
-import Sidebar from "@/components/Sidebar"; 
+import CreatorNavigationPill from "@/components/CreatorNavigationPill"; 
 import { 
-  Bars3Icon, 
   WalletIcon, 
   BanknotesIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  AdjustmentsHorizontalIcon,
+  ArrowsRightLeftIcon,
+  CheckBadgeIcon,
+  ClockIcon
 } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-// --- MOCK TRANSACTION DATA ---
+// --- MOCK TRANSACTION DATA (Until backend transaction list API is ready) ---
 const TRANSACTIONS = [
   { id: 1, campaign: "Summer promo", date: "Sept 21", status: "Completed", amount: "₦ 10,000.00" },
   { id: 2, campaign: "App Launch", date: "Nov 23", status: "Pending", amount: "₦ 10,000.00" },
@@ -21,11 +25,19 @@ const TRANSACTIONS = [
   { id: 4, campaign: "Rebranded", date: "Sept 21", status: "Pending", amount: "₦ 10,000.00" },
 ];
 
-export default function CreatorDashboard() {
+export default function CreatorWalletPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
+  const [loading, setLoading] = useState(true);
+
+  // State matching the exact payload from your backend log
+  const [walletData, setWalletData] = useState({
+      completedPayments: 0,
+      pendingPayments: 0,
+      totalEarned: 0,
+      totalTransactions: 0
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -33,134 +45,207 @@ export default function CreatorDashboard() {
       router.push("/creator/login");
     } else {
       setIsAuthenticated(true);
+      fetchWalletData(token);
     }
   }, [router]);
+
+  // --- FETCH EARNINGS ---
+  const fetchWalletData = async (token: string) => {
+      try {
+          console.log("🔵 [API Request] GET /payments/earnings");
+          const res = await fetch(`${BASE_URL}/payments/earnings`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
+              
+              // Set the state dynamically using the backend response
+              setWalletData({
+                  completedPayments: data?.completedPayments || 0,
+                  pendingPayments: data?.pendingPayments || 0,
+                  totalEarned: data?.totalEarned || 0,
+                  totalTransactions: data?.totalTransactions || 0
+              });
+          } else {
+              console.error("🔴 [API Error] GET /payments/earnings FAILED:", await res.text());
+          }
+      } catch (error) {
+          console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
+      } finally {
+          setLoading(false);
+      }
+  };
 
   if (!isAuthenticated) return null;
 
   return (
-    <div className={`flex min-h-screen bg-white ${inter.className}`}>
+    <div className={`flex flex-col min-h-screen bg-white ${inter.className}`}>
       
-      {/* Sidebar Desktop */}
-      <div className="hidden md:block w-64 fixed h-full z-20">
-        <Sidebar role="creator" className="border-r border-gray-100" />
-      </div>
+      {/* 1. Top Navigation */}
+      <CreatorNavigationPill />
 
-      {/* Sidebar Mobile */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
-      )}
-      <div className={`fixed inset-y-0 right-0 z-50 w-64 bg-white shadow-2xl transform transition-transform duration-300 md:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <Sidebar role="creator" onClose={() => setIsMobileMenuOpen(false)} />
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 w-full bg-white h-screen overflow-hidden flex flex-col">
+      {/* 2. Main Content */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pt-32 pb-20">
         
-        {/* Mobile Header */}
-        <div className="md:hidden flex justify-between items-center mb-4">
-            <h1 className="text-xl font-bold text-black">Caskayd</h1>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-gray-50 rounded-lg">
-                <Bars3Icon className="w-6 h-6 text-black" />
-            </button>
-        </div>
-
-        {/* --- MAIN LILAC CONTAINER --- */}
-        <div className="bg-[#DEDBF9] rounded-[2.5rem] p-6 md:p-10 shadow-sm flex-1 overflow-y-auto relative">
-          
-          {/* Search Bar */}
-          <div className="flex justify-center mb-10">
-             <div className="bg-white rounded-full flex items-center px-6 py-3 shadow-sm w-full max-w-md">
-                <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 mr-3" />
+        {/* Search Bar */}
+        <div className="flex justify-center mb-12">
+            <div className="w-full max-w-lg relative group">
                 <input 
                     type="text" 
                     placeholder="Search here" 
-                    className="bg-transparent outline-none text-sm w-full placeholder-gray-400 text-gray-700" 
+                    className="w-full bg-white rounded-full py-4 pl-8 pr-4 shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-100 text-center text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-50 transition-shadow" 
                 />
-             </div>
-          </div>
+            </div>
+        </div>
 
-          {/* Balance Cards Row */}
-          <div className="flex flex-col md:flex-row justify-center gap-6 mb-12">
+        {/* Balance Cards Row 
+            Updated to a 2x2 grid to accommodate all 4 metrics elegantly
+        */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-16">
             
-            {/* Escrow Balance (Blue) */}
-            <div className="bg-[#9EB9F8] border-2 border-[#3B6AD9] rounded-2xl p-6 w-full max-w-sm flex flex-col items-center justify-center text-center shadow-sm h-32">
-                <div className="flex items-center gap-2 mb-1 text-[#2B4EAD] font-medium text-sm">
-                    <WalletIcon className="w-5 h-5" /> Escrow Balance
+            {/* 1. Total Earned (Available) - Green */}
+            <div className="bg-white border-2 border-[#34D399] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 relative overflow-hidden group transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-medium text-sm">
+                    <BanknotesIcon className="w-5 h-5 text-[#34D399]" /> 
+                    <span>Total Earned</span>
                 </div>
-                <div className="text-3xl font-extrabold text-[#1E3A8A] tracking-tight">
-                    ₦ 100,000.00
-                </div>
-            </div>
-
-            {/* Withdraw Balance (Green) */}
-            <div className="bg-[#A7D7C5] border-2 border-[#26A17B] rounded-2xl p-6 w-full max-w-sm flex flex-col items-center justify-center text-center shadow-sm h-32">
-                <div className="flex items-center gap-2 mb-1 text-[#1B5E20] font-medium text-sm">
-                    <BanknotesIcon className="w-5 h-5" /> Available To Withdraw
-                </div>
-                <div className="text-3xl font-extrabold text-[#1B5E20] tracking-tight">
-                    ₦ 50,000.230
+                <div className="text-4xl md:text-5xl font-extrabold text-[#10B981] tracking-tight">
+                    {loading ? "..." : `₦ ${walletData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </div>
             </div>
 
-          </div>
+            {/* 2. Pending Payments (Escrow) - Blue */}
+            <div className="bg-white border-2 border-[#818CF8] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 relative overflow-hidden group transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-medium text-sm">
+                    <ClockIcon className="w-5 h-5 text-[#818CF8]" /> 
+                    <span>Pending (In Escrow)</span>
+                </div>
+                <div className="text-4xl md:text-5xl font-extrabold text-[#5B4DFF] tracking-tight">
+                    {loading ? "..." : `₦ ${walletData.pendingPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </div>
+            </div>
 
-          {/* Transaction History Section */}
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-xl font-bold text-black mb-6">Transaction History</h2>
+            {/* 3. Completed Payments - Teal/Indigo */}
+            <div className="bg-white border-2 border-[#2DD4BF] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 relative overflow-hidden group transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-medium text-sm">
+                    <CheckBadgeIcon className="w-5 h-5 text-[#2DD4BF]" /> 
+                    <span>Completed Payments</span>
+                </div>
+                <div className="text-4xl md:text-5xl font-extrabold text-[#0F766E] tracking-tight">
+                    {loading ? "..." : `₦ ${walletData.completedPayments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </div>
+            </div>
 
-            {/* Filter Tabs & Withdraw Button */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <div className="flex gap-6 border-b border-gray-400/30 pb-2 w-full md:w-auto">
-                    {["All", "Completed", "Pending"].map((tab) => (
-                        <button 
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`text-sm font-medium pb-1 relative transition-colors ${
-                                activeTab === tab ? "text-black" : "text-gray-500 hover:text-gray-700"
-                            }`}
-                        >
-                            {tab}
-                            {activeTab === tab && (
-                                <span className="absolute bottom-[-9px] left-0 w-full h-[3px] bg-[#5B4DFF] rounded-t-full"></span>
-                            )}
+            {/* 4. Total Transactions (Count, not Currency) - Orange */}
+            <div className="bg-white border-2 border-[#FBBF24] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 relative overflow-hidden group transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-3 text-gray-600 font-medium text-sm">
+                    <ArrowsRightLeftIcon className="w-5 h-5 text-[#FBBF24]" /> 
+                    <span>Total Transactions</span>
+                </div>
+                <div className="text-4xl md:text-5xl font-extrabold text-[#D97706] tracking-tight">
+                    {loading ? "..." : walletData.totalTransactions}
+                </div>
+            </div>
+
+        </div>
+
+        {/* Transaction History Section */}
+        <div className="relative">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
+                
+                {/* Left: Title & Filters */}
+                <div className="flex flex-col gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">Transaction History</h2>
+                    
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-3">
+                        <button className="flex items-center gap-2 bg-black text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg hover:bg-gray-900 transition-colors">
+                            <AdjustmentsHorizontalIcon className="w-4 h-4" />
+                            Filter
                         </button>
-                    ))}
+
+                        <div className="bg-white border border-gray-100 rounded-full px-2 py-1.5 shadow-sm flex items-center gap-1">
+                            {["All", "Completed", "Pending"].map((tab) => (
+                                <button 
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                        activeTab === tab 
+                                        ? "bg-transparent text-black" 
+                                        : "text-gray-400 hover:text-gray-600"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {tab}
+                                        {/* Status Dot */}
+                                        {activeTab === tab && (
+                                            <div className={`w-1.5 h-1.5 rounded-full ${
+                                                tab === "All" ? "bg-emerald-500" :
+                                                tab === "Completed" ? "bg-gray-300" : "bg-gray-300"
+                                            }`}></div>
+                                        )}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
-                <button className="bg-[#5B4DFF] hover:bg-[#4a3ecc] text-white px-6 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 shadow-lg transition-all active:scale-95">
+                {/* Right: Withdraw Button */}
+                <button className="bg-[#5B4DFF] hover:bg-[#4a3ecc] text-white px-8 py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition-all active:scale-95 self-start md:self-center">
                     <BanknotesIcon className="w-5 h-5" /> Withdraw
                 </button>
             </div>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-4 text-sm font-bold text-black mb-4 px-4">
-                <div>Campaign</div>
-                <div>Date</div>
-                <div>Status</div>
-                <div className="text-right">Amount</div>
-            </div>
+            {/* Transactions Table */}
+            <div className="space-y-4">
+                {/* Header Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 text-sm font-bold text-black mb-2 px-6">
+                    <div>Campaign</div>
+                    <div className="hidden md:block">Date</div>
+                    <div className="hidden md:block">Status</div>
+                    <div className="text-right">Amount</div>
+                </div>
 
-            {/* Table Rows */}
-            <div className="space-y-3">
-                {TRANSACTIONS.map((tx) => (
-                    <div key={tx.id} className="grid grid-cols-4 items-center px-4 py-3 hover:bg-white/40 rounded-xl transition-colors text-sm">
-                        <div className="text-gray-800 font-medium">{tx.campaign}</div>
-                        <div className="text-gray-600">{tx.date}</div>
-                        <div className={`${tx.status === "Completed" ? "text-emerald-600" : "text-amber-500"} font-medium`}>
-                            {tx.status}
-                        </div>
-                        <div className="text-right text-[#5B4DFF] font-bold">
-                            {tx.amount}
-                        </div>
-                    </div>
-                ))}
-            </div>
+                {/* Rows */}
+                <div className="space-y-2">
+                    {TRANSACTIONS.map((tx) => (
+                        <div key={tx.id} className="grid grid-cols-2 md:grid-cols-4 items-center px-6 py-5 bg-gray-50/50 hover:bg-gray-50 rounded-2xl transition-colors text-sm border border-transparent hover:border-gray-100">
+                            {/* Campaign */}
+                            <div className="font-bold text-gray-900">{tx.campaign}</div>
+                            
+                            {/* Date (Desktop) */}
+                            <div className="hidden md:block text-gray-500 font-medium">{tx.date}</div>
+                            
+                            {/* Status (Desktop) */}
+                            <div className="hidden md:block">
+                                <span className={`font-bold ${
+                                    tx.status === "Completed" ? "text-emerald-500" : "text-amber-500"
+                                }`}>
+                                    {tx.status}
+                                </span>
+                            </div>
 
-          </div>
+                            {/* Amount & Mobile Details */}
+                            <div className="text-right">
+                                <div className="text-[#5B4DFF] font-bold text-base">{tx.amount}</div>
+                                {/* Mobile Status Show */}
+                                <div className={`md:hidden text-xs font-bold mt-1 ${
+                                    tx.status === "Completed" ? "text-emerald-500" : "text-amber-500"
+                                }`}>
+                                    {tx.status}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
         </div>
+
       </main>
     </div>
   );
-}
+} 

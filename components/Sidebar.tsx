@@ -32,7 +32,7 @@ export default function Sidebar({ role = "business", onClose, className = "" }: 
     { name: "Dashboard", href: "/business/dashboard", icon: Squares2X2Icon },
     { name: "Discover", href: "/business/discover", icon: GlobeAltIcon },
     { name: "Messages", href: "/business/messages", icon: ChatBubbleLeftRightIcon },
-  ] : [
+  ] : [ 
     // Creator Menu Items
     { name: "Dashboard", href: "/creator/dashboard", icon: Squares2X2Icon },
     { name: "Wallet", href: "/creator/wallet", icon: WalletIcon },
@@ -42,7 +42,7 @@ export default function Sidebar({ role = "business", onClose, className = "" }: 
   return (
     <div className={`bg-[#F9FAFB] h-full flex flex-col justify-between p-6 ${className}`}>
       
-      {/* Top Section */}
+      {/* Top Section */} 
       <div>
         <div className="flex justify-between items-center mb-10">
           <h1 className="text-2xl font-extrabold text-black tracking-tight">Caskayd</h1>

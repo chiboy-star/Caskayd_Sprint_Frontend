@@ -6,12 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
-  EyeIcon, 
-  ArrowUpTrayIcon, 
-  CheckCircleIcon,
-  XCircleIcon,
-  XMarkIcon,
-  ChevronUpDownIcon
+    EyeIcon, 
+    ArrowUpTrayIcon, 
+    CheckCircleIcon,
+    XCircleIcon,
+    XMarkIcon,
+    ChevronUpDownIcon
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -203,79 +203,150 @@ export default function CreatorSignup() {
     setIsLoading(true);
 
     try {
-        // Step 1: Signup
+        console.log("🔵 Using Backend URL:", BASE_URL);
+
+        // --- 1. SIGNUP ---
+        const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
+        console.log("🔵 [API Request] POST /auth/signup", signupPayload);
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: formData.email,
-                password: formData.password,
-                role: "creator"
-            }),
+            body: JSON.stringify(signupPayload),
         });
 
         const signupData = await signupRes.json();
-        if (!signupRes.ok) throw new Error(signupData.message || "Signup failed");
+        if (!signupRes.ok) {
+            console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
+            throw new Error(signupData.message || "Signup failed");
+        }
+        console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
 
-        // Step 2: Login
+
+        // --- 2. LOGIN ---
+        const loginPayload = { email: formData.email, password: formData.password };
+        console.log("🔵 [API Request] POST /auth/login", loginPayload);
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: formData.email, password: formData.password }),
+            body: JSON.stringify(loginPayload),
         });
 
-        if (!loginRes.ok) throw new Error("Auto-login failed after signup");
+        if (!loginRes.ok) {
+            console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
+            throw new Error("Auto-login failed after signup");
+        }
         const loginData = await loginRes.json();
         const token = loginData.access_token || loginData.token;
-
         if (!token) throw new Error("No access token received");
         
         localStorage.setItem("accessToken", token);
+        console.log("🟢 [API Response] POST /auth/login SUCCESS. Token stored.");
 
-        // Step 3: Create Profile
+        // --- 3. FILE UPLOAD (If profile picture exists) ---
+        let uploadedProfilePicUrl = "";
+        if (formData.profilePic) {
+            try {
+                console.log("🔵 [API Request] POST /upload (Uploading file...)");
+                const uploadData = new FormData();
+                uploadData.append("file", formData.profilePic);
+
+                const uploadRes = await fetch(`${BASE_URL}/upload`, {
+                    method: "POST",
+                    body: uploadData // Browser automatically sets correct Content-Type for FormData
+                });
+
+                if (uploadRes.ok) {
+                    const uploadResult = await uploadRes.json();
+                    console.log("🟢 [API Response] POST /upload SUCCESS:", uploadResult);
+                    uploadedProfilePicUrl = uploadResult.url; 
+                } else {
+                    console.error("🔴 [API Error] POST /upload FAILED:", await uploadRes.text());
+                }
+            } catch (uploadError) {
+                console.error("🔴 [Network Error] POST /upload crashed:", uploadError);
+            }
+        }
+
+        // --- 4. CREATE CREATOR PROFILE ---
+        const profilePayload = {
+            bio: formData.bio,
+            niches: formData.nicheTags, 
+            location: formData.location,
+            tiktok: formData.tiktok,
+            instagram: formData.instagram,
+            profileImageUrl: uploadedProfilePicUrl || undefined // Stored temporarily or sent immediately
+        };
+        console.log("🔵 [API Request] POST /creator", profilePayload);
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({
-                bio: formData.bio,
-                niches: formData.nicheTags, 
-                location: formData.location,
-                tiktok: formData.tiktok,
-                instagram: formData.instagram
-            }),
+            body: JSON.stringify(profilePayload),
         });
         
         const profileData = await profileRes.json();
-        if (!profileRes.ok) throw new Error(profileData.message || "Failed to create creator profile");
+        if (!profileRes.ok) {
+            console.error("🔴 [API Error] POST /creator FAILED:", profileData);
+            throw new Error(profileData.message || "Failed to create creator profile");
+        }
+        console.log("🟢 [API Response] POST /creator SUCCESS:", profileData);
 
-        console.log("✅ SUCCESS! CREATOR PROFILE ID:", profileData.id); 
-        alert(`Creator Profile ID: ${profileData.id} \n(Copy this for Admin Dashboard)`);
 
-        // Step 4: Create Finance
-        // We do NOT need to manually send 'creator: { id }' anymore.
-        // The backend engineer fixed it so it automatically attaches to the logged-in user.
-        const financeRes = await fetch(`${BASE_URL}/creator/finance`, {
+        // --- 5. FINANCE SETTINGS ---
+        const financePayload = {
+            pricePerPost: Number(formData.pricePerPost),
+            pricePerStory: Number(formData.pricePerStory),
+            pricePerVideo: Number(formData.pricePerVideo),
+            rate: Number(formData.rate),
+            bankName: formData.bankName,
+            accountNumber: formData.accountNumber,
+            // creator: { id: "???" } -> POINTED OUT AS POTENTIALLY MISSING
+        };
+        console.log("🔵 [API Request] POST /creator/finance", financePayload);
+        const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({
-                pricePerPost: Number(formData.pricePerPost),
-                pricePerStory: Number(formData.pricePerStory),
-                pricePerVideo: Number(formData.pricePerVideo),
-                rate: Number(formData.rate),
-                bankName: formData.bankName,
-                accountNumber: formData.accountNumber,
-            }),
+            body: JSON.stringify(financePayload),
         });
 
         const financeData = await financeRes.json();
-        if (!financeRes.ok) throw new Error(financeData.message || "Failed to create finance profile");
+        if (!financeRes.ok) {
+            console.error("🔴 [API Error] POST /creator/finance FAILED:", financeData);
+            throw new Error(financeData.message || "Failed to complete finance profile");
+        }
+        console.log("🟢 [API Response] POST /creator/finance SUCCESS:", financeData);
+ 
 
+        // --- 6. COMPLETE PROFILE (BANK DETAILS) ---
+        const bankPayload = {
+            bankName: formData.bankName,
+            accountNumber: formData.accountNumber,
+            bankCode: formData.bankCode 
+        };
+        console.log("🔵 [API Request] POST /creator/complete-profile", bankPayload);
+        const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(bankPayload),
+        });
+
+        const bankData = await bankRes.json();
+        if (!bankRes.ok) {
+            console.error("🔴 [API Error] POST /creator/complete-profile FAILED:", bankData);
+            throw new Error(bankData.message || "Failed to complete bank profile");
+        }
+        console.log("🟢 [API Response] POST /creator/complete-profile SUCCESS:", bankData);
+
+
+        // --- SUCCESS & REDIRECT ---
         setToast({ message: "Account created successfully!", type: "success", isVisible: true });
         
         setIsRedirecting(true); 
@@ -314,14 +385,25 @@ export default function CreatorSignup() {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-gradient-to-b from-emerald-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
         <div className="max-w-md w-full relative">
           
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-black mb-2 tracking-tight">Caskayd</h2>
+          {/* --- CENTERED LOGO SECTION --- */}
+          <div className="mb-8 flex flex-col items-center text-center"> 
+            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
+                <Image 
+                    src="/images/Logo_transparent_icon.png" 
+                    alt="Caskayd" 
+                    fill
+                    className="object-contain"
+                    priority
+                    unoptimized
+                />
+            </div>
             <div className="flex justify-center gap-2 mt-2">
                 {[1, 2, 3].map(i => (
                     <div key={i} className={`h-1.5 w-8 rounded-full transition-colors ${step >= i ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
                 ))}
             </div>
           </div>
+          {/* ----------------------------- */}
 
           <div className="relative w-full overflow-hidden min-h-[600px]">
             {/* STEP 1 */}
@@ -447,4 +529,4 @@ export default function CreatorSignup() {
       </div>
     </div>
   );
-}
+} 

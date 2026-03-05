@@ -124,47 +124,102 @@ export default function BusinessSignup() {
     setIsLoading(true);
 
     try {
-        console.log("Using Backend URL:", BASE_URL); // Debugging check
+        console.log("🔵 Using Backend URL:", BASE_URL);
 
+        // --- 1. SIGNUP ---
+        const signupPayload = { email: formData.email, password: formData.password, role: "business" };
+        console.log("🔵 [API Request] POST /auth/signup", signupPayload);
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: formData.email,
-                password: formData.password,
-                role: "business"
-            }),
+            body: JSON.stringify(signupPayload),
         });
 
         const signupData = await signupRes.json();
-        if (!signupRes.ok) throw new Error(signupData.message || "Signup failed");
+        if (!signupRes.ok) {
+            console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
+            throw new Error(signupData.message || "Signup failed");
+        }
+        console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
 
+        // --- 2. LOGIN TO GET TOKEN ---
+        const loginPayload = { email: formData.email, password: formData.password };
+        console.log("🔵 [API Request] POST /auth/login", loginPayload);
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: formData.email, password: formData.password }),
+            body: JSON.stringify(loginPayload),
         });
 
-        if (!loginRes.ok) throw new Error("Auto-login failed");
+        if (!loginRes.ok) {
+            console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
+            throw new Error("Auto-login failed");
+        }
+        
         const loginData = await loginRes.json();
         const token = loginData.access_token || loginData.token;
+        console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
 
-        await fetch(`${BASE_URL}/business`, {
+        // --- 3. FILE UPLOAD (If image is selected) ---
+        let uploadedLogoUrl = "";
+        if (formData.businessLogo) {
+            try {
+                console.log("🔵 [API Request] POST /upload (Uploading file...)");
+                const uploadData = new FormData();
+                uploadData.append("file", formData.businessLogo);
+
+                // Note: Do not set Content-Type header manually for FormData, the browser sets it automatically with the boundary
+                const uploadRes = await fetch(`${BASE_URL}/upload`, {
+                    method: "POST",
+                    body: uploadData
+                });
+
+                if (uploadRes.ok) {
+                    const uploadResult = await uploadRes.json();
+                    console.log("🟢 [API Response] POST /upload SUCCESS:", uploadResult);
+                    uploadedLogoUrl = uploadResult.url; // Store URL from response
+                } else {
+                    console.error("🔴 [API Error] POST /upload FAILED:", await uploadRes.text());
+                    // Not throwing error here, we still want to create the profile even if image fails
+                }
+            } catch (uploadError) {
+                console.error("🔴 [Network Error] POST /upload crashed:", uploadError);
+            }
+        }
+
+        // --- 4. CREATE BUSINESS PROFILE ---
+        const businessPayload = {
+            businessName: formData.businessName,
+            websiteUrl: formData.website, 
+            category: formData.industryTags.join(", "),
+            profileImageUrl: uploadedLogoUrl || undefined // Attach URL if we got one
+        };
+
+        console.log("🔵 [API Request] POST /business", businessPayload);
+        const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-            body: JSON.stringify({
-                businessName: formData.businessName,
-                websiteUrl: formData.website, 
-                category: formData.industryTags.join(", ") 
-            }),
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify(businessPayload),
         });
 
+        if (!businessRes.ok) {
+            console.error("🔴 [API Error] POST /business FAILED:", await businessRes.text());
+            throw new Error("Failed to create business profile");
+        }
+        
+        const businessData = await businessRes.json();
+        console.log("🟢 [API Response] POST /business SUCCESS:", businessData);
+
+        // --- ALL DONE ---
         setToast({ message: "Account created! Welcome aboard.", type: "success", isVisible: true });
         localStorage.setItem("accessToken", token);
         
         setIsRedirecting(true); 
         await new Promise(resolve => setTimeout(resolve, 2000));
-        router.push("/business/dashboard");
+        router.push("/business/discover");
 
     } catch (error: any) {
         showError(error.message || "Something went wrong.");
@@ -214,8 +269,18 @@ export default function BusinessSignup() {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-gradient-to-b from-indigo-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
         <div className="max-w-md w-full relative">
           
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-black mb-2 tracking-tight">Caskayd</h2>
+          {/* --- CENTERED LOGO SECTION --- */}
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> {/* Added mb-6 for space */}
+              <Image 
+                src="/images/Logo_transparent_icon.png" 
+                alt="Caskayd" 
+                fill
+                className="object-contain"
+                priority
+                unoptimized
+              /> 
+            </div>
             {step === 1 ? (
                 <p className="text-sm text-gray-500">Please provide us with the following information</p>
             ) : (
@@ -225,6 +290,7 @@ export default function BusinessSignup() {
                </div>
             )}
           </div>
+          {/* ----------------------------- */}
 
           <div className="relative w-full overflow-hidden min-h-[480px]">
             {/* STEP 1 */}
@@ -289,4 +355,4 @@ export default function BusinessSignup() {
       </div>
     </div>
   );
-}
+} 

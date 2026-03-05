@@ -77,15 +77,15 @@ export default function BusinessDashboard() {
         {/* Mobile Header */}
         <div className="md:hidden flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-black">Caskayd</h1>
-            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-gray-50 rounded-lg">
+            <button aria-label="sideBar" onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-gray-50 rounded-lg">
                 <Bars3Icon className="w-6 h-6 text-black" />
             </button>
         </div>
-
+ 
         {/* --- MAIN DASHBOARD CONTAINER (The Lilac Box) --- */}
-        <div className="bg-[#DEDBF9] rounded-[2.5rem] p-6 md:p-10 shadow-sm min-h-[85vh] relative">
+        <div className="bg-[#CBCCFA] rounded-[2.5rem] p-6 md:p-10 shadow-sm min-h-[85vh] relative">
           
-          {/* Top Metrics Row */}
+          {/* Top Metrics Row */} 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             
             {/* Total Budget - Green */}

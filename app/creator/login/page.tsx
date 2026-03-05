@@ -100,8 +100,17 @@ export default function CreatorLogin() {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-linear-to-b from-emerald-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
         <div className="max-w-md w-full relative">
           
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-black mb-2 tracking-tight">Caskayd</h2>
+          <div className="text-center flex flex-col items-center mb-10">
+            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
+                          <Image 
+                            src="/images/Logo_transparent_icon.png" 
+                            alt="Caskayd" 
+                            fill
+                            className="object-contain"
+                            priority
+                             unoptimized
+                          /> 
+                        </div>
             <p className="text-sm text-gray-600 font-medium">Welcome Back!</p>
           </div>
 

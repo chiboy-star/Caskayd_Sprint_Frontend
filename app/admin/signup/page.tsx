@@ -25,15 +25,15 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
   if (!isVisible) return null;
 
-  return (
+  return ( 
     <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-lg shadow-xl transition-all duration-300 ${
       isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
     } ${type === "success" ? "bg-black text-white" : "bg-red-600 text-white"}`}>
       {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
       <span className="font-medium text-sm">{message}</span>
     </div>
-  );
-};
+  ); 
+}; 
 
 export default function AdminSignup() {
   const router = useRouter();

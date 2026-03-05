@@ -7,11 +7,10 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
   EyeIcon, 
-  EyeSlashIcon, 
   CheckCircleIcon,
   XCircleIcon
 } from "@heroicons/react/24/outline";
-import Loader from "@/components/Loader"; // IMPORT LOADER
+import Loader from "@/components/Loader"; 
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -43,7 +42,7 @@ export default function BusinessLogin() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false); // LOADER STATE
+  const [isRedirecting, setIsRedirecting] = useState(false); 
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,7 +72,7 @@ export default function BusinessLogin() {
             localStorage.setItem("accessToken", token);
             setToast({ message: "Welcome back!", type: "success", isVisible: true });
             
-            setIsRedirecting(true); // START LOADER
+            setIsRedirecting(true); 
             await new Promise(resolve => setTimeout(resolve, 2000));
             router.push("/business/dashboard");
         } else {
@@ -86,7 +85,6 @@ export default function BusinessLogin() {
     }
   };
 
-  // USE SHARED LOADER
   if (isRedirecting) return <Loader />;
 
   return (
@@ -100,10 +98,21 @@ export default function BusinessLogin() {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-gradient-to-b from-indigo-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
         <div className="max-w-md w-full relative">
           
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-black mb-2 tracking-tight">Caskayd</h2>
+          {/* --- CENTERED LOGO SECTION --- */}
+          <div className="mb-10 flex flex-col items-center text-center">
+            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
+              <Image 
+                src="/images/Logo_transparent_icon.png" 
+                alt="Caskayd" 
+                fill 
+                className="object-contain"
+                priority
+                unoptimized 
+              />
+            </div>
             <p className="text-sm text-gray-600 font-medium">Welcome Back!</p>
           </div>
+          {/* ----------------------------- */}
 
           <form onSubmit={handleLogin} className="space-y-8 px-1">
             <div className="relative">
@@ -113,7 +122,7 @@ export default function BusinessLogin() {
             <div className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                 <div className="relative">
-                    <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
+                    <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
                     <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"><EyeIcon className="h-5 w-5" /></button>
                 </div>
             </div>
