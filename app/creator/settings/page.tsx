@@ -9,7 +9,23 @@ const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
-    // ... (Standard Toast implementation, same as other pages) ...
+    useEffect(() => {
+        if (isVisible) {
+            const timer = setTimeout(onClose, 4000); 
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible, onClose]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
+            isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
+        } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
+            {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
+            <span className="font-bold text-sm">{message}</span>
+        </div>
+    );
 };
 
 export default function CreatorSettingsPage() {
