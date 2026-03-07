@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Inter } from "next/font/google";
 import CreatorNavigationPill from "@/components/CreatorNavigationPill";
 import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon } from "@heroicons/react/24/outline";
