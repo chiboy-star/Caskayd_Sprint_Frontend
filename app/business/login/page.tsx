@@ -14,7 +14,7 @@ import Loader from "@/components/Loader";
 
 const inter = Inter({ subsets: ["latin"] });
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function BusinessLogin() {
             
             setIsRedirecting(true); 
             await new Promise(resolve => setTimeout(resolve, 2000));
-            router.push("/business/dashboard");
+            router.push("/business/discover");
         } else {
             throw new Error("Login successful but no token received.");
         }

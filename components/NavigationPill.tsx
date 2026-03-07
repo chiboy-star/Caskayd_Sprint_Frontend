@@ -11,13 +11,13 @@ import {
     CameraIcon, 
     ArrowRightOnRectangleIcon,
     BellIcon,
-    KeyIcon, // Icon for change password
+    KeyIcon, 
     CheckCircleIcon,
     XCircleIcon,
-    ArrowLeftIcon // Icon to go back to profile view
+    ArrowLeftIcon 
 } from "@heroicons/react/24/outline";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface AppNotification {
     id: string;
@@ -26,7 +26,7 @@ interface AppNotification {
     isRead: boolean;
 }
 
-// --- TOAST COMPONENT (Added to Pill for global alerts) ---
+// --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
         if (isVisible) {
@@ -52,6 +52,10 @@ export default function NavigationPill() {
     const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     
+    // --- USER PROFILE STATE ---
+    // Flow: Holds the data fetched from GET /users/profiles
+    const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; companyName?: string; displayName?: string } | null>(null);
+
     // --- NOTIFICATIONS & MESSAGES ---
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
@@ -72,10 +76,37 @@ export default function NavigationPill() {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const fetchAlerts = async () => {
-            // 1. Fetch Unread Messages Count
+        // Flow: Fetch static user profile data ONCE when the component mounts
+        const fetchUserProfile = async () => {
             try {
-                // console.log("🔵 [Business API Request] GET /messages/unread/count"); // Silenced for cleaner logs during polling
+                console.log("🔵 [Business API Request] GET /users/profiles");
+                const profileRes = await fetch(`${BASE_URL}/users/profile`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json();
+                    console.log("🟢 [Business API Response] GET /users/profiles SUCCESS:", profileData);
+                    
+                    // Handle both Array and Object responses safely
+                    if (Array.isArray(profileData) && profileData.length > 0) {
+                        const activeBusinessProfile = profileData.find((p: any) => p.companyName) || profileData[0];
+                        setUserProfile(activeBusinessProfile);
+                    } else if (profileData && typeof profileData === 'object') {
+                        setUserProfile(profileData);
+                    }
+
+                } else {
+                    console.error("🔴 [Business API Error] GET /users/profiles FAILED:", await profileRes.text());
+                }
+            } catch (error) {
+                console.error("🔴 [Business Network Error] GET /users/profiles crashed:", error);
+            }
+        };
+
+        // Flow: Polling function for live alerts
+        const fetchAlerts = async () => {
+            try {
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -87,9 +118,7 @@ export default function NavigationPill() {
                 console.error("🔴 [Business Network Error] GET /messages/unread/count crashed:", error);
             }
 
-            // 2. Fetch Notifications
             try {
-                // console.log("🔵 [Business API Request] GET /notifications"); // Silenced for cleaner logs
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -102,8 +131,9 @@ export default function NavigationPill() {
             }
         };
 
-        fetchAlerts();
-        const interval = setInterval(fetchAlerts, 15000);
+        fetchUserProfile(); // Run once
+        fetchAlerts();      // Run immediately
+        const interval = setInterval(fetchAlerts, 15000); // Poll every 15s
         return () => clearInterval(interval);
     }, []);
 
@@ -157,7 +187,7 @@ export default function NavigationPill() {
                 console.log("🟢 [API Response] PATCH /users/password SUCCESS");
                 showToast("Password updated successfully", "success");
                 setPasswordData({ currentPassword: "", newPassword: "" });
-                setView("profile"); // Go back to profile view
+                setView("profile"); 
             } else {
                 const err = await res.json();
                 console.error("🔴 [API Error] PATCH /users/password FAILED:", err);
@@ -175,6 +205,12 @@ export default function NavigationPill() {
         localStorage.removeItem("accessToken");
         router.push("/business/login");
     };
+
+    // --- DYNAMIC UI HELPERS & FALLBACKS ---
+    const compName = userProfile?.companyName || "Your Company";
+    const dispName = userProfile?.displayName || "Business Account";
+    const userEmail = userProfile?.email || "business@example.com";
+    const initial = compName.charAt(0).toUpperCase();
 
     return (
         <>
@@ -202,8 +238,6 @@ export default function NavigationPill() {
 
                         {/* Center: Navigation Pills */}
                         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 sm:gap-8">
-                            
-                            {/* Discover Link */}
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
@@ -214,14 +248,11 @@ export default function NavigationPill() {
                                 </div>
                             </Link>
                             
-                            {/* Messages Link with Unread Badge */}
                             <Link href="/business/messages" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors relative ${isActive('/business/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1 relative">
                                         <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block">Messages</span>
-                                        
-                                        {/* Dynamic Messages Badge */}
                                         {unreadMessages > 0 && (
                                             <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center rounded-full bg-red-500 text-[8px] sm:text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                                 {unreadMessages > 9 ? '9+' : unreadMessages}
@@ -231,7 +262,6 @@ export default function NavigationPill() {
                                     <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
-
                         </div>
 
                         {/* Right: Notifications & Profile Trigger */}
@@ -243,7 +273,6 @@ export default function NavigationPill() {
                                 className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
                             >
                                 <BellIcon className="w-6 h-6" />
-                                {/* Dynamic Notification Badge */}
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
                                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
@@ -255,34 +284,22 @@ export default function NavigationPill() {
                             {isNotificationsOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                                    
                                     <div className="absolute top-14 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                                         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                             <h3 className="font-bold text-gray-900">Notifications</h3>
                                             <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
                                         </div>
-                                        
                                         <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                                             {notifications.length === 0 ? (
-                                                <div className="px-5 py-8 text-center text-sm text-gray-500">
-                                                    You're all caught up!
-                                                </div>
+                                                <div className="px-5 py-8 text-center text-sm text-gray-500">You're all caught up!</div>
                                             ) : (
                                                 notifications.map((notif) => (
-                                                    <div 
-                                                        key={notif.id}
-                                                        onClick={() => handleMarkAsRead(notif.id, notif.isRead)}
-                                                        className={`px-5 py-4 border-b border-gray-50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-indigo-50/50 hover:bg-indigo-50'}`}
-                                                    >
+                                                    <div key={notif.id} onClick={() => handleMarkAsRead(notif.id, notif.isRead)} className={`px-5 py-4 border-b border-gray-50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-indigo-50/50 hover:bg-indigo-50'}`}>
                                                         <div className="flex gap-3">
                                                             <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${notif.isRead ? 'bg-transparent' : 'bg-[#5B4DFF]'}`}></div>
                                                             <div>
-                                                                <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
-                                                                    {notif.message}
-                                                                </p>
-                                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1 block">
-                                                                    {notif.type.replace('_', ' ')}
-                                                                </span>
+                                                                <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>{notif.message}</p>
+                                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1 block">{notif.type.replace('_', ' ')}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -293,12 +310,16 @@ export default function NavigationPill() {
                                 </>
                             )}
 
-                            {/* Profile Button */}
+                            {/* Profile Button - Now Dynamic */}
                             <button 
                                 onClick={() => { setIsProfileOpen(true); setView("profile"); }}
-                                className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs md:text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md"
+                                className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs md:text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
                             >
-                                HP
+                                {userProfile?.avatar ? (
+                                    <Image src={userProfile.avatar} alt="Profile" fill className="object-cover" />
+                                ) : (
+                                    <span>{initial}</span>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -311,7 +332,6 @@ export default function NavigationPill() {
                     
                     <div className="bg-[#0A0A0A] w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-gray-800 overflow-hidden">
                         
-                        {/* Close Button */}
                         <button 
                             onClick={() => setIsProfileOpen(false)}
                             className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-10"
@@ -322,24 +342,31 @@ export default function NavigationPill() {
                         {/* === PROFILE VIEW === */}
                         {view === "profile" && (
                             <div className="flex flex-col items-center mt-2 animate-in slide-in-from-left-4 duration-300">
+                                
+                                {/* Dynamic Avatar */}
                                 <div className="relative mb-4">
-                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden">
-                                        <span className="text-black text-4xl font-bold italic tracking-tighter">hp</span>
+                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative">
+                                        {userProfile?.avatar ? (
+                                            <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
+                                        ) : (
+                                            <span className="text-black text-4xl font-bold">{initial}</span>
+                                        )}
                                     </div>
                                     <button className="absolute bottom-0 right-0 bg-white text-black p-1.5 rounded-full shadow-lg hover:bg-gray-200 transition-colors">
                                         <CameraIcon className="w-4 h-4" />
                                     </button>
                                 </div>
 
-                                <h2 className="text-2xl font-bold mb-1">Hewlett-Packard</h2>
-                                <p className="text-gray-400 text-sm mb-8">hp@hp.com</p>
+                                {/* Dynamic Company Name and Display Name */}
+                                <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{compName}</h2>
+                                <p className="text-gray-400 text-sm mb-8 text-center truncate w-full px-2">{dispName}</p>
 
                                 <div className="w-full space-y-3">
-                                    {/* Location Info (Display Only) */}
+                                    {/* Email Display (Replaced Location) */}
                                     <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs text-gray-500 font-medium mb-1">Location/Region</span>
-                                            <span className="text-sm font-medium">California</span>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-xs text-gray-500 font-medium mb-1">Email Address</span>
+                                            <span className="text-sm font-medium truncate w-[240px]">{userEmail}</span>
                                         </div>
                                     </div>
 
@@ -409,4 +436,4 @@ export default function NavigationPill() {
             )}
         </>
     );
-} 
+}

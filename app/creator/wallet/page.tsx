@@ -15,7 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // --- MOCK TRANSACTION DATA (Until backend transaction list API is ready) ---
 const TRANSACTIONS = [

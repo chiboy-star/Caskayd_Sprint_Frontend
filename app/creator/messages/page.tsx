@@ -16,7 +16,7 @@ import {
 import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // --- TYPES ---
 interface User {

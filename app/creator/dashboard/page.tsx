@@ -15,7 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
@@ -168,7 +168,7 @@ export default function CreatorDashboard() {
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pb-12 pt-32">
         
         {/* --- MAIN DASHBOARD CONTAINER --- */}
-        <div className="bg-[#EBE9FE] rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
+        <div className=" rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
           
           {/* Top Metrics Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">

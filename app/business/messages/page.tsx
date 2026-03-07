@@ -17,7 +17,7 @@ import {
 import { Inter } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // --- TYPES ---
 interface User {
@@ -211,7 +211,6 @@ export default function BusinessMessagesPage() {
         setIsProcessingPayment(true);
 
         try {
-            // Using the creatorId from the active conversation object
             const payload = {
                 creatorId: activeConversation.creator.id,
                 amount: Number(paymentAmount)
@@ -231,22 +230,28 @@ export default function BusinessMessagesPage() {
             if (res.ok) {
                 const data = await res.json();
                 console.log("🟢 [API Response] POST /payments/pay SUCCESS:", data);
-                // Handle Success (e.g., redirect to payment link or show success message)
-                // If Paystack returns an authorization URL, redirect the user:
-                // if (data.authorization_url) window.location.href = data.authorization_url;
                 
-                alert("Payment initialized successfully!");
-                setIsPaymentModalOpen(false);
-                setPaymentAmount("");
+                // FLOW: Extract the authorization URL (handles if backend nests it in a `data` object or places it at the root)
+                const authUrl = data.paymentUrl || data.data?.authorization_url;
+
+                if (authUrl) {
+                    console.log("🔵 [Redirect] Redirecting user to Paystack checkout:", authUrl);
+                    // Redirect the user to the Paystack payment page
+                    window.location.href = authUrl;
+                } else {
+                    console.error("🔴 [API Error] Missing authorization_url in response:", data);
+                    alert("Payment initialized, but checkout link was missing from server.");
+                    setIsProcessingPayment(false);
+                }
             } else {
                 const errorText = await res.text();
                 console.error("🔴 [API Error] POST /payments/pay FAILED:", errorText);
                 alert("Payment failed to initialize.");
+                setIsProcessingPayment(false);
             }
         } catch (error) {
             console.error("🔴 [Network Error] POST /payments/pay crashed:", error);
             alert("Network error during payment.");
-        } finally {
             setIsProcessingPayment(false);
         }
     };
@@ -406,7 +411,6 @@ export default function BusinessMessagesPage() {
                             <div className="flex items-center justify-center gap-1.5 text-[#00D68F] text-xs font-bold mb-4 uppercase tracking-wide">
                                 <ShieldCheckIcon className="w-4 h-4" /> Escrow Ready
                             </div>
-                            {/* Triggers the Payment Modal */}
                             <button 
                                 onClick={() => setIsPaymentModalOpen(true)}
                                 className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm"
@@ -427,7 +431,7 @@ export default function BusinessMessagesPage() {
                         <button 
                             onClick={() => {
                                 setIsPaymentModalOpen(false);
-                                setPaymentAmount(""); // Reset on close
+                                setPaymentAmount(""); 
                             }}
                             className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
                         >
@@ -444,7 +448,6 @@ export default function BusinessMessagesPage() {
                                 Enter the amount you wish to pay <span className="text-white font-semibold">{getCreatorName(activeConversation)}</span>.
                             </p>
 
-                            {/* Input Field */}
                             <div className="mb-6 relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₦</span>
                                 <input 
@@ -456,7 +459,6 @@ export default function BusinessMessagesPage() {
                                 />
                             </div>
 
-                            {/* Calculation Display */}
                             <div className="space-y-3 mb-8 bg-[#151515] p-4 rounded-xl border border-gray-800/50">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-400">Amount</span>
@@ -473,7 +475,6 @@ export default function BusinessMessagesPage() {
                                 </div>
                             </div>
 
-                            {/* Submit Button */}
                             <button 
                                 onClick={handlePaymentSubmit}
                                 disabled={isProcessingPayment || !paymentAmount || Number(paymentAmount) <= 0}
@@ -492,4 +493,4 @@ export default function BusinessMessagesPage() {
 
         </div>
     );
-} 
+}

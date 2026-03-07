@@ -9,14 +9,12 @@ import {
     WalletIcon, 
     Squares2X2Icon, 
     XMarkIcon, 
-    CameraIcon,  
-    PencilSquareIcon, 
     ArrowRightOnRectangleIcon,
     BellIcon,
-    Cog6ToothIcon// Added Bell Icon for notifications
+    Cog6ToothIcon
 } from "@heroicons/react/24/outline";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface AppNotification {
     id: string;
@@ -27,17 +25,19 @@ interface AppNotification {
 
 export default function CreatorNavigationPill() {
     const pathname = usePathname();
+    const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     
-    // --- NEW STATES FOR NOTIFICATIONS & MESSAGES ---
+    // --- USER PROFILE STATE ---
+    // Flow: Holds the data fetched from GET /users/profiles
+    const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; displayName?: string; companyName?: string } | null>(null);
+
+    // --- NOTIFICATIONS & MESSAGES ---
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    const router = useRouter();
 
     const isActive = (path: string) => pathname?.includes(path);
-
-    // Derived count of unread notifications
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
 
     const handleLogout = () => {
@@ -50,58 +50,74 @@ export default function CreatorNavigationPill() {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
+        // Flow: Fetch static user profile data ONCE when the component mounts
+        const fetchUserProfile = async () => {
+            try {
+                console.log("🔵 [Creator API Request] GET /users/profiles");
+                const profileRes = await fetch(`${BASE_URL}/users/profile`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json();
+                    console.log("🟢 [Creator API Response] GET /users/profiles SUCCESS:", profileData);
+                    
+                    // Flow: Handle both Array and Object responses. Prioritize the object with 'displayName' for creators.
+                    if (Array.isArray(profileData) && profileData.length > 0) {
+                        const activeCreatorProfile = profileData.find((p: any) => p.displayName) || profileData[0];
+                        setUserProfile(activeCreatorProfile);
+                    } else if (profileData && typeof profileData === 'object') {
+                        setUserProfile(profileData);
+                    }
+                } else {
+                    console.error("🔴 [Creator API Error] GET /users/profiles FAILED:", await profileRes.text());
+                }
+            } catch (error) {
+                console.error("🔴 [Creator Network Error] GET /users/profiles crashed:", error);
+            }
+        };
+
         const fetchAlerts = async () => {
             // 1. Fetch Unread Messages Count
             try {
-                console.log("🔵 [API Request] GET /messages/unread/count");
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
-                    const msgCount = await msgRes.text(); // Assuming it returns a raw number or string like "2"
-                    console.log(`🟢 [API Response] GET /messages/unread/count SUCCESS: ${msgCount}`);
+                    const msgCount = await msgRes.text(); 
                     setUnreadMessages(Number(msgCount) || 0);
-                } else {
-                    console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
-                }
+                } 
             } catch (error) {
                 console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
             // 2. Fetch Notifications
             try {
-                console.log("🔵 [API Request] GET /notifications");
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
                     const notifData = await notifRes.json();
-                    console.log(`🟢 [API Response] GET /notifications SUCCESS:`, notifData);
                     setNotifications(notifData);
-                } else {
-                    console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
-                }
+                } 
             } catch (error) {
                 console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
         };
 
-        // Fetch immediately on mount
-        fetchAlerts();
-
-        // Poll every 15 seconds for new alerts
-        const interval = setInterval(fetchAlerts, 15000);
+        fetchUserProfile(); // Run once
+        fetchAlerts();      // Run immediately
+        const interval = setInterval(fetchAlerts, 15000); // Poll every 15s
         return () => clearInterval(interval);
     }, []);
 
     // --- MARK NOTIFICATION AS READ ---
     const handleMarkAsRead = async (id: string, currentlyRead: boolean) => {
-        if (currentlyRead) return; // Don't call API if already read
+        if (currentlyRead) return; 
 
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        // Optimistically update UI immediately for snappy feel
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
@@ -115,7 +131,6 @@ export default function CreatorNavigationPill() {
                 console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
             } else {
                 console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
-                // If it fails, revert the optimistic update
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
             }
         } catch (error) {
@@ -124,6 +139,10 @@ export default function CreatorNavigationPill() {
         }
     };
     
+    // --- DYNAMIC UI HELPERS & FALLBACKS ---
+    const dispName = userProfile?.displayName || userProfile?.companyName || "Creator";
+    const userEmail = userProfile?.email || "creator@example.com";
+    const initial = dispName.charAt(0).toUpperCase();
 
     return (
         <>
@@ -252,12 +271,16 @@ export default function CreatorNavigationPill() {
                                 </>
                             )}
 
-                            {/* Profile Button */}
+                            {/* Profile Button - Now Dynamic */}
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
-                                className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs md:text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md"
+                                className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs md:text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
                             >
-                                HP
+                                {userProfile?.avatar ? (
+                                    <Image src={userProfile.avatar} alt="Profile" fill className="object-cover" />
+                                ) : (
+                                    <span>{initial}</span>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -265,7 +288,7 @@ export default function CreatorNavigationPill() {
             </div>
 
             {/* --- PROFILE MODAL OVERLAY --- */}
-           {isProfileOpen && (
+            {isProfileOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-[#0A0A0A] w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-gray-800">
                         <button 
@@ -276,14 +299,21 @@ export default function CreatorNavigationPill() {
                         </button>
 
                         <div className="flex flex-col items-center mt-4">
+                            
+                            {/* Dynamic Avatar */}
                             <div className="relative mb-4">
-                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden">
-                                    <span className="text-black text-4xl font-bold italic tracking-tighter">hp</span>
+                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative">
+                                    {userProfile?.avatar ? (
+                                        <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
+                                    ) : (
+                                        <span className="text-black text-4xl font-bold">{initial}</span>
+                                    )}
                                 </div>
                             </div>
 
-                            <h2 className="text-2xl font-bold mb-1">Hewlett-Packard</h2>
-                            <p className="text-gray-400 text-sm mb-8">hp@hp.com</p>
+                            {/* Dynamic Name and Email */}
+                            <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{dispName}</h2>
+                            <p className="text-gray-400 text-sm mb-8 text-center truncate w-full px-2">{userEmail}</p>
 
                             <div className="w-full space-y-3">
                                 {/* Route to Settings Page */}

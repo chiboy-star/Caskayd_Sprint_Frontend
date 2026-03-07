@@ -10,24 +10,23 @@ import {
   XMarkIcon, 
   CheckCircleIcon,
   ExclamationCircleIcon,
-  DocumentIcon,
   AdjustmentsHorizontalIcon,
-  ArrowLeftIcon,
-  ArrowUpTrayIcon
-  // FIXED: Removed unused MapPinIcon
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid"; 
 import NavigationPill from "@/components/NavigationPill"; 
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// --- TYPES (FIXED: Replaced 'any' with explicit types) ---
+// --- TYPES ---
 type FilterOption = string | { label: string; value: string };
 
 interface CreatorProfile {
     id?: string;
     userId?: string;
+    profileId?: string; 
+    displayName?: string | null; 
     profileImageUrl?: string;
     instagram?: string;
     tiktok?: string;
@@ -80,7 +79,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
     if (!isVisible) return null;
 
     return (
-        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-100 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-6 h-6"/> : <ExclamationCircleIcon className="w-6 h-6"/>}
@@ -102,12 +101,10 @@ const TiktokIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// FIXED: Replaced 'any[]' with 'FilterOption[]'
 const FilterDropdown = ({ label, options, onSelect }: { label: string, options: FilterOption[], onSelect: (val: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Flow: Closes dropdown if user clicks outside of it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -151,11 +148,9 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
   );
 };
 
-// FIXED: Replaced 'any' with 'CreatorProfile'
 const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, onInvite: (c: CreatorProfile) => void, index: number }) => {
     const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
 
-    // Cycle through placeholders if no image is provided
     const placeholderImg = PLACEHOLDERS[index % PLACEHOLDERS.length];
 
     const togglePlatform = (e: React.MouseEvent) => {
@@ -168,24 +163,25 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
     const engagement = platform === "instagram" ? creator.instagramEngagementRate : creator.tiktokEngagementRate;
 
     const getHandle = () => {
-        if (!handleUrl) return "Unknown";
+        if (!handleUrl) return "Unknown Creator";
         let clean = handleUrl.replace(/(^\w+:|^)\/\//, '').replace("www.", "");
         clean = clean.replace("instagram.com/", "").replace("tiktok.com/", "").replace("@", "");
         if(clean.endsWith("/")) clean = clean.slice(0, -1);
         return clean; 
     };
 
-    const handle = getHandle();
+    const displayName = creator.displayName || getHandle();
+    
     const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
     const location = creator.location || "Unknown";
 
     return (
         <div className="bg-white rounded-4xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full border border-transparent hover:border-gray-100">
             {/* Image Container */}
-            <div className="relative aspect-4/5 w-full rounded-3xl overflow-hidden bg-gray-100 mb-4">
+            <div className="relative aspect-[4/5] w-full rounded-3xl overflow-hidden bg-gray-100 mb-4">
                 <Image 
                     src={creator.profileImageUrl || placeholderImg} 
-                    alt={handle} 
+                    alt={displayName} 
                     fill 
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
@@ -193,15 +189,12 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
             
             {/* Text Content */}
             <div className="flex flex-col gap-3 flex-1 px-1">
-                {/* Name & Verification */}
                 <div className="flex items-center gap-1.5">
-                    <h3 className="font-bold text-lg text-slate-900 truncate">{handle}</h3>
+                    <h3 className="font-bold text-lg text-slate-900 truncate">{displayName}</h3>
                     <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />
                 </div>
  
-                {/* Stats Section - 2 Lines */}
                 <div className="flex flex-col gap-1.5 pb-1">
-                    {/* Line 1: Followers | Price */}
                     <div className="flex items-center text-xs text-gray-500 font-medium">
                         <span className="text-gray-400 mr-1">Followers:</span>
                         <span className="text-slate-900 font-bold">{formatNumber(followers)}</span>
@@ -210,7 +203,6 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                         <span className="text-slate-900 font-bold">{price}</span>
                     </div>
 
-                    {/* Line 2: Location | Eng Rate */}
                     <div className="flex items-center text-xs text-gray-500 font-medium">
                         <span className="text-gray-400 mr-1">Loc:</span>
                         <span className="text-slate-900 font-bold truncate max-w-20">{location}</span>
@@ -220,9 +212,7 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                     </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-between mt-auto pt-1 gap-3">
-                     {/* Platform Pill */}
                     <button 
                         onClick={togglePlatform}
                         className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 ${
@@ -234,7 +224,6 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                         {platform === 'instagram' ? <InstagramIcon className="w-4 h-4" /> : <TiktokIcon className="w-4 h-4" />}
                     </button>
 
-                    {/* Invite Button */}
                     <button 
                         onClick={(e) => { e.stopPropagation(); onInvite(creator); }}
                         className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold rounded-full transition-colors text-center text-xs active:scale-95"
@@ -247,21 +236,20 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
     );
 };
 
-// FIXED: Replaced 'any' with 'CreatorProfile | null'
 const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onShowToast: (msg: string, type: "success"|"error") => void }) => {
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [formData, setFormData] = useState({
-        title: "", startDate: "", endDate: "", budget: "", file: null as File | null
-    });
     
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // FIXED: Updated formData state to reflect the new payload requirements
+    const [formData, setFormData] = useState({
+        title: "", description: "", startDate: "", endDate: "", budget: ""
+    });
 
     // Flow: Resets modal state whenever it is opened
     useEffect(() => {
         if(isOpen) {
             setStep(1);
-            setFormData({ title: "", startDate: "", endDate: "", budget: "", file: null });
+            setFormData({ title: "", description: "", startDate: "", endDate: "", budget: "" });
             setIsSubmitting(false);
         }
     }, [isOpen]);
@@ -276,8 +264,8 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
 
     // Flow: Submits the chat request to backend
     const handleSubmit = async () => {
-        if (!formData.budget) {
-            onShowToast("Please enter a budget.", "error");
+        if (!formData.budget || !formData.description) {
+            onShowToast("Please provide a budget and description.", "error");
             return;
         }
         setIsSubmitting(true);
@@ -285,13 +273,14 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             const token = localStorage.getItem("accessToken");
             if (!token) { onShowToast("You are not logged in.", "error"); return; }
 
+            // FIXED: Updated payload to strictly match the new backend schema
             const payload = {
                 creatorId: creator?.userId, 
-                message: `Campaign Request: ${formData.title}`,
-                briefUrl: "https://file.pdf", // TODO: Needs implementation with /upload endpoint
+                title: formData.title,
+                message: formData.description,
+                proposedPrice: Number(formData.budget),
                 startDate: formData.startDate,
-                endDate: formData.endDate,
-                proposedPrice: Number(formData.budget)
+                endDate: formData.endDate
             };
             
             console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
@@ -319,15 +308,10 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
         }
     };
 
-    const handleFileClick = () => fileInputRef.current?.click();
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) setFormData({ ...formData, file: e.target.files[0] });
-    };
-
     if (!isOpen || !creator) return null;
 
     return (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             <div className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
                 <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors">
                     <XMarkIcon className="w-5 h-5 text-gray-500" />
@@ -366,10 +350,16 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                                 <h2 className="text-lg font-bold">Campaign Details</h2>
                             </div>
                             
-                            <div onClick={handleFileClick} className="w-full h-32 bg-gray-50 rounded-2xl border border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-black hover:bg-gray-50 transition-all">
-                                {formData.file ? <DocumentIcon className="w-8 h-8 text-black" /> : <ArrowUpTrayIcon className="w-8 h-8 text-gray-300" />}
-                                <p className="text-xs text-gray-500 mt-2 font-medium">{formData.file ? formData.file.name : "Upload Brief (PDF/Doc)"}</p>
-                                <input aria-label="file upload" type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.doc,.docx" />
+                            {/* FIXED: Removed file upload UI and replaced with description textarea */}
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Campaign Description</label>
+                                <textarea 
+                                    value={formData.description} 
+                                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                                    rows={4}
+                                    className="w-full mt-2 bg-gray-50 rounded-2xl py-3 px-4 text-sm font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-black resize-none" 
+                                    placeholder="Tell the creator about the deliverables..." 
+                                />
                             </div>
 
                             <div>
@@ -395,21 +385,17 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
 export default function DiscoverPage() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // FIXED: Replaced 'any' with 'CreatorProfile | null'
   const [selectedCreator, setSelectedCreator] = useState<CreatorProfile | null>(null);
   
-  // TOAST STATE
   const [toast, setToast] = useState<{msg: string, type: "success"|"error", visible: boolean}>({ msg: "", type: "success", visible: false });
 
   const showToast = (msg: string, type: "success"|"error") => {
       setToast({ msg, type, visible: true });
   };
 
-  // FIXED: Replaced 'any[]' with 'CreatorProfile[]'
   const [creators, setCreators] = useState<CreatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // FILTER STATE
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ niche: "", price: "", platform: "" });
 
@@ -470,17 +456,14 @@ export default function DiscoverPage() {
         onShowToast={showToast}
       />
 
-      {/* --- TOP NAVIGATION PILL COMPONENT --- */}
       <NavigationPill />
 
-      {/* --- MAIN CONTENT AREA --- */}
       <main className="w-full flex-1 pb-20 pt-15">
         
         {/* SEARCH & FILTERS SECTION */}
         <div className="px-4 md:px-8 mt-8">
             <div className="max-w-5xl mx-auto flex flex-col items-center gap-6">
                 
-                {/* Search Bar */}
                 <div className="w-full max-w-lg relative group">
                     <input 
                         type="text" 
@@ -489,9 +472,7 @@ export default function DiscoverPage() {
                     />
                 </div>
 
-                {/* Filters Row */}
                 <div className="flex flex-wrap justify-center items-center gap-2">
-                    {/* Filter Button (Black) */}
                     <button 
                         onClick={() => setShowFilters(!showFilters)}
                         className="flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg hover:bg-gray-900 transition-colors"
@@ -500,16 +481,14 @@ export default function DiscoverPage() {
                         Filter
                     </button>
 
-                    {/* Conditional Filters (Shown when toggled) */}
                     {showFilters && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                             <div className="bg-white rounded-full px-2 py-1 shadow-sm border border-gray-100 flex items-center">
                                 <FilterDropdown label={filters.niche || "Niche"} options={FILTER_OPTIONS.niche} onSelect={(val) => handleFilterSelect("niche", val)} />
-                                <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                                <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
                                 <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
                             </div>
                             
-                            {/* Reset Button */}
                             {(filters.niche || filters.price || filters.platform) && (
                                 <button aria-label="reset fliters" onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors">
                                     <XMarkIcon className="w-4 h-4" />
@@ -530,7 +509,6 @@ export default function DiscoverPage() {
                     </div>
                 ) : creators.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {/* FIXED: Removed 'any' type definition in map parameter */}
                         {creators.map((creator: CreatorProfile, idx: number) => (
                             <CreatorCard key={creator.id || Math.random()} creator={creator} onInvite={openInviteModal} index={idx} />
                         ))}

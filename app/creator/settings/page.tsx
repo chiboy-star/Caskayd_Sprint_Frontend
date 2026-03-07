@@ -6,7 +6,7 @@ import CreatorNavigationPill from "@/components/CreatorNavigationPill";
 import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     // ... (Standard Toast implementation, same as other pages) ...

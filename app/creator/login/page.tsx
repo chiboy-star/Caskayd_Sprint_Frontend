@@ -15,7 +15,7 @@ import Loader from "@/components/Loader"; // IMPORT LOADER
 
 const inter = Inter({ subsets: ["latin"] });
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {

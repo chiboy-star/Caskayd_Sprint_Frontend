@@ -18,7 +18,7 @@ import Loader from "@/components/Loader";
 const inter = Inter({ subsets: ["latin"] });
 
 // --- CONFIGURATION ---
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const AVAILABLE_NICHES = [
   "fitness", "education", "fashion", "beauty", "tech", 
@@ -250,15 +250,18 @@ export default function CreatorSignup() {
                 const uploadData = new FormData();
                 uploadData.append("file", formData.profilePic);
 
-                const uploadRes = await fetch(`${BASE_URL}/upload`, {
-                    method: "POST",
+                const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
+                    method: "PATCH",
+                    headers: {
+                        "Authorization": `Bearer ${token}` // FIXED: Added missing Authorization header
+                    },
                     body: uploadData // Browser automatically sets correct Content-Type for FormData
                 });
 
                 if (uploadRes.ok) {
                     const uploadResult = await uploadRes.json();
                     console.log("🟢 [API Response] POST /upload SUCCESS:", uploadResult);
-                    uploadedProfilePicUrl = uploadResult.url; 
+                    uploadedProfilePicUrl = uploadResult.avatar; 
                 } else {
                     console.error("🔴 [API Error] POST /upload FAILED:", await uploadRes.text());
                 }
@@ -269,11 +272,13 @@ export default function CreatorSignup() {
 
         // --- 4. CREATE CREATOR PROFILE ---
         const profilePayload = {
+            displayName:formData.username,
             bio: formData.bio,
             niches: formData.nicheTags, 
             location: formData.location,
             tiktok: formData.tiktok,
             instagram: formData.instagram,
+            pricePerPost:formData.pricePerPost,
             profileImageUrl: uploadedProfilePicUrl || undefined // Stored temporarily or sent immediately
         };
         console.log("🔵 [API Request] POST /creator", profilePayload);
@@ -324,12 +329,11 @@ export default function CreatorSignup() {
 
         // --- 6. COMPLETE PROFILE (BANK DETAILS) ---
         const bankPayload = {
-            bankName: formData.bankName,
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("🔵 [API Request] POST /creator/complete-profile", bankPayload);
-        const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
+        console.log("🔵 [API Request] POST /payments/creator/subaccount ", bankPayload);
+        const bankRes = await fetch(`${BASE_URL}/payments/creator/subaccount `, { 
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
@@ -340,10 +344,10 @@ export default function CreatorSignup() {
 
         const bankData = await bankRes.json();
         if (!bankRes.ok) {
-            console.error("🔴 [API Error] POST /creator/complete-profile FAILED:", bankData);
+            console.error("🔴 [API Error] POST /payments/creator/subaccount  FAILED:", bankData);
             throw new Error(bankData.message || "Failed to complete bank profile");
         }
-        console.log("🟢 [API Response] POST /creator/complete-profile SUCCESS:", bankData);
+        console.log("🟢 [API Response] POST /payments/creator/subaccount  SUCCESS:", bankData);
 
 
         // --- SUCCESS & REDIRECT ---

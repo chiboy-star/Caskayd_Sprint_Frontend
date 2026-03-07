@@ -17,13 +17,11 @@ import Loader from "@/components/Loader";
 const inter = Inter({ subsets: ["latin"] });
 
 // --- FIX 1: DYNAMIC BASE URL ---
-// Use environment variable if available, otherwise default to localhost
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // --- FIX 2: UPDATED URL REGEX ---
-// Now allows "localhost" with ports for testing
 const URL_REGEX = /^(https?:\/\/)?(([\da-z\.-]+)\.([a-z\.]{2,6})|localhost(:\d{1,5})?)([\/\w \.-]*)*\/?$/;
 
 const AVAILABLE_INDUSTRIES = ["fitness", "education", "fashion", "beauty", "tech", 
@@ -127,6 +125,7 @@ export default function BusinessSignup() {
         console.log("🔵 Using Backend URL:", BASE_URL);
 
         // --- 1. SIGNUP ---
+        // Flow: Create the core user account in the database
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
         console.log("🔵 [API Request] POST /auth/signup", signupPayload);
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
@@ -143,6 +142,7 @@ export default function BusinessSignup() {
         console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
 
         // --- 2. LOGIN TO GET TOKEN ---
+        // Flow: Automatically log the user in so we can perform authenticated actions (like uploading files)
         const loginPayload = { email: formData.email, password: formData.password };
         console.log("🔵 [API Request] POST /auth/login", loginPayload);
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
@@ -161,33 +161,38 @@ export default function BusinessSignup() {
         console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
 
         // --- 3. FILE UPLOAD (If image is selected) ---
+        // Flow: Upload the file securely using the JWT token obtained from step 2.
         let uploadedLogoUrl = "";
         if (formData.businessLogo) {
             try {
-                console.log("🔵 [API Request] POST /upload (Uploading file...)");
+                console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
                 const uploadData = new FormData();
                 uploadData.append("file", formData.businessLogo);
 
-                // Note: Do not set Content-Type header manually for FormData, the browser sets it automatically with the boundary
-                const uploadRes = await fetch(`${BASE_URL}/upload`, {
-                    method: "POST",
+                // Note: Do not set Content-Type header manually for FormData, the browser sets it automatically
+                const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
+                    method: "PATCH",
+                    headers: {
+                        "Authorization": `Bearer ${token}` // FIXED: Added missing Authorization header
+                    },
                     body: uploadData
                 });
 
                 if (uploadRes.ok) {
                     const uploadResult = await uploadRes.json();
-                    console.log("🟢 [API Response] POST /upload SUCCESS:", uploadResult);
-                    uploadedLogoUrl = uploadResult.url; // Store URL from response
+                    console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
+                    uploadedLogoUrl = uploadResult.avatar; 
                 } else {
-                    console.error("🔴 [API Error] POST /upload FAILED:", await uploadRes.text());
-                    // Not throwing error here, we still want to create the profile even if image fails
+                    // FIXED: Updated console string to match the actual endpoint
+                    console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
                 }
             } catch (uploadError) {
-                console.error("🔴 [Network Error] POST /upload crashed:", uploadError);
+                console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", uploadError);
             }
         }
 
         // --- 4. CREATE BUSINESS PROFILE ---
+        // Flow: Attach the business data (and uploaded logo URL) to the user account
         const businessPayload = {
             businessName: formData.businessName,
             websiteUrl: formData.website, 
@@ -271,7 +276,7 @@ export default function BusinessSignup() {
           
           {/* --- CENTERED LOGO SECTION --- */}
           <div className="mb-8 flex flex-col items-center text-center">
-            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> {/* Added mb-6 for space */}
+            <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
               <Image 
                 src="/images/Logo_transparent_icon.png" 
                 alt="Caskayd" 
@@ -355,4 +360,4 @@ export default function BusinessSignup() {
       </div>
     </div>
   );
-} 
+}
