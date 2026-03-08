@@ -20,11 +20,8 @@
 }
 
 html, body {
-  /* We use var(--background) here so it respects light/dark mode */
-  background-color: var(--background); 
+  /* This forces the bouncy area to match your app's white container */
+  background-color: #ffffff; 
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  
-  /* This physically prevents the mobile browser from pulling past the top/bottom */
-   
 }
