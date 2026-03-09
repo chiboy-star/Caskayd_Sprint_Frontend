@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
     ChatBubbleOvalLeftIcon, 
-    GlobeAltIcon, 
+    MapIcon, // <-- Swapped GlobeAltIcon for MapIcon 
     XMarkIcon, 
     CameraIcon, 
     ArrowRightOnRectangleIcon,
@@ -38,7 +38,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
     if (!isVisible) return null;
 
     return (
-        <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
+        <div className={`fixed top-28 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
@@ -53,7 +53,6 @@ export default function NavigationPill() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     
     // --- USER PROFILE STATE ---
-    // Flow: Holds the data fetched from GET /users/profiles
     const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; companyName?: string; displayName?: string } | null>(null);
 
     // --- NOTIFICATIONS & MESSAGES ---
@@ -76,35 +75,26 @@ export default function NavigationPill() {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        // Flow: Fetch static user profile data ONCE when the component mounts
         const fetchUserProfile = async () => {
             try {
-                console.log("🔵 [Business API Request] GET /users/profiles");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
-                    console.log("🟢 [Business API Response] GET /users/profiles SUCCESS:", profileData);
-                    
-                    // Handle both Array and Object responses safely
                     if (Array.isArray(profileData) && profileData.length > 0) {
                         const activeBusinessProfile = profileData.find((p: any) => p.companyName) || profileData[0];
                         setUserProfile(activeBusinessProfile);
                     } else if (profileData && typeof profileData === 'object') {
                         setUserProfile(profileData);
                     }
-
-                } else {
-                    console.error("🔴 [Business API Error] GET /users/profiles FAILED:", await profileRes.text());
-                }
+                } 
             } catch (error) {
                 console.error("🔴 [Business Network Error] GET /users/profiles crashed:", error);
             }
         };
 
-        // Flow: Polling function for live alerts
         const fetchAlerts = async () => {
             try {
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
@@ -131,9 +121,9 @@ export default function NavigationPill() {
             }
         };
 
-        fetchUserProfile(); // Run once
-        fetchAlerts();      // Run immediately
-        const interval = setInterval(fetchAlerts, 15000); // Poll every 15s
+        fetchUserProfile(); 
+        fetchAlerts();      
+        const interval = setInterval(fetchAlerts, 15000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -147,20 +137,15 @@ export default function NavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            console.log(`🔵 [Business API Request] PATCH /notifications/${id}/read`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (res.ok) {
-                console.log(`🟢 [Business API Response] PATCH /notifications/${id}/read SUCCESS`);
-            } else {
-                console.error(`🔴 [Business API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
+            if (!res.ok) {
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
             }
         } catch (error) {
-            console.error(`🔴 [Business Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };
@@ -173,7 +158,6 @@ export default function NavigationPill() {
 
         setIsUpdating(true);
         try {
-            console.log("🔵 [API Request] PATCH /users/password", passwordData);
             const res = await fetch(`${BASE_URL}/users/password`, {
                 method: "PATCH",
                 headers: { 
@@ -184,17 +168,14 @@ export default function NavigationPill() {
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] PATCH /users/password SUCCESS");
                 showToast("Password updated successfully", "success");
                 setPasswordData({ currentPassword: "", newPassword: "" });
                 setView("profile"); 
             } else {
                 const err = await res.json();
-                console.error("🔴 [API Error] PATCH /users/password FAILED:", err);
                 showToast(err.message || "Failed to update password", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error]:", error);
             showToast("Network error occurred", "error");
         } finally {
             setIsUpdating(false);
@@ -206,7 +187,6 @@ export default function NavigationPill() {
         router.push("/business/login");
     };
 
-    // --- DYNAMIC UI HELPERS & FALLBACKS ---
     const compName = userProfile?.companyName || "Your Company";
     const dispName = userProfile?.displayName || "Business Account";
     const userEmail = userProfile?.email || "business@example.com";
@@ -217,13 +197,16 @@ export default function NavigationPill() {
             <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({...prev, isVisible: false}))} />
 
             {/* --- NAVIGATION PILL --- */}
-            <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 py-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
+            {/* Added pt-6 for extra top breathing room */}
+            <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
-                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-2.5 px-4 md:px-6 flex items-center justify-between relative">
+                    
+                    {/* INCREASED PADDING HERE: py-4 px-6 md:px-8 */}
+                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-4 px-6 md:px-8 flex items-center justify-between relative">
                         
-                        {/* Left: Logo */}
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                            <div className="relative w-8 h-8 shrink-0">
+                            {/* Increased logo size to match the luxurious padding */}
+                            <div className="relative w-10 h-10 shrink-0">
                                 <Image 
                                     src="/images/Logo_transparent_icon.png" 
                                     alt="Caskayd" 
@@ -231,18 +214,17 @@ export default function NavigationPill() {
                                     className="object-contain"
                                 />
                             </div>
-                            <span className="font-extrabold text-xl tracking-tight hidden sm:block text-slate-900">
+                            <span className="font-extrabold text-2xl tracking-tight hidden sm:block text-slate-900">
                                 Caskayd
                             </span>
                         </div>
 
-                        {/* Center: Navigation Pills */}
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 sm:gap-8">
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8 sm:gap-10">
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
-                                        <GlobeAltIcon className="w-6 h-6 sm:w-5 sm:h-5" />
-                                        <span className="hidden sm:block">Discover</span>
+                                        <MapIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                        <span className="hidden sm:block text-[15px]">Discover</span>
                                     </div>
                                     <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/discover') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
@@ -252,9 +234,9 @@ export default function NavigationPill() {
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors relative ${isActive('/business/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1 relative">
                                         <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
-                                        <span className="hidden sm:block">Messages</span>
+                                        <span className="hidden sm:block text-[15px]">Messages</span>
                                         {unreadMessages > 0 && (
-                                            <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center rounded-full bg-red-500 text-[8px] sm:text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                                            <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                                 {unreadMessages > 9 ? '9+' : unreadMessages}
                                             </span>
                                         )}
@@ -264,27 +246,23 @@ export default function NavigationPill() {
                             </Link>
                         </div>
 
-                        {/* Right: Notifications & Profile Trigger */}
-                        <div className="flex items-center gap-3 md:gap-4 shrink-0 relative">
-                            
-                            {/* Notifications Bell */}
+                        <div className="flex items-center gap-4 md:gap-5 shrink-0 relative">
                             <button 
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
+                                className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
                             >
-                                <BellIcon className="w-6 h-6" />
+                                <BellIcon className="w-7 h-7" />
                                 {unreadNotificationCount > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
+                                    <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
                                     </span>
                                 )}
                             </button>
 
-                            {/* Notifications Dropdown Container */}
                             {isNotificationsOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                                    <div className="absolute top-14 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                                    <div className="absolute top-16 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                                         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                             <h3 className="font-bold text-gray-900">Notifications</h3>
                                             <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
@@ -310,10 +288,10 @@ export default function NavigationPill() {
                                 </>
                             )}
 
-                            {/* Profile Button - Now Dynamic */}
+                            {/* Increased profile button size slightly to match larger padding */}
                             <button 
                                 onClick={() => { setIsProfileOpen(true); setView("profile"); }}
-                                className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs md:text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
+                                className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
                             >
                                 {userProfile?.avatar ? (
                                     <Image src={userProfile.avatar} alt="Profile" fill className="object-cover" />
@@ -328,13 +306,12 @@ export default function NavigationPill() {
 
             {/* --- PROFILE MODAL OVERLAY --- */}
             {isProfileOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    
-                    <div className="bg-[#0A0A0A] w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-gray-800 overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50  animate-in fade-in duration-300">
+                    <div className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10 overflow-hidden">
                         
                         <button 
                             onClick={() => setIsProfileOpen(false)}
-                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-10"
+                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors z-10 cursor-pointer"
                         >
                             <XMarkIcon className="w-6 h-6" />
                         </button>
@@ -343,7 +320,6 @@ export default function NavigationPill() {
                         {view === "profile" && (
                             <div className="flex flex-col items-center mt-2 animate-in slide-in-from-left-4 duration-300">
                                 
-                                {/* Dynamic Avatar */}
                                 <div className="relative mb-4">
                                     <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative">
                                         {userProfile?.avatar ? (
@@ -352,17 +328,15 @@ export default function NavigationPill() {
                                             <span className="text-black text-4xl font-bold">{initial}</span>
                                         )}
                                     </div>
-                                    <button className="absolute bottom-0 right-0 bg-white text-black p-1.5 rounded-full shadow-lg hover:bg-gray-200 transition-colors">
+                                    <button className="absolute bottom-0 right-0 bg-white text-black p-1.5 rounded-full shadow-lg hover:bg-gray-200 transition-colors cursor-pointer">
                                         <CameraIcon className="w-4 h-4" />
                                     </button>
                                 </div>
 
-                                {/* Dynamic Company Name and Display Name */}
                                 <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{compName}</h2>
                                 <p className="text-gray-400 text-sm mb-8 text-center truncate w-full px-2">{dispName}</p>
 
                                 <div className="w-full space-y-3">
-                                    {/* Email Display (Replaced Location) */}
                                     <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-xs text-gray-500 font-medium mb-1">Email Address</span>
@@ -370,17 +344,16 @@ export default function NavigationPill() {
                                         </div>
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div className="grid grid-cols-2 gap-3 pt-2">
                                         <button 
                                             onClick={() => setView("password")}
-                                            className="bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm"
+                                            className="bg-white/10 border border-white/5 hover:bg-white/20 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer"
                                         >
                                             <KeyIcon className="w-4 h-4" /> Password
                                         </button>
                                         <button 
                                             onClick={handleLogout}
-                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm border border-red-500/20"
+                                            className="bg-red-500/10 hover:bg-black text-red-500 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer"
                                         >
                                             <ArrowRightOnRectangleIcon className="w-4 h-4" /> Logout
                                         </button>
@@ -392,7 +365,7 @@ export default function NavigationPill() {
                         {/* === PASSWORD VIEW === */}
                         {view === "password" && (
                             <div className="flex flex-col mt-2 animate-in slide-in-from-right-4 duration-300">
-                                <button onClick={() => setView("profile")} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 text-sm font-semibold w-fit">
+                                <button onClick={() => setView("profile")} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 text-sm font-semibold w-fit cursor-pointer">
                                     <ArrowLeftIcon className="w-4 h-4" /> Back
                                 </button>
                                 
@@ -405,7 +378,7 @@ export default function NavigationPill() {
                                             type="password" required 
                                             value={passwordData.currentPassword} 
                                             onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})} 
-                                            className="w-full bg-[#1A1A1A] border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors" 
+                                            className="w-full bg-[#1A1A1A]/50 border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-50 transition-colors" 
                                             placeholder="••••••••" 
                                         />
                                     </div>
@@ -415,7 +388,7 @@ export default function NavigationPill() {
                                             type="password" required minLength={6}
                                             value={passwordData.newPassword} 
                                             onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} 
-                                            className="w-full bg-[#1A1A1A] border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors" 
+                                            className="w-full bg-[#1A1A1A]/50 border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-50 transition-colors" 
                                             placeholder="••••••••" 
                                         />
                                     </div>
@@ -423,7 +396,7 @@ export default function NavigationPill() {
                                     <button 
                                         type="submit" 
                                         disabled={isUpdating || !passwordData.currentPassword || !passwordData.newPassword}
-                                        className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 mt-4"
+                                        className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 mt-4 cursor-pointer"
                                     >
                                         {isUpdating ? "Updating..." : "Save Password"}
                                     </button>

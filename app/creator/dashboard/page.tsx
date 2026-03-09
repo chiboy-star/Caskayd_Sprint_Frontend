@@ -6,12 +6,11 @@ import { Inter } from "next/font/google";
 import CreatorNavigationPill from "@/components/CreatorNavigationPill"; 
 import { 
   BanknotesIcon, 
-  ChartBarIcon, 
   ClockIcon,
   LinkIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ArrowsRightLeftIcon // Added for Transactions
+  ArrowsRightLeftIcon 
 } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -43,7 +42,6 @@ export default function CreatorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
   
-  // Updated state to handle the object structure from the API
   const [earningsData, setEarningsData] = useState({
       totalEarned: 0,
       totalTransactions: 0
@@ -70,18 +68,14 @@ export default function CreatorDashboard() {
   // --- 1. FETCH CHAT REQUESTS ---
   const fetchRequests = async (token: string) => {
       try {
-          console.log("🔵 [API Request] GET /chat-requests/creator");
           const res = await fetch(`${BASE_URL}/chat-requests/creator`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              console.log("🟢 [API Response] GET /chat-requests/creator SUCCESS:", data);
               setInvites(data);
-          } else {
-              console.error("🔴 [API Error] GET /chat-requests/creator FAILED:", await res.text());
-          }
+          } 
       } catch (error) {
           console.error("🔴 [Network Error] GET /chat-requests/creator crashed:", error);
       } finally {
@@ -92,23 +86,17 @@ export default function CreatorDashboard() {
   // --- 2. FETCH EARNINGS ---
   const fetchEarnings = async (token: string) => {
       try {
-          console.log("🔵 [API Request] GET /payments/earnings");
           const res = await fetch(`${BASE_URL}/payments/earnings`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
-              
-              // Set the state using the exact keys from the backend response
               setEarningsData({
                   totalEarned: data?.totalEarned || 0,
                   totalTransactions: data?.totalTransactions || 0
               });
-          } else {
-              console.error("🔴 [API Error] GET /payments/earnings FAILED:", await res.text());
-          }
+          } 
       } catch (error) {
           console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
       }
@@ -120,23 +108,24 @@ export default function CreatorDashboard() {
       if (!token) return;
 
       try {
-          console.log(`🔵 [API Request] PATCH /chat-requests/${id}/${action}`);
           const res = await fetch(`${BASE_URL}/chat-requests/${id}/${action}`, {
               method: "PATCH",
               headers: { "Authorization": `Bearer ${token}` }
           });
 
           if (res.ok) {
-              console.log(`🟢 [API Response] PATCH /chat-requests/${id}/${action} SUCCESS`);
-              showToast(`Request ${action}ed successfully`, "success");
+              // CHANGED: If action is reject, pass "error" so the toast is red
+              if (action === "reject") {
+                  showToast(`Request declined`, "error");
+              } else {
+                  showToast(`Request accepted successfully`, "success");
+              }
               setInvites(prev => prev.filter(invite => invite.id !== id));
           } else {
               const errorData = await res.json();
-              console.error(`🔴 [API Error] PATCH /chat-requests/${id}/${action} FAILED:`, errorData);
               throw new Error(errorData.message || "Action failed");
           }
       } catch (error: any) {
-          console.error("🔴 [Network Error] Handle Action crashed:", error);
           showToast(error.message || "Something went wrong", "error");
       }
   };
@@ -165,10 +154,11 @@ export default function CreatorDashboard() {
       <CreatorNavigationPill />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pb-12 pt-32">
+      {/* CHANGED: Increased top and bottom padding */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pb-20 pt-[140px] md:pt-[160px]">
         
         {/* --- MAIN DASHBOARD CONTAINER --- */}
-        <div className=" rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
+        <div className="rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
           
           {/* Top Metrics Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -183,7 +173,7 @@ export default function CreatorDashboard() {
                 </div>
             </div> 
 
-            {/* Total Transactions (Replaced Active Jobs) - Purple Border */}
+            {/* Total Transactions - Purple Border */}
             <div className="bg-white border-2 border-[#818CF8] rounded-[2rem] p-8 flex flex-col items-center justify-center text-center shadow-sm h-48 transition-all hover:shadow-md">
                 <div className="flex items-center gap-2 mb-3 text-gray-600 font-bold text-sm tracking-wide">
                     <ArrowsRightLeftIcon className="w-5 h-5 text-[#818CF8]" /> Total Transactions
@@ -211,9 +201,27 @@ export default function CreatorDashboard() {
 
             <div className="space-y-4">
                 {loading ? (
-                    <div className="text-center py-12 text-gray-500 font-medium bg-white rounded-3xl border border-gray-100 shadow-sm">
-                        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        Loading invites...
+                    // CHANGED: Replaced spinner with skeleton layout for invites
+                    <div className="space-y-4">
+                        {[1, 2].map((i) => (
+                            <div key={i} className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center shadow-sm gap-6 animate-pulse">
+                                <div className="flex-1 w-full">
+                                    <div className="h-5 w-24 bg-gray-200 rounded-md mb-3"></div>
+                                    <div className="h-6 w-3/4 bg-gray-200 rounded-md mb-3"></div>
+                                    <div className="flex gap-2">
+                                        <div className="h-6 w-32 bg-gray-200 rounded-full"></div>
+                                        <div className="h-6 w-24 bg-gray-200 rounded-full"></div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                                    <div className="h-4 w-28 bg-gray-200 rounded-md sm:mr-4"></div>
+                                    <div className="flex gap-3 w-full sm:w-auto">
+                                        <div className="h-12 w-full sm:w-28 bg-gray-200 rounded-xl"></div>
+                                        <div className="h-12 w-full sm:w-28 bg-gray-200 rounded-xl"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : invites.length > 0 ? (
                     invites.map((invite) => (
@@ -253,13 +261,13 @@ export default function CreatorDashboard() {
                                 <div className="flex gap-3 w-full sm:w-auto">
                                     <button 
                                         onClick={() => handleAction(invite.id, "accept")}
-                                        className="flex-1 sm:flex-none bg-[#00D68F] hover:bg-[#00c080] text-black font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95"
+                                        className="flex-1 sm:flex-none bg-[#00D68F] hover:bg-[#00c080] text-black font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95 cursor-pointer"
                                     >
                                         Accept
                                     </button>
                                     <button 
                                         onClick={() => handleAction(invite.id, "reject")}
-                                        className="flex-1 sm:flex-none bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95"
+                                        className="flex-1 sm:flex-none bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 font-bold py-3 px-8 rounded-xl text-sm transition-colors shadow-sm active:scale-95 cursor-pointer"
                                     >
                                         Decline
                                     </button>

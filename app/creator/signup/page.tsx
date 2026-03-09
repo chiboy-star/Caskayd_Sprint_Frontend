@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
     EyeIcon, 
+    EyeSlashIcon, // <-- ADDED: EyeSlashIcon
     ArrowUpTrayIcon, 
     CheckCircleIcon,
     XCircleIcon,
@@ -61,7 +62,7 @@ const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boo
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-                <button aria-label="Close modal" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black">
+                <button aria-label="Close modal" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer">
                     <XMarkIcon className="h-6 w-6" />
                 </button>
                 <h3 className="text-xl font-bold text-gray-900 mb-1">Select your Niches</h3>
@@ -72,7 +73,7 @@ const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boo
                             key={niche}
                             type="button"
                             onClick={() => onToggle(niche)}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border cursor-pointer ${
                                 selectedNiches.includes(niche)
                                 ? "bg-emerald-500 text-white border-emerald-500 shadow-md transform scale-105" 
                                 : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
@@ -82,7 +83,7 @@ const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boo
                         </button>
                     ))}
                 </div>
-                <button onClick={onClose} className="w-full bg-slate-900 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition-colors">Done</button>
+                <button onClick={onClose} className="w-full bg-slate-900 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">Done</button>
             </div>
         </div>
     );
@@ -121,7 +122,14 @@ export default function CreatorSignup() {
             if (response.ok) {
                 const data = await response.json();
                 if (data.status) {
-                    setBanks(data.data);
+                    // --- FIX 4: Deduplicate banks by name to remove the 15+ duplicates of microfinance banks ---
+                    const uniqueBanks = Array.from(
+                        new Map(data.data.map((item: {name: string, code: string}) => [item.name.trim().toLowerCase(), item])).values()
+                    ) as {name: string, code: string}[];
+                    
+                    // Sort alphabetically for easier searching
+                    uniqueBanks.sort((a, b) => a.name.localeCompare(b.name));
+                    setBanks(uniqueBanks);
                     return;
                 }
             }
@@ -253,9 +261,9 @@ export default function CreatorSignup() {
                 const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
                     method: "PATCH",
                     headers: {
-                        "Authorization": `Bearer ${token}` // FIXED: Added missing Authorization header
+                        "Authorization": `Bearer ${token}`
                     },
-                    body: uploadData // Browser automatically sets correct Content-Type for FormData
+                    body: uploadData 
                 });
 
                 if (uploadRes.ok) {
@@ -279,7 +287,7 @@ export default function CreatorSignup() {
             tiktok: formData.tiktok,
             instagram: formData.instagram,
             pricePerPost:formData.pricePerPost,
-            profileImageUrl: uploadedProfilePicUrl || undefined // Stored temporarily or sent immediately
+            profileImageUrl: uploadedProfilePicUrl || undefined
         };
         console.log("🔵 [API Request] POST /creator", profilePayload);
         const profileRes = await fetch(`${BASE_URL}/creator`, {
@@ -307,7 +315,6 @@ export default function CreatorSignup() {
             rate: Number(formData.rate),
             bankName: formData.bankName,
             accountNumber: formData.accountNumber,
-            // creator: { id: "???" } -> POINTED OUT AS POTENTIALLY MISSING
         };
         console.log("🔵 [API Request] POST /creator/finance", financePayload);
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
@@ -425,11 +432,15 @@ export default function CreatorSignup() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                         <div className="relative">
                             <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"><EyeIcon className="h-5 w-5" /></button>
+                            {/* FIX 1 & 2: Added EyeSlashIcon toggle and cursor-pointer */}
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer">
+                                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                            </button>
                         </div>
                     </div>
                     <div className="text-right"><Link href="/creator/login" className="text-xs text-blue-600 hover:underline">Or pick up from where you left</Link></div>
-                    <button type="submit" className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5">Next</button>
+                    {/* FIX 2: Added cursor-pointer to submit button */}
+                    <button type="submit" className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 cursor-pointer">Next</button>
                 </form>
             </div>
 
@@ -450,9 +461,18 @@ export default function CreatorSignup() {
                     </div>
 
                     <div className="relative">
-                        <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Your Niches</label>
-                        <div onClick={() => setIsNicheModalOpen(true)} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-emerald-500 hover:bg-white transition-all flex items-center text-sm">
-                            {formData.nicheTags.length > 0 ? <span className="text-gray-900 font-medium">{formData.nicheTags.join(", ")}</span> : <span className="text-gray-400">Select niches (Max 3)</span>}
+                        <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Your Niches <span className="text-gray-400 font-normal text-xs ml-1">(Max 3)</span></label>
+                        {/* FIX 3: Replaced text with styled pill badges */}
+                        <div onClick={() => setIsNicheModalOpen(true)} className="w-full min-h-[42px] border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-emerald-500 transition-all flex flex-wrap items-center gap-2 rounded-t-md">
+                            {formData.nicheTags.length > 0 ? (
+                                formData.nicheTags.map(tag => (
+                                    <span key={tag} className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full inline-flex items-center">
+                                        {tag}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-gray-400 py-1">Select niches (e.g. Beauty, Tech)</span>
+                            )}
                         </div>
                     </div>
 
@@ -482,8 +502,9 @@ export default function CreatorSignup() {
                     </div>
 
                     <div className="pt-2 flex flex-col gap-2">
-                        <button type="submit" className="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 text-sm">Almost There</button>
-                        <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-gray-500 hover:text-gray-800 py-2">Go Back</button>
+                        {/* FIX 2: Added cursor-pointer to submit/back buttons */}
+                        <button type="submit" className="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 text-sm cursor-pointer">Almost There</button>
+                        <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
                     </div>
                 </form>
             </div>
@@ -521,10 +542,10 @@ export default function CreatorSignup() {
                         <input type="text" name="accountNumber" maxLength={10} value={formData.accountNumber} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setFormData(prev => ({...prev, accountNumber: val})) }} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="0000000000" />
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
-                        <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 flex justify-center gap-2">
+                        <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 flex justify-center gap-2 cursor-pointer">
                             {isLoading ? "Creating Account..." : "Get Started"}
                         </button>
-                        <button type="button" onClick={() => setStep(2)} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 py-2">Go Back</button>
+                        <button type="button" onClick={() => setStep(2)} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
                     </div>
                 </form>
             </div>
@@ -533,4 +554,4 @@ export default function CreatorSignup() {
       </div>
     </div>
   );
-} 
+}

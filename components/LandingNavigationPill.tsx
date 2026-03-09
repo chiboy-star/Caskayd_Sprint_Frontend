@@ -40,7 +40,7 @@ export default function LandingNavigationPill() {
                     </Link>
                     
                     {/* Vertical Divider */}
-                    <div className="h-4 w-[1px] bg-gray-300 block"></div>
+                    
 
                     <Link 
                         href="/creator/login" 

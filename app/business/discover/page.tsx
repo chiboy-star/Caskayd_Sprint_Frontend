@@ -95,8 +95,9 @@ const InstagramIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Added custom drop-shadow styling to create the red/cyan overlap 
 const TiktokIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} style={{ overflow: 'visible', filter: 'drop-shadow(1.5px 1.5px 0px #fe0050) drop-shadow(-1.5px -1.5px 0px #00f2fe)' }}>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.89-.31-4.08-1.03-2.02-1.19-3.49-3.35-3.98-5.6-.54-2.49.42-5.18 2.45-6.83 1.98-1.63 4.81-1.82 7.01-.52.14.09.28.19.42.29-.01 1.33-.01 2.66-.01 4-.08-.03-.17-.07-.25-.11-.95-.49-2.05-.64-3.11-.42-1.18.24-2.19 1.05-2.67 2.17-.5 1.17-.37 2.54.34 3.59.83 1.25 2.51 1.74 3.94 1.13.92-.38 1.63-1.16 1.93-2.1.26-.81.25-1.68.25-2.53-.02-5.24-.02-10.49-.02-15.73z" />
   </svg>
 );
@@ -119,7 +120,7 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
     <div className="relative" ref={dropdownRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen ? 'text-black' : 'text-gray-500 hover:text-black'}`}
+        className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen ? 'text-black' : 'text-gray-500 hover:text-black cursor-pointer'}`}
       >
         {label}
         <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
@@ -134,7 +135,7 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
                 return (
                     <button 
                       key={idx} 
-                      className="w-full text-left px-4 py-3 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-50 last:border-0"
+                      className="w-full text-left px-4 py-3 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-50 last:border-0 cursor-pointer"
                       onClick={() => { onSelect(returnValue); setIsOpen(false); }}
                     >
                       {displayLabel}
@@ -215,9 +216,10 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                 <div className="flex items-center justify-between mt-auto pt-1 gap-3">
                     <button 
                         onClick={togglePlatform}
-                        className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 ${
+                        className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 cursor-pointer ${
                             platform === 'instagram' 
-                            ? 'bg-linear-to-tr from-[#833AB4] via-[#FD1D1D] to-[#FCAF45] hover:shadow-orange-200' 
+                            // Official Instagram Brand Gradient
+                            ? 'bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:shadow-pink-200' 
                             : 'bg-black hover:shadow-gray-300'
                         }`}
                     >
@@ -226,9 +228,9 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
 
                     <button 
                         onClick={(e) => { e.stopPropagation(); onInvite(creator); }}
-                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold rounded-full transition-colors text-center text-xs active:scale-95"
+                        className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 font-bold rounded-full transition-colors text-center text-xs active:scale-95 cursor-pointer"
                     >
-                        Invite to Campaign +
+                        Send Request +
                     </button>
                 </div>
             </div>
@@ -240,12 +242,10 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // FIXED: Updated formData state to reflect the new payload requirements
     const [formData, setFormData] = useState({
         title: "", description: "", startDate: "", endDate: "", budget: ""
     });
 
-    // Flow: Resets modal state whenever it is opened
     useEffect(() => {
         if(isOpen) {
             setStep(1);
@@ -262,7 +262,6 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
         setStep(2);
     };
 
-    // Flow: Submits the chat request to backend
     const handleSubmit = async () => {
         if (!formData.budget || !formData.description) {
             onShowToast("Please provide a budget and description.", "error");
@@ -273,7 +272,6 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             const token = localStorage.getItem("accessToken");
             if (!token) { onShowToast("You are not logged in.", "error"); return; }
 
-            // FIXED: Updated payload to strictly match the new backend schema
             const payload = {
                 creatorId: creator?.userId, 
                 title: formData.title,
@@ -283,8 +281,6 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                 endDate: formData.endDate
             };
             
-            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
-            
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -292,16 +288,13 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             });
 
             if (!res.ok) {
-                console.error("🔴 [API Error] POST /chat-requests FAILED:", await res.text());
                 throw new Error("Failed to send request");
             }
             
-            console.log("🟢 [API Response] POST /chat-requests SUCCESS");
             onShowToast("Request Sent Successfully!", "success");
             onClose();
 
         } catch (error: any) {
-            console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
@@ -313,31 +306,31 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             <div className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
-                <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors">
+                <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
                     <XMarkIcon className="w-5 h-5 text-gray-500" />
                 </button>
 
                 <div className={`transition-all duration-300 ease-in-out ${step === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 hidden'}`}>
                     {step === 1 && (
                         <div className="space-y-6 mt-2">
-                            <h2 className="text-center text-lg font-bold text-gray-900">Start a Campaign</h2>
+                            <h2 className="text-center text-lg font-bold text-gray-900">Send Request</h2>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Campaign Title</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad title</label>
                                     <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full mt-1 border-b border-gray-200 py-3 text-lg font-medium focus:outline-none focus:border-black transition-colors placeholder-gray-300" placeholder="e.g. Summer Launch" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
-                                        <input aria-label="input-start-date" type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black" />
+                                        <input aria-label="input-start-date" type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">End Date</label>
-                                        <input aria-label="input-end-date"type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black" />
+                                        <input aria-label="input-end-date"type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={handleNext} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200">Next Step</button>
+                            <button onClick={handleNext} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 cursor-pointer">Next Step</button>
                         </div>
                     )}
                 </div>
@@ -346,13 +339,12 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                     {step === 2 && (
                         <div className="space-y-6 mt-2">
                             <div className="flex items-center gap-2 mb-4">
-                                <button aria-label="Go back" onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-gray-100"><ArrowLeftIcon className="w-5 h-5" /></button>
-                                <h2 className="text-lg font-bold">Campaign Details</h2>
+                                <button aria-label="Go back" onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-gray-100 cursor-pointer"><ArrowLeftIcon className="w-5 h-5" /></button>
+                                <h2 className="text-lg font-bold">Request Details</h2>
                             </div>
                             
-                            {/* FIXED: Removed file upload UI and replaced with description textarea */}
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Campaign Description</label>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad Description</label>
                                 <textarea 
                                     value={formData.description} 
                                     onChange={(e) => setFormData({...formData, description: e.target.value})} 
@@ -370,7 +362,7 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                                 </div>
                             </div>
 
-                            <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 disabled:opacity-50">
+                            <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 disabled:opacity-50 cursor-pointer">
                                 {isSubmitting ? "Sending Request..." : "Send Request"}
                             </button>
                         </div>
@@ -399,7 +391,6 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ niche: "", price: "", platform: "" });
 
-  // Flow: Re-fetches the creators list every time a filter state changes
   useEffect(() => {
       const fetchCreators = async () => {
           setLoading(true);
@@ -408,18 +399,13 @@ export default function DiscoverPage() {
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               if (filters.price) params.append("maxPrice", filters.price); 
               
-              console.log(`🔵 [API Request] GET /creator?${params.toString()}`);
-              
               const res = await fetch(`${BASE_URL}/creator?${params.toString()}`, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
                
               if (res.ok) {
                   const data = await res.json();
-                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
-              } else {
-                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
               console.error("🔴 [Network Error] GET /creator crashed:", error);
@@ -458,11 +444,12 @@ export default function DiscoverPage() {
 
       <NavigationPill />
 
-      <main className="w-full flex-1 pb-20 pt-15">
+      {/* FIXED: Massive padding increase to clear the navigation pill completely and remove budget-feel */}
+      <main className="w-full flex-1 pb-32 pt-[160px] md:pt-[180px]">
         
         {/* SEARCH & FILTERS SECTION */}
-        <div className="px-4 md:px-8 mt-8">
-            <div className="max-w-5xl mx-auto flex flex-col items-center gap-6">
+        <div className="px-4 md:px-8">
+            <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
                 
                 <div className="w-full max-w-lg relative group">
                     <input 
@@ -475,7 +462,7 @@ export default function DiscoverPage() {
                 <div className="flex flex-wrap justify-center items-center gap-2">
                     <button 
                         onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg hover:bg-gray-900 transition-colors"
+                        className="flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-lg hover:bg-gray-900 transition-colors cursor-pointer"
                     >
                         <AdjustmentsHorizontalIcon className="w-7 h-7 text-white" />
                         Filter
@@ -490,7 +477,7 @@ export default function DiscoverPage() {
                             </div>
                             
                             {(filters.niche || filters.price || filters.platform) && (
-                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors">
+                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
                             )}
@@ -501,11 +488,25 @@ export default function DiscoverPage() {
         </div>
 
         {/* CREATORS GRID */}
-        <div className="px-4 md:px-8 mt-12">
+        <div className="px-4 md:px-8 mt-16">
             <div className="max-w-7xl mx-auto">
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                    /* FIXED: Swapped Spinner for gorgeous Skeleton Card Grid */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {[...Array(8)].map((_, i) => (
+                            <div key={i} className="bg-white rounded-4xl p-4 shadow-sm flex flex-col h-[400px] border border-gray-100 animate-pulse">
+                                <div className="relative aspect-[4/5] w-full rounded-3xl bg-gray-200 mb-4 flex-shrink-0"></div>
+                                <div className="flex flex-col gap-3 flex-1 px-1">
+                                    <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                                    <div className="h-3 bg-gray-200 rounded w-3/4 mt-1"></div>
+                                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                                    <div className="flex gap-3 mt-auto pt-1">
+                                        <div className="w-[52px] h-[40px] rounded-full bg-gray-200 shrink-0"></div>
+                                        <div className="flex-1 h-[40px] rounded-full bg-gray-200"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : creators.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
