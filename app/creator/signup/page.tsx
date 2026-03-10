@@ -115,17 +115,27 @@ export default function CreatorSignup() {
   const [bankSearchTerm, setBankSearchTerm] = useState("");
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchBanks = async () => {
         try {
             const response = await fetch("https://api.paystack.co/bank", { method: "GET" });
             if (response.ok) {
                 const data = await response.json();
                 if (data.status) {
-                    // --- FIX 4: Deduplicate banks by name to remove the 15+ duplicates of microfinance banks ---
-                    const uniqueBanks = Array.from(
-                        new Map(data.data.map((item: {name: string, code: string}) => [item.name.trim().toLowerCase(), item])).values()
-                    ) as {name: string, code: string}[];
+                    
+                    // --- FIX 1: Deduplicate by Bank Code to ensure 100% unique lists ---
+                    const seenCodes = new Set();
+                    const uniqueBanks: {name: string, code: string}[] = [];
+
+                    data.data.forEach((bank: {name: string, code: string}) => {
+                        // If we haven't seen this exact routing code yet, add it
+                        if (!seenCodes.has(bank.code)) {
+                            seenCodes.add(bank.code);
+                            // Clean up any weird invisible spaces Paystack sends
+                            bank.name = bank.name.replace(/\s+/g, ' ').trim();
+                            uniqueBanks.push(bank);
+                        }
+                    });
                     
                     // Sort alphabetically for easier searching
                     uniqueBanks.sort((a, b) => a.name.localeCompare(b.name));

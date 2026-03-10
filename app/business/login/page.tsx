@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
   EyeIcon, 
+  EyeSlashIcon,
   CheckCircleIcon,
   XCircleIcon
 } from "@heroicons/react/24/outline";
@@ -123,7 +124,7 @@ export default function BusinessLogin() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                 <div className="relative">
                     <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
-                    <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"><EyeIcon className="h-5 w-5" /></button>
+                    <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none">{showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}</button>
                 </div>
             </div>
             <div className="text-left"><Link href="/business/signup" className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors">are you new? Click here to sign up</Link></div>
