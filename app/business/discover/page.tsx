@@ -169,19 +169,19 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
 
     const initial = (creator.displayName || "C").charAt(0).toUpperCase();
     const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
-    const placeholderImg = PLACEHOLDERS[0];
+    const placeholderImg = PLACEHOLDERS[0]; // Using standard placeholder for safety
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             
             {/* MODAL CONTAINER: 
-              Mobile: max-w-md, dark theme, vertical layout
-              Desktop (md:): max-w-4xl, white theme, horizontal split layout exactly matching target image
+              - Mobile: max-w-md, dark theme, vertical layout
+              - Desktop (md:): max-w-4xl, white theme, horizontal split layout 
             */}
-            <div className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-8 md:gap-10">
+            <div className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
                 
-                {/* Close Button - Updated to match target image on desktop */}
-                <button onClick={onClose} className="absolute top-6 right-6 md:top-8 md:right-8 text-gray-400 hover:text-white md:text-gray-500 md:hover:text-black transition-colors cursor-pointer z-10 p-2 md:bg-gray-100 md:rounded-full">
+                {/* Close Button */}
+                <button onClick={onClose} className="absolute top-6 right-6 md:top-8 md:right-8 text-gray-400 hover:text-white md:hover:text-black transition-colors cursor-pointer z-10 p-2 md:bg-gray-100 md:rounded-full">
                     <XMarkIcon className="w-6 h-6 md:w-5 md:h-5" />
                 </button>
 
@@ -230,49 +230,63 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                         </div>
                     </div>
 
+                    <div className="flex w-full gap-3 mb-6">
+                        <button 
+                            onClick={() => handleSocialClick(igLink)} 
+                            disabled={!igLink} 
+                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:opacity-90 transition-opacity cursor-pointer"
+                        >
+                            <InstagramIcon className="w-5 h-5"/> View IG
+                        </button>
+                        <button 
+                            onClick={() => handleSocialClick(tkLink)} 
+                            disabled={!tkLink} 
+                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-black border border-gray-700 hover:bg-gray-900 text-white transition-colors cursor-pointer"
+                        >
+                            <TiktokIcon className="w-5 h-5"/> View TikTok
+                        </button>
+                    </div>
+
                     <button 
                         onClick={() => { onClose(); onInvite(creator); }}
-                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 rounded-xl transition-colors shadow-lg active:scale-95 cursor-pointer mt-4"
+                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 rounded-xl transition-colors shadow-lg active:scale-95 cursor-pointer"
                     >
                         Send Invite Request
                     </button>
                 </div>
 
                 {/* --- DESKTOP VIEW: HORIZONTAL WHITE SPLIT (Visible only on md+ screens) --- */}
-                <div className="hidden md:flex w-full items-stretch gap-12">
+                <div className="hidden md:flex w-full items-stretch gap-10">
                     
                     {/* Left: Huge Image */}
-                    <div className="w-[45%] relative rounded-[2rem] overflow-hidden bg-gray-100 shrink-0 shadow-inner min-h-[450px]">
-                        {creator.profileImageUrl ? (
-                            <Image 
-                                src={creator.profileImageUrl} 
-                                alt={creator.displayName || "Creator"} 
-                                fill 
-                                className="object-cover"
-                            />
-                        ) : (
-                            <Image 
-                                src={placeholderImg} 
-                                alt={creator.displayName || "Creator"} 
-                                fill 
-                                className="object-cover"
-                            />
-                        )}
+                    <div className="w-1/2 relative rounded-[2rem] overflow-hidden bg-gray-100 shrink-0 shadow-inner min-h-[450px]">
+                        <Image 
+                            src={creator.profileImageUrl || placeholderImg} 
+                            alt={creator.displayName || "Creator"} 
+                            fill 
+                            className="object-cover"
+                        />
                     </div>
 
                     {/* Right: Details & Actions */}
-                    <div className="flex-1 flex flex-col py-2">
+                    <div className="w-1/2 flex flex-col justify-center py-4">
                         
-                        <div className="mb-8 pr-10">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">{creator.displayName || "Unknown Creator"}</h2>
+                        <div className="mb-8">
+                            <div className="flex items-center gap-2 mb-2">
+                                <h2 className="text-4xl font-extrabold text-slate-900">{creator.displayName || "Unknown Creator"}</h2>
                                 <CheckBadgeIcon className="w-8 h-8 text-emerald-500 shrink-0" />
                             </div>
+                            
+                            {creator.location && (
+                                <p className="text-gray-500 font-medium flex items-center gap-1.5">
+                                    <MapPinIcon className="w-5 h-5"/> {creator.location}
+                                </p>
+                            )}
                         </div>
 
                         {/* Bio Section */}
-                        <div className="mb-6">
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Bio</h3>
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">Bio</h3>
                             <p className="text-gray-600 leading-relaxed text-[15px]">
                                 {creator.bio ? creator.bio : "No bio provided."}
                             </p>
@@ -297,7 +311,7 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                             <span className="text-3xl font-extrabold text-slate-900">{price}</span>
                         </div>
 
-                        {/* Action Buttons - Pushed to bottom */}
+                        {/* Action Buttons */}
                         <div className="flex flex-col gap-4 mt-auto">
                             
                             {/* Social Links Row */}
@@ -305,26 +319,26 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                                 <button 
                                     onClick={() => handleSocialClick(igLink)} 
                                     disabled={!igLink} 
-                                    className="flex-1 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200 transition-all cursor-pointer"
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200 transition-all cursor-pointer"
                                 >
-                                    View Instagram Profile <ArrowTopRightOnSquareIcon className="w-4 h-4 opacity-80" />
+                                    View Instagram Profile <ArrowTopRightOnSquareIcon className="w-5 h-5 opacity-80" />
                                 </button>
                                 
                                 <button 
                                     onClick={() => handleSocialClick(tkLink)} 
                                     disabled={!tkLink} 
-                                    className="flex-1 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-gray-500 hover:bg-gray-600 text-white transition-colors cursor-pointer"
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-black text-white hover:shadow-lg hover:shadow-gray-300 transition-all cursor-pointer"
                                 >
-                                    View TikTok Profile <ArrowTopRightOnSquareIcon className="w-4 h-4 opacity-80" />
+                                    View TikTok Profile <ArrowTopRightOnSquareIcon className="w-5 h-5 opacity-80" />
                                 </button>
                             </div>
 
                             {/* Invite Button */}
                             <button 
                                 onClick={() => { onClose(); onInvite(creator); }}
-                                className="w-full bg-gray-50 hover:bg-gray-100 text-slate-900 font-extrabold py-4 rounded-xl transition-colors active:scale-[0.98] cursor-pointer text-lg mt-1 border border-gray-200"
+                                className="w-full bg-gray-100 hover:bg-gray-200 text-slate-900 font-extrabold py-4 rounded-2xl transition-colors active:scale-[0.98] cursor-pointer text-lg mt-2"
                             >
-                                Send an Invite +
+                                Invite To Campaign +
                             </button>
 
                         </div>
@@ -473,6 +487,9 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                 endDate: formData.endDate
             };
             
+            // --- CONSOLE ADDED HERE ---
+            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
+
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -480,13 +497,21 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             });
 
             if (!res.ok) {
+                // --- CONSOLE ADDED HERE ---
+                const errorText = await res.text();
+                console.error("🔴 [API Error] POST /chat-requests FAILED:", errorText);
                 throw new Error("Failed to send request");
             }
             
+            // --- CONSOLE ADDED HERE ---
+            console.log("🟢 [API Response] POST /chat-requests SUCCESS");
+
             onShowToast("Request Sent Successfully!", "success");
             onClose();
 
         } catch (error: any) {
+            // --- CONSOLE ADDED HERE ---
+            console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
@@ -595,13 +620,21 @@ export default function DiscoverPage() {
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               if (filters.price) params.append("maxPrice", filters.price); 
               
+              // --- CONSOLE ADDED HERE ---
+              console.log(`🔵 [API Request] GET /creator?${params.toString()}`);
+
               const res = await fetch(`${BASE_URL}/creator?${params.toString()}`, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
                
               if (res.ok) {
                   const data = await res.json();
+                  // --- CONSOLE ADDED HERE ---
+                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
+              } else {
+                  // --- CONSOLE ADDED HERE ---
+                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
               console.error("🔴 [Network Error] GET /creator crashed:", error);

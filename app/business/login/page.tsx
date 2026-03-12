@@ -127,7 +127,7 @@ export default function BusinessLogin() {
                     <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none">{showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}</button>
                 </div>
             </div>
-            <div className="text-left"><Link href="/business/signup" className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors">are you new? Click here to sign up</Link></div>
+            <div className="text-left"><Link href="/business/signup" className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-medium transition-colors">Are you new? Click here to sign up</Link></div>
             <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 flex justify-center gap-2">{isLoading ? "Signing In..." : "Jump In"}</button>
           </form>
         </div>

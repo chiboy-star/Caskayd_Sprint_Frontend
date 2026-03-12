@@ -48,12 +48,14 @@ export default function CreatorNavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
+                console.log("🔵 [API Request] GET /users/profile");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
+                    console.log("🟢 [API Response] GET /users/profile SUCCESS:", profileData);
                     
                     if (Array.isArray(profileData) && profileData.length > 0) {
                         const activeCreatorProfile = profileData.find((p: any) => p.displayName) || profileData[0];
@@ -61,33 +63,43 @@ export default function CreatorNavigationPill() {
                     } else if (profileData && typeof profileData === 'object') {
                         setUserProfile(profileData);
                     }
+                } else {
+                    console.error("🔴 [API Error] GET /users/profile FAILED:", await profileRes.text());
                 }
             } catch (error) {
-                console.error("🔴 [Creator Network Error] GET /users/profiles crashed:", error);
+                console.error("🔴 [Network Error] GET /users/profile crashed:", error);
             }
         };
 
         const fetchAlerts = async () => {
             try {
+                console.log("🔵 [API Request] GET /messages/unread/count");
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
                     const msgCount = await msgRes.text(); 
+                    console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", msgCount);
                     setUnreadMessages(Number(msgCount) || 0);
-                } 
+                } else {
+                    console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
+                }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
             try {
+                console.log("🔵 [API Request] GET /notifications");
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
                     const notifData = await notifRes.json();
+                    console.log("🟢 [API Response] GET /notifications SUCCESS:", notifData);
                     setNotifications(notifData);
-                } 
+                } else {
+                    console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
+                }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
@@ -108,15 +120,20 @@ export default function CreatorNavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
+            console.log(`🔵 [API Request] PATCH /notifications/${id}/read`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (!res.ok) {
+            if (res.ok) {
+                console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
+            } else {
+                console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
             }
         } catch (error) {
+            console.error(`🔴 [Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };

@@ -68,14 +68,18 @@ export default function CreatorDashboard() {
   // --- 1. FETCH CHAT REQUESTS ---
   const fetchRequests = async (token: string) => {
       try {
+          console.log("🔵 [API Request] GET /chat-requests/creator");
           const res = await fetch(`${BASE_URL}/chat-requests/creator`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
+              console.log("🟢 [API Response] GET /chat-requests/creator SUCCESS:", data);
               setInvites(data);
-          } 
+          } else {
+              console.error("🔴 [API Error] GET /chat-requests/creator FAILED:", await res.text());
+          }
       } catch (error) {
           console.error("🔴 [Network Error] GET /chat-requests/creator crashed:", error);
       } finally {
@@ -86,17 +90,21 @@ export default function CreatorDashboard() {
   // --- 2. FETCH EARNINGS ---
   const fetchEarnings = async (token: string) => {
       try {
+          console.log("🔵 [API Request] GET /payments/earnings");
           const res = await fetch(`${BASE_URL}/payments/earnings`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
+              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
               setEarningsData({
                   totalEarned: data?.totalEarned || 0,
                   totalTransactions: data?.totalTransactions || 0
               });
-          } 
+          } else {
+              console.error("🔴 [API Error] GET /payments/earnings FAILED:", await res.text());
+          }
       } catch (error) {
           console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
       }
@@ -108,12 +116,14 @@ export default function CreatorDashboard() {
       if (!token) return;
 
       try {
+          console.log(`🔵 [API Request] PATCH /chat-requests/${id}/${action}`);
           const res = await fetch(`${BASE_URL}/chat-requests/${id}/${action}`, {
               method: "PATCH",
               headers: { "Authorization": `Bearer ${token}` }
           });
 
           if (res.ok) {
+              console.log(`🟢 [API Response] PATCH /chat-requests/${id}/${action} SUCCESS`);
               // CHANGED: If action is reject, pass "error" so the toast is red
               if (action === "reject") {
                   showToast(`Request declined`, "error");
@@ -123,9 +133,11 @@ export default function CreatorDashboard() {
               setInvites(prev => prev.filter(invite => invite.id !== id));
           } else {
               const errorData = await res.json();
+              console.error(`🔴 [API Error] PATCH /chat-requests/${id}/${action} FAILED:`, errorData);
               throw new Error(errorData.message || "Action failed");
           }
       } catch (error: any) {
+          console.error(`🔴 [Network Error] PATCH /chat-requests/${id}/${action} crashed:`, error);
           showToast(error.message || "Something went wrong", "error");
       }
   };
