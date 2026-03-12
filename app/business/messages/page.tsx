@@ -82,16 +82,20 @@ export default function BusinessMessagesPage() {
                 const token = localStorage.getItem("accessToken");
                 if (!token) return;
 
+                console.log("🔵 [API Request] GET /conversations");
                 const res = await fetch(`${BASE_URL}/conversations`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
+                    console.log("🟢 [API Response] GET /conversations SUCCESS:", data);
                     setConversations(data);
-                } 
+                } else {
+                    console.error("🔴 [API Error] GET /conversations FAILED:", await res.text());
+                }
             } catch (error) {
-                console.error("🔴 [Network Error] Failed to load conversations:", error);
+                console.error("🔴 [Network Error] GET /conversations crashed:", error);
             } finally {
                 setLoadingConversations(false);
             }
@@ -111,23 +115,33 @@ export default function BusinessMessagesPage() {
             if (!token) return;
 
             try {
+                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
                 const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
+                    if (!isBackground) console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS:`, data);
+                    
                     const sorted = data.sort((a: Message, b: Message) => 
                         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                     );
                     setMessages(sorted);
+                } else {
+                    if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
                 }
 
                 // Mark as read silently
-                await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
+                const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                     method: "PATCH",
                     headers: { "Authorization": `Bearer ${token}` }
                 });
+
+                if (!readRes.ok && !isBackground) {
+                    console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
+                }
 
             } catch (error) {
                 console.error("🔴 [Network Error] Failed to fetch messages:", error);
@@ -159,6 +173,7 @@ export default function BusinessMessagesPage() {
                 type: "TEXT" 
             };
 
+            console.log("🔵 [API Request] POST /messages PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/messages`, {
                 method: "POST",
                 headers: { 
@@ -170,12 +185,15 @@ export default function BusinessMessagesPage() {
 
             if (res.ok) {
                 const savedMessage = await res.json();
+                console.log("🟢 [API Response] POST /messages SUCCESS:", savedMessage);
                 setMessages(prev => [...prev, savedMessage]);
                 scrollToBottom();
             } else {
+                console.error("🔴 [API Error] POST /messages FAILED:", await res.text());
                 setNewMessage(messageToSend); 
             }
         } catch (error) {
+            console.error("🔴 [Network Error] POST /messages crashed:", error);
             setNewMessage(messageToSend); 
         }
     };
@@ -203,6 +221,7 @@ export default function BusinessMessagesPage() {
                 amount: Number(paymentAmount)
             };
 
+            console.log("🔵 [API Request] POST /payments/pay PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/payments/pay`, {
                 method: "POST",
                 headers: { 
@@ -214,19 +233,25 @@ export default function BusinessMessagesPage() {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("🟢 [API Response] POST /payments/pay SUCCESS:", data);
+
                 const authUrl = data.paymentUrl || data.data?.authorization_url;
 
                 if (authUrl) {
+                    console.log("🔵 [Redirect] Redirecting user to Paystack checkout:", authUrl);
                     window.location.href = authUrl;
                 } else {
+                    console.error("🔴 [API Error] Missing authorization_url in response:", data);
                     alert("Payment initialized, but checkout link was missing from server.");
                     setIsProcessingPayment(false);
                 }
             } else {
+                console.error("🔴 [API Error] POST /payments/pay FAILED:", await res.text());
                 alert("Payment failed to initialize.");
                 setIsProcessingPayment(false);
             }
         } catch (error) {
+            console.error("🔴 [Network Error] POST /payments/pay crashed:", error);
             alert("Network error during payment.");
             setIsProcessingPayment(false);
         }
@@ -272,10 +297,9 @@ export default function BusinessMessagesPage() {
             
             <NavigationPill />
 
-            {/* CHANGED: Increased top padding drastically to clear the navigation pill. Also added bottom padding */}
-            <main className="flex-1 flex flex-col min-h-0  w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-10 pt-[140px] md:pt-[160px]">
+            <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-6 pt-[104px]">
                 
-                <div className="flex-1 h-full bg-white rounded-[2.5rem] shadow-lg shadow-gray-200/40 border border-gray-100 flex w-full min-h-0 overflow-hidden relative">
+                <div className="flex-1 h-full bg-white rounded-[2rem] shadow-md shadow-gray-200/40 border border-gray-100 flex w-full min-h-0 overflow-hidden relative">
                     
                     {/* --- LEFT PANEL --- */}
                     <div className={`w-full md:w-80 lg:w-96 flex flex-col shrink-0 border-r border-gray-100 bg-[#FDFDFD] h-full ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
@@ -286,21 +310,9 @@ export default function BusinessMessagesPage() {
                             </div>
                         </div>
                         <h3 className="text-gray-900 font-bold text-lg mb-2 px-6 pt-4 shrink-0">Conversations</h3>
-                        
                         <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                             {loadingConversations ? (
-                                // CHANGED: Replaced loading text with a nice skeleton layout
-                                <div className="space-y-3 px-2 mt-2">
-                                    {[1, 2, 3].map((i) => (
-                                        <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-                                            <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0"></div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                                                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <div className="p-4 text-center text-gray-400 text-sm animate-pulse">Loading chats...</div>
                             ) : conversations.length === 0 ? (
                                 <div className="p-4 text-center text-gray-400 text-sm">No conversations yet.</div>
                             ) : (
@@ -353,20 +365,7 @@ export default function BusinessMessagesPage() {
                                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-white relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                                     <div className="flex justify-center mb-6"><span className="bg-indigo-50 text-[#5B4DFF] text-xs font-bold px-3 py-1 rounded-full">Today</span></div>
                                     {initialLoadingMessages ? (
-                                        // CHANGED: Replaced spinner with chat bubble skeletons
-                                        <div className="space-y-4 animate-pulse">
-                                            <div className="flex items-end justify-start gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 mb-4"></div>
-                                                <div className="bg-gray-100 rounded-2xl rounded-bl-none h-12 w-48"></div>
-                                            </div>
-                                            <div className="flex items-end justify-end gap-2">
-                                                <div className="bg-indigo-100 rounded-2xl rounded-br-none h-16 w-64"></div>
-                                            </div>
-                                            <div className="flex items-end justify-start gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 mb-4"></div>
-                                                <div className="bg-gray-100 rounded-2xl rounded-bl-none h-10 w-32"></div>
-                                            </div>
-                                        </div>
+                                        <div className="flex justify-center mt-10"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>
                                     ) : messages.map((msg) => {
                                         const sentByMe = isMe(msg);
                                         return (

@@ -75,16 +75,25 @@ export default function CreatorMessagesPage() {
                 const token = localStorage.getItem("accessToken");
                 if (!token) return;
 
+                // --- CONSOLE ADDED ---
+                console.log("🔵 [API Request] GET /conversations");
+                
                 const res = await fetch(`${BASE_URL}/conversations`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
+                    // --- CONSOLE ADDED ---
+                    console.log("🟢 [API Response] GET /conversations SUCCESS:", data);
                     setConversations(data);
-                } 
+                } else {
+                    // --- CONSOLE ADDED ---
+                    console.error("🔴 [API Error] GET /conversations FAILED:", await res.text());
+                }
             } catch (error) {
-                console.error("🔴 [Network Error] Failed to load conversations:", error);
+                // --- CONSOLE ADDED ---
+                console.error("🔴 [Network Error] GET /conversations crashed:", error);
             } finally {
                 setLoadingConversations(false);
             }
@@ -104,25 +113,46 @@ export default function CreatorMessagesPage() {
             if (!token) return;
 
             try {
+                // --- CONSOLE ADDED ---
+                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
+                
                 const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
+                    // --- CONSOLE ADDED ---
+                    if (!isBackground) console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS:`, data);
+                    
                     const sorted = data.sort((a: Message, b: Message) => 
                         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                     );
                     setMessages(sorted);
+                } else {
+                    // --- CONSOLE ADDED ---
+                    if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
                 }
 
                 // Mark as read silently
-                await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+                // --- CONSOLE ADDED ---
+                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
+                
+                const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                     method: "PATCH",
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
+                if (readRes.ok) {
+                    // --- CONSOLE ADDED ---
+                    if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
+                } else {
+                    // --- CONSOLE ADDED ---
+                    if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
+                }
+
             } catch (error) {
+                // --- CONSOLE ADDED ---
                 console.error("🔴 [Network Error] Failed to fetch messages:", error);
             } finally {
                 if (!isBackground) setInitialLoadingMessages(false);
@@ -152,6 +182,9 @@ export default function CreatorMessagesPage() {
                 type: "TEXT" 
             };
 
+            // --- CONSOLE ADDED ---
+            console.log("🔵 [API Request] POST /messages PAYLOAD:", payload);
+
             const res = await fetch(`${BASE_URL}/messages`, {
                 method: "POST",
                 headers: { 
@@ -163,12 +196,19 @@ export default function CreatorMessagesPage() {
 
             if (res.ok) {
                 const savedMessage = await res.json();
+                // --- CONSOLE ADDED ---
+                console.log("🟢 [API Response] POST /messages SUCCESS:", savedMessage);
+                
                 setMessages(prev => [...prev, savedMessage]);
                 scrollToBottom();
             } else {
+                // --- CONSOLE ADDED ---
+                console.error("🔴 [API Error] POST /messages FAILED:", await res.text());
                 setNewMessage(messageToSend); 
             }
         } catch (error) {
+            // --- CONSOLE ADDED ---
+            console.error("🔴 [Network Error] POST /messages crashed:", error);
             setNewMessage(messageToSend); 
         }
     };
@@ -285,6 +325,8 @@ export default function CreatorMessagesPage() {
                                                     <h4 className={`font-bold text-sm truncate ${isActive ? "text-emerald-600" : "text-gray-900"}`}>{name}</h4>
                                                 </div>
                                                 
+                                                <div className="mt-1">
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -415,7 +457,7 @@ export default function CreatorMessagesPage() {
                                                 handleSendMessage();
                                             }}
                                             disabled={!newMessage.trim()}
-                                            className="bg-emerald-500 p-2.5 rounded-xl text-white hover:bg-emerald-600 transition-all shadow-md disabled:opacity-50 disabled:shadow-none"
+                                            className="bg-emerald-500 p-2.5 rounded-xl text-white hover:bg-emerald-600 transition-all shadow-md disabled:opacity-50 disabled:shadow-none cursor-pointer"
                                         >
                                             <PaperAirplaneIcon className="w-5 h-5" />
                                         </button>
@@ -454,7 +496,7 @@ export default function CreatorMessagesPage() {
                             <div className="flex items-center justify-center gap-1.5 text-[#00D68F] text-xs font-bold mb-4 uppercase tracking-wide">
                                 <ShieldCheckIcon className="w-4 h-4" /> Escrow Funded
                             </div>
-                            <button className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm">
+                            <button className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm cursor-pointer">
                                 Request Payment
                             </button>
                         </div>

@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
   EyeIcon, 
-  EyeSlashIcon, // <-- ADDED: EyeSlashIcon for the toggle state
+  EyeSlashIcon, 
   CheckCircleIcon,
   XCircleIcon,
   ArrowUpTrayIcon,
@@ -72,6 +72,7 @@ export default function BusinessSignup() {
   };
 
   const showError = (msg: string) => setToast({ message: msg, type: "error", isVisible: true });
+  const showSuccess = (msg: string) => setToast({ message: msg, type: "success", isVisible: true });
 
   const toggleIndustry = (industry: string) => {
     setFormData((prev) => {
@@ -107,18 +108,27 @@ export default function BusinessSignup() {
     }
   };
 
+  // Helper function to create a slight delay between toasts so the user can read them
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.businessName || !formData.website) return showError("Please fill in all details");
     if (formData.industryTags.length === 0) return showError("Please select an industry");
-    
     if (!URL_REGEX.test(formData.website)) return showError("Please enter a valid website URL (e.g., website.com)");
 
     setIsLoading(true);
 
     try {
+        console.log("🔵 Using Backend URL:", BASE_URL);
+
+        // ==========================================
+        // STEP 1: CREATE CORE USER ACCOUNT
+        // ==========================================
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
+        console.log("🔵 [API Request] POST /auth/signup", signupPayload);
+        
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -127,10 +137,21 @@ export default function BusinessSignup() {
 
         const signupData = await signupRes.json();
         if (!signupRes.ok) {
+            console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
             throw new Error(signupData.message || "Signup failed");
         }
+        
+        console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
+        showSuccess("Account created securely!");
+        await delay(600); // Wait so toast is visible
 
+
+        // ==========================================
+        // STEP 2: AUTOMATIC LOGIN TO GET JWT TOKEN
+        // ==========================================
         const loginPayload = { email: formData.email, password: formData.password };
+        console.log("🔵 [API Request] POST /auth/login", loginPayload);
+        
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -138,42 +159,87 @@ export default function BusinessSignup() {
         });
 
         if (!loginRes.ok) {
+            console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
             throw new Error("Auto-login failed");
         }
         
         const loginData = await loginRes.json();
         const token = loginData.access_token || loginData.token;
+        console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
+        showSuccess("Logged in successfully!");
+        await delay(600);
 
+
+        // ==========================================
+        // STEP 3: UPDATE DISPLAY NAME (Username)
+        // ==========================================
+        const profilePayload = { displayName: formData.username };
+        console.log("🔵 [API Request] PATCH /users/profile", profilePayload);
+
+        const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify(profilePayload)
+        });
+
+        if (profileUpdateRes.ok) {
+            const profileUpdateData = await profileUpdateRes.json();
+            console.log("🟢 [API Response] PATCH /users/profile SUCCESS:", profileUpdateData);
+            showSuccess("Username saved!");
+            await delay(600);
+        } else {
+            console.error("🔴 [API Error] PATCH /users/profile FAILED:", await profileUpdateRes.text());
+            // We don't throw an error here, we just log it, so it doesn't break the rest of the flow
+        }
+
+
+        // ==========================================
+        // STEP 4: UPLOAD BUSINESS LOGO (If provided)
+        // ==========================================
         let uploadedLogoUrl = "";
         if (formData.businessLogo) {
             try {
+                console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
                 const uploadData = new FormData();
                 uploadData.append("file", formData.businessLogo);
 
                 const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
                     method: "PATCH",
-                    headers: {
-                        "Authorization": `Bearer ${token}` 
-                    },
+                    headers: { "Authorization": `Bearer ${token}` },
                     body: uploadData
                 });
 
                 if (uploadRes.ok) {
                     const uploadResult = await uploadRes.json();
+                    console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
                     uploadedLogoUrl = uploadResult.avatar; 
-                } 
+                    showSuccess("Logo uploaded successfully!");
+                    await delay(600);
+                } else {
+                    console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
+                }
             } catch (uploadError) {
                 console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", uploadError);
             }
         }
 
+
+        // ==========================================
+        // STEP 5: CREATE BUSINESS PROFILE
+        // ==========================================
+        // FIXED: Changed payload keys to match the backend expectation. 
+        // Changed `businessName` -> `companyName` and `websiteUrl` -> `website`.
         const businessPayload = {
-            businessName: formData.businessName,
-            websiteUrl: formData.website, 
+            companyName: formData.businessName, 
+            website: formData.website, 
             category: formData.industryTags.join(", "),
             profileImageUrl: uploadedLogoUrl || undefined 
         };
 
+        console.log("🔵 [API Request] POST /business", businessPayload);
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
             headers: { 
@@ -184,14 +250,22 @@ export default function BusinessSignup() {
         });
 
         if (!businessRes.ok) {
-            throw new Error("Failed to create business profile");
+            console.error("🔴 [API Error] POST /business FAILED:", await businessRes.text());
+            throw new Error("Failed to create business details");
         }
         
-        setToast({ message: "Account created! Welcome aboard.", type: "success", isVisible: true });
+        const businessData = await businessRes.json();
+        console.log("🟢 [API Response] POST /business SUCCESS:", businessData);
+
+
+        // ==========================================
+        // ALL DONE: FINAL REDIRECT
+        // ==========================================
+        showSuccess("Profile Complete! Redirecting...");
         localStorage.setItem("accessToken", token);
         
         setIsRedirecting(true); 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await delay(1500); // Give user a second to read final toast
         router.push("/business/discover");
 
     } catch (error: any) {
@@ -279,7 +353,6 @@ export default function BusinessSignup() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                         <div className="relative">
                             <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
-                            {/* ADDED: cursor-pointer and dynamic icon swapping */}
                             <button aria-label="show-password" type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer">
                                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                             </button>
@@ -308,7 +381,6 @@ export default function BusinessSignup() {
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Industry <span className="text-gray-400 font-normal text-xs ml-1">(Max 3)</span></label>
-                        {/* ADDED: Dynamic Badges instead of comma-separated text */}
                         <div onClick={() => setIsIndustryModalOpen(true)} className="w-full min-h-[46px] border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-indigo-500 transition-all flex flex-wrap items-center gap-2 rounded-t-md">
                             {formData.industryTags.length > 0 ? (
                                 formData.industryTags.map(tag => (

@@ -11,7 +11,9 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   AdjustmentsHorizontalIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  MapPinIcon,
+  ArrowTopRightOnSquareIcon
 } from "@heroicons/react/24/outline";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid"; 
 import NavigationPill from "@/components/NavigationPill"; 
@@ -27,9 +29,15 @@ interface CreatorProfile {
     userId?: string;
     profileId?: string; 
     displayName?: string | null; 
-    profileImageUrl?: string;
+    profileImageUrl?: string | null;
     instagram?: string;
     tiktok?: string;
+    links?: {
+        instagram?: string;
+        tiktok?: string;
+    };
+    bio?: string;
+    niches?: string[];
     instagramFollowers?: number;
     tiktokFollowers?: number;
     instagramEngagementRate?: number;
@@ -95,7 +103,6 @@ const InstagramIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Added custom drop-shadow styling to create the red/cyan overlap 
 const TiktokIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} style={{ overflow: 'visible', filter: 'drop-shadow(1.5px 1.5px 0px #fe0050) drop-shadow(-1.5px -1.5px 0px #00f2fe)' }}>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.89-.31-4.08-1.03-2.02-1.19-3.49-3.35-3.98-5.6-.54-2.49.42-5.18 2.45-6.83 1.98-1.63 4.81-1.82 7.01-.52.14.09.28.19.42.29-.01 1.33-.01 2.66-.01 4-.08-.03-.17-.07-.25-.11-.95-.49-2.05-.64-3.11-.42-1.18.24-2.19 1.05-2.67 2.17-.5 1.17-.37 2.54.34 3.59.83 1.25 2.51 1.74 3.94 1.13.92-.38 1.63-1.16 1.93-2.1.26-.81.25-1.68.25-2.53-.02-5.24-.02-10.49-.02-15.73z" />
@@ -149,7 +156,203 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
   );
 };
 
-const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, onInvite: (c: CreatorProfile) => void, index: number }) => {
+// --- CREATOR DETAILS MODAL (RESPONSIVE) ---
+const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onInvite: (c: CreatorProfile) => void }) => {
+    if (!isOpen || !creator) return null;
+
+    const igLink = creator.links?.instagram || creator.instagram;
+    const tkLink = creator.links?.tiktok || creator.tiktok;
+
+    const handleSocialClick = (url?: string) => {
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    };
+
+    const initial = (creator.displayName || "C").charAt(0).toUpperCase();
+    const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
+    const placeholderImg = PLACEHOLDERS[0]; // Using standard placeholder for safety
+
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            
+            {/* MODAL CONTAINER: 
+              - Mobile: max-w-md, dark theme, vertical layout
+              - Desktop (md:): max-w-4xl, white theme, horizontal split layout 
+            */}
+            <div className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
+                
+                {/* Close Button */}
+                <button onClick={onClose} className="absolute top-6 right-6 md:top-8 md:right-8 text-gray-400 hover:text-white md:hover:text-black transition-colors cursor-pointer z-10 p-2 md:bg-gray-100 md:rounded-full">
+                    <XMarkIcon className="w-6 h-6 md:w-5 md:h-5" />
+                </button>
+
+                {/* --- MOBILE VIEW: VERTICAL DARK (Visible only on small screens) --- */}
+                <div className="flex flex-col items-center mt-2 text-center md:hidden w-full">
+                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 relative mb-4 border-2 border-white/10 shrink-0">
+                        {creator.profileImageUrl ? (
+                            <Image src={creator.profileImageUrl} alt="Avatar" fill className="object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-400">{initial}</div>
+                        )}
+                    </div>
+                    
+                    <h2 className="text-2xl font-bold mb-1">{creator.displayName || "Unknown Creator"}</h2>
+                    
+                    {creator.location && (
+                        <p className="text-gray-400 text-sm mb-4 flex items-center gap-1 justify-center">
+                            <MapPinIcon className="w-4 h-4"/> {creator.location}
+                        </p>
+                    )}
+
+                    {creator.bio && (
+                        <p className="text-sm text-gray-300 mb-6 italic px-4">"{creator.bio}"</p>
+                    )}
+
+                    {creator.niches && creator.niches.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-2 mb-6">
+                            {creator.niches.map((n, i) => (
+                                <span key={i} className="bg-white/10 border border-white/5 text-xs font-semibold px-3 py-1 rounded-full text-gray-200 capitalize">
+                                    {n}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 w-full mb-6">
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
+                            <div className="flex items-center gap-2 mb-2 text-gray-400"><InstagramIcon className="w-4 h-4"/> Instagram</div>
+                            <p className="text-sm font-bold">{formatNumber(creator.instagramFollowers)} <span className="text-xs font-normal text-gray-500">Followers</span></p>
+                            <p className="text-sm font-bold mt-1">{creator.instagramEngagementRate || 0}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
+                        </div>
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
+                            <div className="flex items-center gap-2 mb-2 text-gray-400"><TiktokIcon className="w-4 h-4"/> TikTok</div>
+                            <p className="text-sm font-bold">{formatNumber(creator.tiktokFollowers)} <span className="text-xs font-normal text-gray-500">Followers</span></p>
+                            <p className="text-sm font-bold mt-1">{creator.tiktokEngagementRate || 0}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
+                        </div>
+                    </div>
+
+                    <div className="flex w-full gap-3 mb-6">
+                        <button 
+                            onClick={() => handleSocialClick(igLink)} 
+                            disabled={!igLink} 
+                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:opacity-90 transition-opacity cursor-pointer"
+                        >
+                            <InstagramIcon className="w-5 h-5"/> View IG
+                        </button>
+                        <button 
+                            onClick={() => handleSocialClick(tkLink)} 
+                            disabled={!tkLink} 
+                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-black border border-gray-700 hover:bg-gray-900 text-white transition-colors cursor-pointer"
+                        >
+                            <TiktokIcon className="w-5 h-5"/> View TikTok
+                        </button>
+                    </div>
+
+                    <button 
+                        onClick={() => { onClose(); onInvite(creator); }}
+                        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 rounded-xl transition-colors shadow-lg active:scale-95 cursor-pointer"
+                    >
+                        Send Invite Request
+                    </button>
+                </div>
+
+                {/* --- DESKTOP VIEW: HORIZONTAL WHITE SPLIT (Visible only on md+ screens) --- */}
+                <div className="hidden md:flex w-full items-stretch gap-10">
+                    
+                    {/* Left: Huge Image */}
+                    <div className="w-1/2 relative rounded-[2rem] overflow-hidden bg-gray-100 shrink-0 shadow-inner min-h-[450px]">
+                        <Image 
+                            src={creator.profileImageUrl || placeholderImg} 
+                            alt={creator.displayName || "Creator"} 
+                            fill 
+                            className="object-cover"
+                        />
+                    </div>
+
+                    {/* Right: Details & Actions */}
+                    <div className="w-1/2 flex flex-col justify-center py-4">
+                        
+                        <div className="mb-8">
+                            <div className="flex items-center gap-2 mb-2">
+                                <h2 className="text-4xl font-extrabold text-slate-900">{creator.displayName || "Unknown Creator"}</h2>
+                                <CheckBadgeIcon className="w-8 h-8 text-emerald-500 shrink-0" />
+                            </div>
+                            
+                            {creator.location && (
+                                <p className="text-gray-500 font-medium flex items-center gap-1.5">
+                                    <MapPinIcon className="w-5 h-5"/> {creator.location}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Bio Section */}
+                        <div className="mb-8">
+                            <h3 className="text-xl font-bold text-slate-900 mb-3">Bio</h3>
+                            <p className="text-gray-600 leading-relaxed text-[15px]">
+                                {creator.bio ? creator.bio : "No bio provided."}
+                            </p>
+                        </div>
+
+                        {/* Niches */}
+                        {creator.niches && creator.niches.length > 0 && (
+                            <div className="mb-8">
+                                <div className="flex flex-wrap gap-2">
+                                    {creator.niches.map((n, i) => (
+                                        <span key={i} className="bg-gray-100 text-gray-700 font-semibold px-4 py-1.5 rounded-full text-sm capitalize">
+                                            {n}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Price */}
+                        <div className="mb-10 flex items-baseline gap-2">
+                            <span className="text-lg text-gray-500 font-medium">Base Rate:</span>
+                            <span className="text-3xl font-extrabold text-slate-900">{price}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-4 mt-auto">
+                            
+                            {/* Social Links Row */}
+                            <div className="flex gap-4 w-full">
+                                <button 
+                                    onClick={() => handleSocialClick(igLink)} 
+                                    disabled={!igLink} 
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200 transition-all cursor-pointer"
+                                >
+                                    View Instagram Profile <ArrowTopRightOnSquareIcon className="w-5 h-5 opacity-80" />
+                                </button>
+                                
+                                <button 
+                                    onClick={() => handleSocialClick(tkLink)} 
+                                    disabled={!tkLink} 
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-black text-white hover:shadow-lg hover:shadow-gray-300 transition-all cursor-pointer"
+                                >
+                                    View TikTok Profile <ArrowTopRightOnSquareIcon className="w-5 h-5 opacity-80" />
+                                </button>
+                            </div>
+
+                            {/* Invite Button */}
+                            <button 
+                                onClick={() => { onClose(); onInvite(creator); }}
+                                className="w-full bg-gray-100 hover:bg-gray-200 text-slate-900 font-extrabold py-4 rounded-2xl transition-colors active:scale-[0.98] cursor-pointer text-lg mt-2"
+                            >
+                                Invite To Campaign +
+                            </button>
+
+                        </div>
+
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    );
+};
+
+// --- CREATOR CARD ---
+const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: CreatorProfile, onViewDetails: (c: CreatorProfile) => void, onInvite: (c: CreatorProfile) => void, index: number }) => {
     const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
 
     const placeholderImg = PLACEHOLDERS[index % PLACEHOLDERS.length];
@@ -159,7 +362,10 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
         setPlatform(prev => prev === "instagram" ? "tiktok" : "instagram");
     };
 
-    const handleUrl = platform === "instagram" ? creator.instagram : creator.tiktok;
+    const handleUrl = platform === "instagram" 
+        ? (creator.links?.instagram || creator.instagram) 
+        : (creator.links?.tiktok || creator.tiktok);
+
     const followers = platform === "instagram" ? creator.instagramFollowers : creator.tiktokFollowers;
     const engagement = platform === "instagram" ? creator.instagramEngagementRate : creator.tiktokEngagementRate;
 
@@ -168,7 +374,7 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
         let clean = handleUrl.replace(/(^\w+:|^)\/\//, '').replace("www.", "");
         clean = clean.replace("instagram.com/", "").replace("tiktok.com/", "").replace("@", "");
         if(clean.endsWith("/")) clean = clean.slice(0, -1);
-        return clean; 
+        return clean.length > 20 ? `${clean.substring(0, 20)}...` : clean; 
     };
 
     const displayName = creator.displayName || getHandle();
@@ -177,8 +383,10 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
     const location = creator.location || "Unknown";
 
     return (
-        <div className="bg-white rounded-4xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full border border-transparent hover:border-gray-100">
-            {/* Image Container */}
+        <div 
+            onClick={() => onViewDetails(creator)}
+            className="bg-white rounded-4xl p-4 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col h-full border border-transparent hover:border-gray-100 cursor-pointer"
+        >
             <div className="relative aspect-[4/5] w-full rounded-3xl overflow-hidden bg-gray-100 mb-4">
                 <Image 
                     src={creator.profileImageUrl || placeholderImg} 
@@ -188,7 +396,6 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                 />
             </div>
             
-            {/* Text Content */}
             <div className="flex flex-col gap-3 flex-1 px-1">
                 <div className="flex items-center gap-1.5">
                     <h3 className="font-bold text-lg text-slate-900 truncate">{displayName}</h3>
@@ -218,7 +425,6 @@ const CreatorCard = ({ creator, onInvite, index }: { creator: CreatorProfile, on
                         onClick={togglePlatform}
                         className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 cursor-pointer ${
                             platform === 'instagram' 
-                            // Official Instagram Brand Gradient
                             ? 'bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:shadow-pink-200' 
                             : 'bg-black hover:shadow-gray-300'
                         }`}
@@ -281,6 +487,9 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                 endDate: formData.endDate
             };
             
+            // --- CONSOLE ADDED HERE ---
+            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
+
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -288,13 +497,21 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             });
 
             if (!res.ok) {
+                // --- CONSOLE ADDED HERE ---
+                const errorText = await res.text();
+                console.error("🔴 [API Error] POST /chat-requests FAILED:", errorText);
                 throw new Error("Failed to send request");
             }
             
+            // --- CONSOLE ADDED HERE ---
+            console.log("🟢 [API Response] POST /chat-requests SUCCESS");
+
             onShowToast("Request Sent Successfully!", "success");
             onClose();
 
         } catch (error: any) {
+            // --- CONSOLE ADDED HERE ---
+            console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
@@ -376,9 +593,13 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
 // --- MAIN PAGE ---
 export default function DiscoverPage() {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCreator, setSelectedCreator] = useState<CreatorProfile | null>(null);
   
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [selectedInviteCreator, setSelectedInviteCreator] = useState<CreatorProfile | null>(null);
+  
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedDetailsCreator, setSelectedDetailsCreator] = useState<CreatorProfile | null>(null);
+
   const [toast, setToast] = useState<{msg: string, type: "success"|"error", visible: boolean}>({ msg: "", type: "success", visible: false });
 
   const showToast = (msg: string, type: "success"|"error") => {
@@ -399,13 +620,21 @@ export default function DiscoverPage() {
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               if (filters.price) params.append("maxPrice", filters.price); 
               
+              // --- CONSOLE ADDED HERE ---
+              console.log(`🔵 [API Request] GET /creator?${params.toString()}`);
+
               const res = await fetch(`${BASE_URL}/creator?${params.toString()}`, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
                
               if (res.ok) {
                   const data = await res.json();
+                  // --- CONSOLE ADDED HERE ---
+                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
+              } else {
+                  // --- CONSOLE ADDED HERE ---
+                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
               console.error("🔴 [Network Error] GET /creator crashed:", error);
@@ -416,13 +645,18 @@ export default function DiscoverPage() {
       fetchCreators();
   }, [filters]);
 
-  const openInviteModal = (creator: CreatorProfile) => {
-      setSelectedCreator(creator);
-      setIsModalOpen(true);
-  };
-
   const handleFilterSelect = (type: string, value: string) => {
       setFilters(prev => ({ ...prev, [type]: value }));
+  };
+
+  const openInviteModal = (creator: CreatorProfile) => {
+      setSelectedInviteCreator(creator);
+      setIsInviteModalOpen(true);
+  };
+
+  const openDetailsModal = (creator: CreatorProfile) => {
+      setSelectedDetailsCreator(creator);
+      setIsDetailsModalOpen(true);
   };
 
   return (
@@ -436,15 +670,21 @@ export default function DiscoverPage() {
       />
 
       <InviteModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        creator={selectedCreator} 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+        creator={selectedInviteCreator} 
         onShowToast={showToast}
+      />
+
+      <CreatorDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        creator={selectedDetailsCreator}
+        onInvite={openInviteModal}
       />
 
       <NavigationPill />
 
-      {/* FIXED: Massive padding increase to clear the navigation pill completely and remove budget-feel */}
       <main className="w-full flex-1 pb-32 pt-[160px] md:pt-[180px]">
         
         {/* SEARCH & FILTERS SECTION */}
@@ -491,7 +731,6 @@ export default function DiscoverPage() {
         <div className="px-4 md:px-8 mt-16">
             <div className="max-w-7xl mx-auto">
                 {loading ? (
-                    /* FIXED: Swapped Spinner for gorgeous Skeleton Card Grid */
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[...Array(8)].map((_, i) => (
                             <div key={i} className="bg-white rounded-4xl p-4 shadow-sm flex flex-col h-[400px] border border-gray-100 animate-pulse">
@@ -511,7 +750,13 @@ export default function DiscoverPage() {
                 ) : creators.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {creators.map((creator: CreatorProfile, idx: number) => (
-                            <CreatorCard key={creator.id || Math.random()} creator={creator} onInvite={openInviteModal} index={idx} />
+                            <CreatorCard 
+                                key={creator.id || Math.random()} 
+                                creator={creator} 
+                                onViewDetails={openDetailsModal}
+                                onInvite={openInviteModal} 
+                                index={idx} 
+                            />
                         ))}
                     </div>
                 ) : (

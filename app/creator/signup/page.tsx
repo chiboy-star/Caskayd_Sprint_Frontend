@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
     EyeIcon, 
-    EyeSlashIcon, // <-- ADDED: EyeSlashIcon
+    EyeSlashIcon,
     ArrowUpTrayIcon, 
     CheckCircleIcon,
     XCircleIcon,
@@ -115,36 +115,36 @@ export default function CreatorSignup() {
   const [bankSearchTerm, setBankSearchTerm] = useState("");
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchBanks = async () => {
         try {
+            console.log("🔵 [API Request] GET https://api.paystack.co/bank");
             const response = await fetch("https://api.paystack.co/bank", { method: "GET" });
             if (response.ok) {
                 const data = await response.json();
+                console.log("🟢 [API Response] GET https://api.paystack.co/bank SUCCESS");
                 if (data.status) {
                     
-                    // --- FIX 1: Deduplicate by Bank Code to ensure 100% unique lists ---
-                    const seenCodes = new Set();
-                    const uniqueBanks: {name: string, code: string}[] = [];
-
+                    const uniqueBanksMap = new Map();
                     data.data.forEach((bank: {name: string, code: string}) => {
-                        // If we haven't seen this exact routing code yet, add it
-                        if (!seenCodes.has(bank.code)) {
-                            seenCodes.add(bank.code);
-                            // Clean up any weird invisible spaces Paystack sends
-                            bank.name = bank.name.replace(/\s+/g, ' ').trim();
-                            uniqueBanks.push(bank);
+                        const normalizedName = bank.name.replace(/\s+/g, ' ').trim().toLowerCase();
+                        if (!uniqueBanksMap.has(normalizedName)) {
+                            uniqueBanksMap.set(normalizedName, bank);
                         }
                     });
                     
-                    // Sort alphabetically for easier searching
+                    const uniqueBanks = Array.from(uniqueBanksMap.values()) as {name: string, code: string}[];
+                    
                     uniqueBanks.sort((a, b) => a.name.localeCompare(b.name));
                     setBanks(uniqueBanks);
                     return;
                 }
+            } else {
+                console.error("🔴 [API Error] GET https://api.paystack.co/bank FAILED:", await response.text());
             }
             setBanks(FALLBACK_BANKS);
         } catch (error) {
+            console.error("🔴 [Network Error] Failed to fetch banks:", error);
             setBanks(FALLBACK_BANKS);
         }
     };
@@ -163,6 +163,7 @@ useEffect(() => {
   };
 
   const showError = (msg: string) => setToast({ message: msg, type: "error", isVisible: true });
+  const showSuccess = (msg: string) => setToast({ message: msg, type: "success", isVisible: true });
 
   const toggleNiche = (niche: string) => {
     setFormData((prev) => {
@@ -210,6 +211,8 @@ useEffect(() => {
     }
   };
 
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
   // --- FINAL SUBMIT LOGIC ---
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,9 +226,12 @@ useEffect(() => {
     try {
         console.log("🔵 Using Backend URL:", BASE_URL);
 
-        // --- 1. SIGNUP ---
+        // ==========================================
+        // STEP 1: CREATE CORE USER ACCOUNT
+        // ==========================================
         const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
         console.log("🔵 [API Request] POST /auth/signup", signupPayload);
+        
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -237,12 +243,17 @@ useEffect(() => {
             console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
             throw new Error(signupData.message || "Signup failed");
         }
+        
         console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
+        showSuccess("Account created securely!");
+        await delay(600);
 
-
-        // --- 2. LOGIN ---
+        // ==========================================
+        // STEP 2: AUTOMATIC LOGIN TO GET JWT TOKEN
+        // ==========================================
         const loginPayload = { email: formData.email, password: formData.password };
         console.log("🔵 [API Request] POST /auth/login", loginPayload);
+        
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -253,43 +264,74 @@ useEffect(() => {
             console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
             throw new Error("Auto-login failed after signup");
         }
+        
         const loginData = await loginRes.json();
         const token = loginData.access_token || loginData.token;
         if (!token) throw new Error("No access token received");
         
         localStorage.setItem("accessToken", token);
         console.log("🟢 [API Response] POST /auth/login SUCCESS. Token stored.");
+        showSuccess("Logged in successfully!");
+        await delay(600);
 
-        // --- 3. FILE UPLOAD (If profile picture exists) ---
+        // ==========================================
+        // STEP 3: UPDATE DISPLAY NAME (Username)
+        // ==========================================
+        const profilePayloadName = { displayName: formData.username };
+        console.log("🔵 [API Request] PATCH /users/profile", profilePayloadName);
+
+        const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify(profilePayloadName)
+        });
+
+        if (profileUpdateRes.ok) {
+            const profileUpdateData = await profileUpdateRes.json();
+            console.log("🟢 [API Response] PATCH /users/profile SUCCESS:", profileUpdateData);
+            showSuccess("Username saved!");
+            await delay(600);
+        } else {
+            console.error("🔴 [API Error] PATCH /users/profile FAILED:", await profileUpdateRes.text());
+        }
+
+        // ==========================================
+        // STEP 4: FILE UPLOAD (If profile picture exists)
+        // ==========================================
         let uploadedProfilePicUrl = "";
         if (formData.profilePic) {
             try {
-                console.log("🔵 [API Request] POST /upload (Uploading file...)");
+                console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
                 const uploadData = new FormData();
                 uploadData.append("file", formData.profilePic);
 
                 const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
                     method: "PATCH",
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    },
+                    headers: { "Authorization": `Bearer ${token}` },
                     body: uploadData 
                 });
 
                 if (uploadRes.ok) {
                     const uploadResult = await uploadRes.json();
-                    console.log("🟢 [API Response] POST /upload SUCCESS:", uploadResult);
+                    console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
                     uploadedProfilePicUrl = uploadResult.avatar; 
+                    showSuccess("Photo uploaded successfully!");
+                    await delay(600);
                 } else {
-                    console.error("🔴 [API Error] POST /upload FAILED:", await uploadRes.text());
+                    console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
                 }
             } catch (uploadError) {
-                console.error("🔴 [Network Error] POST /upload crashed:", uploadError);
+                console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", uploadError);
             }
         }
 
-        // --- 4. CREATE CREATOR PROFILE ---
-        const profilePayload = {
+        // ==========================================
+        // STEP 5: CREATE CREATOR PROFILE
+        // ==========================================
+        const creatorPayload = {
             displayName:formData.username,
             bio: formData.bio,
             niches: formData.nicheTags, 
@@ -299,14 +341,15 @@ useEffect(() => {
             pricePerPost:formData.pricePerPost,
             profileImageUrl: uploadedProfilePicUrl || undefined
         };
-        console.log("🔵 [API Request] POST /creator", profilePayload);
+        
+        console.log("🔵 [API Request] POST /creator", creatorPayload);
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify(profilePayload),
+            body: JSON.stringify(creatorPayload),
         });
         
         const profileData = await profileRes.json();
@@ -317,7 +360,9 @@ useEffect(() => {
         console.log("🟢 [API Response] POST /creator SUCCESS:", profileData);
 
 
-        // --- 5. FINANCE SETTINGS ---
+        // ==========================================
+        // STEP 6: FINANCE SETTINGS
+        // ==========================================
         const financePayload = {
             pricePerPost: Number(formData.pricePerPost),
             pricePerStory: Number(formData.pricePerStory),
@@ -327,6 +372,7 @@ useEffect(() => {
             accountNumber: formData.accountNumber,
         };
         console.log("🔵 [API Request] POST /creator/finance", financePayload);
+        
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
             headers: { 
@@ -344,13 +390,16 @@ useEffect(() => {
         console.log("🟢 [API Response] POST /creator/finance SUCCESS:", financeData);
  
 
-        // --- 6. COMPLETE PROFILE (BANK DETAILS) ---
+        // ==========================================
+        // STEP 7: COMPLETE PROFILE (BANK DETAILS)
+        // ==========================================
         const bankPayload = {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("🔵 [API Request] POST /payments/creator/subaccount ", bankPayload);
-        const bankRes = await fetch(`${BASE_URL}/payments/creator/subaccount `, { 
+        console.log("🔵 [API Request] POST /payments/creator/subaccount", bankPayload);
+        
+        const bankRes = await fetch(`${BASE_URL}/payments/creator/subaccount`, { 
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
@@ -361,17 +410,19 @@ useEffect(() => {
 
         const bankData = await bankRes.json();
         if (!bankRes.ok) {
-            console.error("🔴 [API Error] POST /payments/creator/subaccount  FAILED:", bankData);
+            console.error("🔴 [API Error] POST /payments/creator/subaccount FAILED:", bankData);
             throw new Error(bankData.message || "Failed to complete bank profile");
         }
-        console.log("🟢 [API Response] POST /payments/creator/subaccount  SUCCESS:", bankData);
+        console.log("🟢 [API Response] POST /payments/creator/subaccount SUCCESS:", bankData);
 
 
-        // --- SUCCESS & REDIRECT ---
-        setToast({ message: "Account created successfully!", type: "success", isVisible: true });
+        // ==========================================
+        // ALL DONE: FINAL REDIRECT
+        // ==========================================
+        showSuccess("Profile complete! Redirecting...");
         
         setIsRedirecting(true); 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await delay(1500);
         router.push("/creator/dashboard");
 
     } catch (error: any) {
@@ -381,7 +432,7 @@ useEffect(() => {
     }
   };
 
-  const filteredBanks = banks.filter(bank => bank.name.toLowerCase().includes(bankSearchTerm.toLowerCase()));
+  const filteredBanks = banks.filter(bank => bank.name.toLowerCase().includes(bankSearchTerm.toLowerCase().trim()));
 
   if (isRedirecting) return <Loader />;
 
@@ -406,7 +457,6 @@ useEffect(() => {
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-gradient-to-b from-emerald-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
         <div className="max-w-md w-full relative">
           
-          {/* --- CENTERED LOGO SECTION --- */}
           <div className="mb-8 flex flex-col items-center text-center"> 
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
                 <Image 
@@ -424,7 +474,6 @@ useEffect(() => {
                 ))}
             </div>
           </div>
-          {/* ----------------------------- */}
 
           <div className="relative w-full overflow-hidden min-h-[600px]">
             {/* STEP 1 */}
@@ -442,14 +491,12 @@ useEffect(() => {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                         <div className="relative">
                             <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 pr-10 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Enter your password" />
-                            {/* FIX 1 & 2: Added EyeSlashIcon toggle and cursor-pointer */}
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer">
                                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                             </button>
                         </div>
                     </div>
                     <div className="text-right"><Link href="/creator/login" className="text-xs text-blue-600 hover:underline">Or pick up from where you left</Link></div>
-                    {/* FIX 2: Added cursor-pointer to submit button */}
                     <button type="submit" className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 cursor-pointer">Next</button>
                 </form>
             </div>
@@ -472,7 +519,6 @@ useEffect(() => {
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Your Niches <span className="text-gray-400 font-normal text-xs ml-1">(Max 3)</span></label>
-                        {/* FIX 3: Replaced text with styled pill badges */}
                         <div onClick={() => setIsNicheModalOpen(true)} className="w-full min-h-[42px] border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-emerald-500 transition-all flex flex-wrap items-center gap-2 rounded-t-md">
                             {formData.nicheTags.length > 0 ? (
                                 formData.nicheTags.map(tag => (
@@ -512,7 +558,6 @@ useEffect(() => {
                     </div>
 
                     <div className="pt-2 flex flex-col gap-2">
-                        {/* FIX 2: Added cursor-pointer to submit/back buttons */}
                         <button type="submit" className="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 text-sm cursor-pointer">Almost There</button>
                         <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
                     </div>
@@ -540,8 +585,8 @@ useEffect(() => {
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setIsBankDropdownOpen(false)}></div>
                                 <div className="absolute z-50 w-full bg-white shadow-xl max-h-48 overflow-y-auto rounded-lg mt-1 border border-gray-100">
-                                    {filteredBanks.length > 0 ? filteredBanks.map((bank) => (
-                                        <div key={bank.code} onClick={() => handleBankSelect(bank)} className="px-4 py-3 hover:bg-emerald-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0">{bank.name}</div>
+                                    {filteredBanks.length > 0 ? filteredBanks.map((bank, index) => (
+                                        <div key={`${bank.code}-${index}`} onClick={() => handleBankSelect(bank)} className="px-4 py-3 hover:bg-emerald-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0">{bank.name}</div>
                                     )) : <div className="px-4 py-3 text-sm text-gray-400">No bank found</div>}
                                 </div>
                             </>
