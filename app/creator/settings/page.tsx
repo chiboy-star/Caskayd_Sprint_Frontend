@@ -169,33 +169,33 @@ export default function CreatorSettingsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Display Name</label>
-                                        <input type="text" value={profileData.displayName} onChange={e => setProfileData({...profileData, displayName: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="Apex" />
+                                        <input type="text" value={profileData.displayName} onChange={e => setProfileData({...profileData, displayName: e.target.value})} className="w-full bg-gray-50 text-black border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="Apex" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
-                                        <input type="text" value={profileData.location} onChange={e => setProfileData({...profileData, location: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="Lagos, NG" />
+                                        <input type="text" value={profileData.location} onChange={e => setProfileData({...profileData, location: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl text-black py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="Lagos, NG" />
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Bio</label>
-                                    <textarea value={profileData.bio} onChange={e => setProfileData({...profileData, bio: e.target.value})} rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all resize-none" placeholder="Tech content creator..." />
+                                    <textarea value={profileData.bio} onChange={e => setProfileData({...profileData, bio: e.target.value})} rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 text-black focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all resize-none" placeholder="Tech content creator..." />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Instagram URL</label>
-                                        <input type="text" value={profileData.instagram} onChange={e => setProfileData({...profileData, instagram: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="instagram.com/username" />
+                                        <input type="text" value={profileData.instagram} onChange={e => setProfileData({...profileData, instagram: e.target.value})} className="w-full bg-gray-50 border border-gray-200 text-black rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="instagram.com/username" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">TikTok URL</label>
-                                        <input type="text" value={profileData.tiktok} onChange={e => setProfileData({...profileData, tiktok: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="tiktok.com/@username" />
+                                        <input type="text" value={profileData.tiktok} onChange={e => setProfileData({...profileData, tiktok: e.target.value})} className="w-full bg-gray-50 border text-black border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="tiktok.com/@username" />
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Price Per Post (₦)</label>
-                                    <input type="number" value={profileData.pricePerPost} onChange={e => setProfileData({...profileData, pricePerPost: e.target.value})} className="w-full md:w-1/2 bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="50000" />
+                                    <input type="number" value={profileData.pricePerPost} onChange={e => setProfileData({...profileData, pricePerPost: e.target.value})} className="w-full md:w-1/2 bg-gray-50 border text-black border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="50000" />
                                 </div>
 
                                 <div className="pt-4">
@@ -212,15 +212,15 @@ export default function CreatorSettingsPage() {
                                 
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
-                                    <input type="password" required value={passwordData.currentPassword} onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
+                                    <input type="password" required value={passwordData.currentPassword} onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})} className="w-full bg-gray-50 border text-black border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
-                                    <input type="password" required minLength={6} value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
+                                    <input type="password" required minLength={6} value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} className="w-full bg-gray-50 border text-black border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
-                                    <input type="password" required minLength={6} value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
+                                    <input type="password" required minLength={6} value={passwordData.confirmPassword} onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})} className="w-full bg-gray-50 text-black border border-gray-200 rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all" placeholder="••••••••" />
                                 </div>
 
                                 <div className="pt-4">

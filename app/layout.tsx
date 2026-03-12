@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Caskayd - Nigeria's No.1 Influencer Marketplace",
-  description: "Nigeria's No.1 Influencer Marketplace",
+  title: "Caskayd - Simplifing Influencer Marketing For Businesses",
+  description: "Your Partner For Strategic Influncer Marketing",
 };
 
 export default function RootLayout({
