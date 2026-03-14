@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
     ChatBubbleOvalLeftIcon, 
-    MapIcon, // <-- Swapped GlobeAltIcon for MapIcon 
+    MapIcon, 
     XMarkIcon, 
     CameraIcon, 
     ArrowRightOnRectangleIcon,
@@ -14,7 +14,8 @@ import {
     KeyIcon, 
     CheckCircleIcon,
     XCircleIcon,
-    ArrowLeftIcon 
+    ArrowLeftIcon,
+    PaperAirplaneIcon // <-- Added Plane Icon
 } from "@heroicons/react/24/outline";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -55,10 +56,16 @@ export default function NavigationPill() {
     // --- USER PROFILE STATE ---
     const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; companyName?: string; displayName?: string } | null>(null);
 
-    // --- NOTIFICATIONS & MESSAGES ---
+    // --- NOTIFICATIONS & MESSAGES & INVITES ---
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    
+    const [sentCount, setSentCount] = useState<number>(0);
+    const [showSentCount, setShowSentCount] = useState(false);
+    
+    // --- AVATAR UPLOAD STATE ---
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
     // --- SETTINGS / PASSWORD STATES ---
     const [view, setView] = useState<"profile" | "password">("profile");
@@ -96,6 +103,7 @@ export default function NavigationPill() {
         };
 
         const fetchAlerts = async () => {
+            // Unread Messages
             try {
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -108,6 +116,7 @@ export default function NavigationPill() {
                 console.error("🔴 [Business Network Error] GET /messages/unread/count crashed:", error);
             }
 
+            // Notifications
             try {
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -118,6 +127,30 @@ export default function NavigationPill() {
                 }
             } catch (error) {
                 console.error("🔴 [Business Network Error] GET /notifications crashed:", error);
+            }
+
+            // Sent Invites Count
+            try {
+                console.log("🔵 [API Request] GET /chat-requests/business/sent-count");
+                const sentRes = await fetch(`${BASE_URL}/chat-requests/business/sent-count`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (sentRes.ok) {
+                    const countData = await sentRes.text();
+                    let parsedCount = 0;
+                    try {
+                        const parsed = JSON.parse(countData);
+                        parsedCount = typeof parsed === 'number' ? parsed : (parsed?.count || 0);
+                    } catch {
+                        parsedCount = Number(countData) || 0;
+                    }
+                    console.log("🟢 [API Response] GET /chat-requests/business/sent-count SUCCESS:", parsedCount);
+                    setSentCount(parsedCount);
+                } else {
+                    console.error("🔴 [API Error] GET /chat-requests/business/sent-count FAILED:", await sentRes.text());
+                }
+            } catch (error) {
+                console.error("🔴 [Business Network Error] GET /chat-requests/business/sent-count crashed:", error);
             }
         };
 
@@ -147,6 +180,46 @@ export default function NavigationPill() {
             }
         } catch (error) {
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
+        }
+    };
+
+    // --- HANDLE AVATAR UPLOAD ---
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+            showToast("Authentication error. Please log in again.", "error");
+            return;
+        }
+
+        setIsUploadingAvatar(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch(`${BASE_URL}/users/me/avatar`, {
+                method: "PATCH",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: formData, 
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast("Profile image updated successfully!", "success");
+                
+                const newAvatarUrl = data.avatar || URL.createObjectURL(file);
+                setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+            } else {
+                const errorData = await res.json().catch(() => null);
+                showToast(`Failed to update: ${errorData?.message || "Bad Request"}`, "error");
+            }
+        } catch (error) {
+            showToast("Network error. Please try again later.", "error");
+        } finally {
+            setIsUploadingAvatar(false);
+            event.target.value = "";
         }
     };
 
@@ -197,16 +270,15 @@ export default function NavigationPill() {
             <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({...prev, isVisible: false}))} />
 
             {/* --- NAVIGATION PILL --- */}
-            {/* Added pt-6 for extra top breathing room */}
-            <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
+            <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 sm:px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* INCREASED PADDING HERE: py-4 px-6 md:px-8 */}
-                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-4 px-6 md:px-8 flex items-center justify-between relative">
+                    {/* MOBILE ALIGNMENT FIX: Adjusted padding and layout distribution */}
+                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 px-4 sm:px-6 md:py-4 md:px-8 flex items-center justify-between relative">
                         
+                        {/* Logo */}
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                            {/* Increased logo size to match the luxurious padding */}
-                            <div className="relative w-10 h-10 shrink-0">
+                            <div className="relative w-8 h-8 md:w-10 md:h-10 shrink-0">
                                 <Image 
                                     src="/images/Logo_transparent_icon.png" 
                                     alt="Caskayd" 
@@ -214,16 +286,17 @@ export default function NavigationPill() {
                                     className="object-contain"
                                 />
                             </div>
-                            <span className="font-extrabold text-2xl tracking-tight hidden sm:block text-slate-900">
+                            <span className="font-extrabold text-xl md:text-2xl tracking-tight hidden sm:block text-slate-900">
                                 Caskayd
                             </span>
                         </div>
 
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8 sm:gap-10">
+                        {/* Center Links (Map & Chat) - Now naturally flows on mobile to prevent overlapping */}
+                        <div className="flex items-center gap-3 sm:gap-6 md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
-                                        <MapIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                        <MapIcon className="w-6 h-6" /> {/* Standardized size */}
                                         <span className="hidden sm:block text-[15px]">Discover</span>
                                     </div>
                                     <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/discover') ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -233,7 +306,7 @@ export default function NavigationPill() {
                             <Link href="/business/messages" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors relative ${isActive('/business/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1 relative">
-                                        <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                        <ChatBubbleOvalLeftIcon className="w-6 h-6" /> {/* Standardized size */}
                                         <span className="hidden sm:block text-[15px]">Messages</span>
                                         {unreadMessages > 0 && (
                                             <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
@@ -246,12 +319,33 @@ export default function NavigationPill() {
                             </Link>
                         </div>
 
-                        <div className="flex items-center gap-4 md:gap-5 shrink-0 relative">
+                        {/* Right Icons (Plane, Bell, Avatar) */}
+                        <div className="flex items-center gap-2 sm:gap-3 md:gap-5 shrink-0 relative">
+                            
+                            {/* --- NEW INVITE (PLANE) ICON --- */}
+                            <div className="relative flex items-center">
+                                <button 
+                                    onClick={() => setShowSentCount(!showSentCount)}
+                                    className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
+                                >
+                                    <PaperAirplaneIcon className="w-6 h-6" />
+                                </button>
+                                {showSentCount && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowSentCount(false)}></div>
+                                        <div className="absolute top-14 left-1/2 -translate-x-1/2 w-36 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 p-4 items-center">
+                                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 text-center">Invites Sent</span>
+                                            <span className="text-2xl font-black text-emerald-600">{sentCount}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
                             <button 
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                                 className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
                             >
-                                <BellIcon className="w-7 h-7" />
+                                <BellIcon className="w-6 h-6" /> {/* Standardized size */}
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
@@ -262,7 +356,7 @@ export default function NavigationPill() {
                             {isNotificationsOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                                    <div className="absolute top-16 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                                    <div className="absolute top-16 right-0 md:right-12 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                                         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                             <h3 className="font-bold text-gray-900">Notifications</h3>
                                             <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
@@ -288,10 +382,9 @@ export default function NavigationPill() {
                                 </>
                             )}
 
-                            {/* Increased profile button size slightly to match larger padding */}
                             <button 
                                 onClick={() => { setIsProfileOpen(true); setView("profile"); }}
-                                className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
+                                className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden shrink-0"
                             >
                                 {userProfile?.avatar ? (
                                     <Image src={userProfile.avatar} alt="Profile" fill className="object-cover" />
@@ -320,17 +413,30 @@ export default function NavigationPill() {
                         {view === "profile" && (
                             <div className="flex flex-col items-center mt-2 animate-in slide-in-from-left-4 duration-300">
                                 
-                                <div className="relative mb-4">
-                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative">
+                                <div className="relative mb-4 group cursor-pointer">
+                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative border border-gray-700">
                                         {userProfile?.avatar ? (
                                             <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
                                         ) : (
                                             <span className="text-black text-4xl font-bold">{initial}</span>
                                         )}
                                     </div>
-                                    <button className="absolute bottom-0 right-0 bg-white text-black p-1.5 rounded-full shadow-lg hover:bg-gray-200 transition-colors cursor-pointer">
-                                        <CameraIcon className="w-4 h-4" />
-                                    </button>
+
+                                    {/* White floating camera badge positioned bottom-right */}
+                                    <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-200 transition-colors border border-gray-200 z-10">
+                                        {isUploadingAvatar ? (
+                                            <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <CameraIcon className="w-5 h-5 text-gray-800" />
+                                        )}
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={handleAvatarUpload}
+                                            disabled={isUploadingAvatar}
+                                        />
+                                    </label>
                                 </div>
 
                                 <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{compName}</h2>

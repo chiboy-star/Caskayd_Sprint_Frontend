@@ -21,8 +21,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_REGEX = /^(https?:\/\/)?(([\da-z\.-]+)\.([a-z\.]{2,6})|localhost(:\d{1,5})?)([\/\w \.-]*)*\/?$/;
 
-const AVAILABLE_INDUSTRIES = ["fitness", "education", "fashion", "beauty", "tech", 
-  "lifestyle", "business", "travel", "Food", "entertainment"];
+const AVAILABLE_INDUSTRIES = ["Food & Food Stuff","Beverages","Electronics/Gadgets","Flowers & Floral-inspired Gifts","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {

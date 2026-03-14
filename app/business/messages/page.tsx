@@ -39,11 +39,11 @@ interface Creator {
     avatar?: string | null; 
 }
 
+// CHANGED: Updated to match new backend response
 interface Conversation {
-    id: string;
-    business: Business;
-    creator: Creator;
-    lastMessage?: string;
+    conversationId: string;
+    userId: string;
+    avatar: string | null;
 }
 
 interface Message {
@@ -139,8 +139,10 @@ export default function BusinessMessagesPage() {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
-                if (!readRes.ok && !isBackground) {
-                    console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
+                if (readRes.ok) {
+                    if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
+                } else {
+                    if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
                 }
 
             } catch (error) {
@@ -204,7 +206,8 @@ export default function BusinessMessagesPage() {
         }, 100);
     };
 
-    const activeConversation = conversations.find(c => c.id === activeChatId);
+    // CHANGED: Update lookup to use the new conversationId
+    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
 
     // --- 4. HANDLE PAYMENT LOGIC ---
     const handlePaymentSubmit = async () => {
@@ -217,7 +220,7 @@ export default function BusinessMessagesPage() {
 
         try {
             const payload = {
-                creatorId: activeConversation.creator.id,
+                creatorId: activeConversation.userId, // CHANGED: Using userId from the new data structure
                 amount: Number(paymentAmount)
             };
 
@@ -262,24 +265,24 @@ export default function BusinessMessagesPage() {
     const totalAmount = isNaN(numericAmount) ? 0 : numericAmount + platformFee;
 
 
+    // CHANGED: Since we lost the business details on the conversation object, if the sender is NOT the creator we are chatting with, we assume it's "me"
     const isMe = (msg: Message) => {
         if (!activeConversation) return false;
-        const businessId = activeConversation.business?.id;
-        const businessUserId = activeConversation.business?.user?.id;
         const senderId = msg?.sender?.id;
-        
         if (!senderId) return false;
-        return senderId === businessId || senderId === businessUserId;
+        
+        return senderId !== activeConversation.userId;
     };
 
+    // CHANGED: Fallback name generator since email/username is no longer in the payload
     const getCreatorName = (conv?: Conversation) => {
-        if (!conv || !conv.creator || !conv.creator.email) return "Creator";
-        return conv.creator.email; 
+        if (!conv || !conv.userId) return "Creator";
+        return `User ${conv.userId.substring(0, 4)}`; // Will show like "User 4841"
     };
 
-    const getInitial = (email?: string) => {
-        if (!email) return "C";
-        return email.charAt(0).toUpperCase();
+    const getInitial = (nameFallback?: string) => {
+        if (!nameFallback) return "C";
+        return nameFallback.charAt(0).toUpperCase();
     };
 
     const handleChatSelect = (id: string) => {
@@ -297,7 +300,8 @@ export default function BusinessMessagesPage() {
             
             <NavigationPill />
 
-            <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-6 pt-[104px]">
+            {/* CHANGED: Adjusted pt and pb values here for desktop/mobile consistency with the creator side */}
+            <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-10 md:pb-6 pt-[140px] md:pt-[120px]">
                 
                 <div className="flex-1 h-full bg-white rounded-[2rem] shadow-md shadow-gray-200/40 border border-gray-100 flex w-full min-h-0 overflow-hidden relative">
                     
@@ -318,13 +322,15 @@ export default function BusinessMessagesPage() {
                             ) : (
                                 conversations.map((chat) => {
                                     const name = getCreatorName(chat);
-                                    const initial = getInitial(chat.creator?.email);
-                                    const isActive = activeChatId === chat.id;
+                                    const initial = getInitial(name);
+                                    // CHANGED: Using conversationId for keys and active state
+                                    const isActive = activeChatId === chat.conversationId;
                                     return (
-                                        <div key={chat.id} onClick={() => handleChatSelect(chat.id)} className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${isActive ? "bg-indigo-50" : "hover:bg-gray-50 bg-transparent"}`}>
+                                        <div key={chat.conversationId} onClick={() => handleChatSelect(chat.conversationId)} className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${isActive ? "bg-indigo-50" : "hover:bg-gray-50 bg-transparent"}`}>
                                             <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-100 relative shrink-0 bg-indigo-100 flex items-center justify-center">
-                                                {chat.creator?.avatar ? (
-                                                    <Image src={chat.creator.avatar} alt={name} fill className="object-cover" />
+                                                {/* CHANGED: Using new avatar path */}
+                                                {chat.avatar ? (
+                                                    <Image src={chat.avatar} alt={name} fill className="object-cover" />
                                                 ) : (
                                                     <span className="text-[#5B4DFF] font-bold text-lg">{initial}</span>
                                                 )}
@@ -333,7 +339,7 @@ export default function BusinessMessagesPage() {
                                                 <div className="flex justify-between items-baseline"><h4 className={`font-bold text-sm truncate ${isActive ? "text-[#5B4DFF]" : "text-gray-900"}`}>{name}</h4></div>
                                             </div>
                                         </div>
-                                    );
+                                    ); 
                                 })
                             )}
                         </div>
@@ -347,10 +353,11 @@ export default function BusinessMessagesPage() {
                                     <div className="flex items-center gap-4 min-w-0">
                                         <button onClick={handleBackToList} className="md:hidden p-1 -ml-2 text-gray-600"><ArrowLeftIcon className="w-5 h-5" /></button>
                                         <div className="w-10 h-10 rounded-full overflow-hidden relative border border-gray-100 shrink-0 bg-indigo-100 flex items-center justify-center">
-                                            {activeConversation.creator?.avatar ? (
-                                                <Image src={activeConversation.creator.avatar} alt="C" fill className="object-cover" />
+                                            {/* CHANGED: Updated Avatar mapping */}
+                                            {activeConversation.avatar ? (
+                                                <Image src={activeConversation.avatar} alt="C" fill className="object-cover" />
                                             ) : (
-                                                <span className="text-[#5B4DFF] font-bold text-base">{getInitial(activeConversation.creator?.email)}</span>
+                                                <span className="text-[#5B4DFF] font-bold text-base">{getInitial(getCreatorName(activeConversation))}</span>
                                             )}
                                         </div>
                                         <div className="truncate">
@@ -372,10 +379,11 @@ export default function BusinessMessagesPage() {
                                             <div key={msg.id} className={`flex items-end gap-2 ${sentByMe ? "justify-end" : "justify-start"}`}>
                                                 {!sentByMe && (
                                                     <div className="w-8 h-8 rounded-full overflow-hidden relative bg-indigo-100 shrink-0 mb-4 border border-gray-100 flex items-center justify-center">
-                                                        {activeConversation.creator?.avatar ? (
-                                                            <Image src={activeConversation.creator.avatar} alt="C" fill className="object-cover" />
+                                                        {/* CHANGED: Updated Avatar mapping */}
+                                                        {activeConversation.avatar ? (
+                                                            <Image src={activeConversation.avatar} alt="C" fill className="object-cover" />
                                                         ) : (
-                                                            <span className="text-[#5B4DFF] font-bold text-xs">{getInitial(activeConversation.creator?.email)}</span>
+                                                            <span className="text-[#5B4DFF] font-bold text-xs">{getInitial(getCreatorName(activeConversation))}</span>
                                                         )}
                                                     </div>
                                                 )}
@@ -393,7 +401,7 @@ export default function BusinessMessagesPage() {
                                     <div className="bg-[#F8F9FB] rounded-2xl px-2 py-2 flex items-center gap-2 border border-gray-100 focus-within:border-indigo-300 transition-colors shadow-sm">
                                         <button className="p-2 text-gray-400 hover:text-[#5B4DFF] transition-colors rounded-full hover:bg-gray-100"><PaperClipIcon className="w-5 h-5" /></button>
                                         <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }} placeholder="Type a message" className="flex-1 bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" />
-                                        <button onClick={(e) => { e.preventDefault(); handleSendMessage(); }} disabled={!newMessage.trim()} className="bg-[#5B4DFF] p-2.5 rounded-xl text-white hover:bg-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:shadow-none"><PaperAirplaneIcon className="w-5 h-5" /></button>
+                                        <button onClick={(e) => { e.preventDefault(); handleSendMessage(); }} disabled={!newMessage.trim()} className="bg-[#5B4DFF] p-2.5 rounded-xl text-white hover:bg-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:shadow-none cursor-pointer"><PaperAirplaneIcon className="w-5 h-5" /></button>
                                     </div>
                                 </div>
                             </>
@@ -405,8 +413,8 @@ export default function BusinessMessagesPage() {
                         )}
                     </div>
 
-                    {/* --- RIGHT PANEL: PROJECT DETAILS --- */}
-                    <div className={`absolute right-0 top-0 h-full bg-white border-l border-gray-100 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] flex flex-col p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] transition-transform duration-300 ease-in-out z-30 w-full md:w-80 ${
+                    {/* --- RIGHT PANEL: PROJECT DETAILS (Absolute Slide Out) --- */}
+                    <div className={`absolute right-0 top-0 h-full bg-white border-l border-gray-100 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] flex flex-col p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] transition-transform duration-300 ease-in-out z-40 w-full md:w-80 ${
                         isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
                     }`}>
                         <div className="flex justify-between items-center mb-6 shrink-0">
@@ -427,7 +435,7 @@ export default function BusinessMessagesPage() {
                             </div>
                             <button 
                                 onClick={() => setIsPaymentModalOpen(true)}
-                                className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm"
+                                className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
                             >
                                 Pay Creator
                             </button>
@@ -447,7 +455,7 @@ export default function BusinessMessagesPage() {
                                 setIsPaymentModalOpen(false);
                                 setPaymentAmount(""); 
                             }}
-                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors cursor-pointer"
                         >
                             <XMarkIcon className="w-6 h-6" />
                         </button>
@@ -492,7 +500,7 @@ export default function BusinessMessagesPage() {
                             <button 
                                 onClick={handlePaymentSubmit}
                                 disabled={isProcessingPayment || !paymentAmount || Number(paymentAmount) <= 0}
-                                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 rounded-xl transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 rounded-xl transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 {isProcessingPayment ? (
                                     <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>

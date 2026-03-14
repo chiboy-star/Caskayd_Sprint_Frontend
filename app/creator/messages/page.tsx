@@ -38,10 +38,9 @@ interface Creator {
 }
 
 interface Conversation {
-    id: string;
-    business: Business;
-    creator: Creator;
-    lastMessage?: string;
+    conversationId: string;
+    userId: string;
+    avatar: string | null;
 }
 
 interface Message {
@@ -75,7 +74,6 @@ export default function CreatorMessagesPage() {
                 const token = localStorage.getItem("accessToken");
                 if (!token) return;
 
-                // --- CONSOLE ADDED ---
                 console.log("🔵 [API Request] GET /conversations");
                 
                 const res = await fetch(`${BASE_URL}/conversations`, {
@@ -84,15 +82,12 @@ export default function CreatorMessagesPage() {
 
                 if (res.ok) {
                     const data = await res.json();
-                    // --- CONSOLE ADDED ---
                     console.log("🟢 [API Response] GET /conversations SUCCESS:", data);
                     setConversations(data);
                 } else {
-                    // --- CONSOLE ADDED ---
                     console.error("🔴 [API Error] GET /conversations FAILED:", await res.text());
                 }
             } catch (error) {
-                // --- CONSOLE ADDED ---
                 console.error("🔴 [Network Error] GET /conversations crashed:", error);
             } finally {
                 setLoadingConversations(false);
@@ -113,7 +108,6 @@ export default function CreatorMessagesPage() {
             if (!token) return;
 
             try {
-                // --- CONSOLE ADDED ---
                 if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
                 
                 const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
@@ -122,7 +116,6 @@ export default function CreatorMessagesPage() {
 
                 if (res.ok) {
                     const data = await res.json();
-                    // --- CONSOLE ADDED ---
                     if (!isBackground) console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS:`, data);
                     
                     const sorted = data.sort((a: Message, b: Message) => 
@@ -130,12 +123,10 @@ export default function CreatorMessagesPage() {
                     );
                     setMessages(sorted);
                 } else {
-                    // --- CONSOLE ADDED ---
                     if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
                 }
 
                 // Mark as read silently
-                // --- CONSOLE ADDED ---
                 if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
                 
                 const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
@@ -144,15 +135,12 @@ export default function CreatorMessagesPage() {
                 });
 
                 if (readRes.ok) {
-                    // --- CONSOLE ADDED ---
                     if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
                 } else {
-                    // --- CONSOLE ADDED ---
                     if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
                 }
 
             } catch (error) {
-                // --- CONSOLE ADDED ---
                 console.error("🔴 [Network Error] Failed to fetch messages:", error);
             } finally {
                 if (!isBackground) setInitialLoadingMessages(false);
@@ -182,7 +170,6 @@ export default function CreatorMessagesPage() {
                 type: "TEXT" 
             };
 
-            // --- CONSOLE ADDED ---
             console.log("🔵 [API Request] POST /messages PAYLOAD:", payload);
 
             const res = await fetch(`${BASE_URL}/messages`, {
@@ -196,18 +183,15 @@ export default function CreatorMessagesPage() {
 
             if (res.ok) {
                 const savedMessage = await res.json();
-                // --- CONSOLE ADDED ---
                 console.log("🟢 [API Response] POST /messages SUCCESS:", savedMessage);
                 
                 setMessages(prev => [...prev, savedMessage]);
                 scrollToBottom();
             } else {
-                // --- CONSOLE ADDED ---
                 console.error("🔴 [API Error] POST /messages FAILED:", await res.text());
                 setNewMessage(messageToSend); 
             }
         } catch (error) {
-            // --- CONSOLE ADDED ---
             console.error("🔴 [Network Error] POST /messages crashed:", error);
             setNewMessage(messageToSend); 
         }
@@ -219,27 +203,25 @@ export default function CreatorMessagesPage() {
         }, 100);
     };
 
-    const activeConversation = conversations.find(c => c.id === activeChatId);
+    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
 
     // Helpers
     const getBusinessName = (conv?: Conversation) => {
-        if (!conv || !conv.business || !conv.business.email) return "Business";
-        return conv.business.email; 
+        if (!conv || !conv.userId) return "Business";
+        return `User ${conv.userId.substring(0, 4)}`; 
     };
 
-    const getInitial = (email?: string) => {
-        if (!email) return "B";
-        return email.charAt(0).toUpperCase();
+    const getInitial = (nameFallback?: string) => {
+        if (!nameFallback) return "B";
+        return nameFallback.charAt(0).toUpperCase();
     };
 
     const isMe = (msg: Message) => {
         if (!activeConversation) return false;
-        const myId = activeConversation.creator?.id; 
-        const myUserId = activeConversation.creator?.user?.id;
         const senderId = msg?.sender?.id;
         
         if (!senderId) return false;
-        return senderId === myId || senderId === myUserId;
+        return senderId !== activeConversation.userId;
     };
 
     const handleChatSelect = (id: string) => {
@@ -257,8 +239,8 @@ export default function CreatorMessagesPage() {
             
             <CreatorNavigationPill />
 
-            {/* CHANGED: Increased top padding drastically to clear the navigation pill. Also added bottom padding */}
-            <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-10 pt-[140px] md:pt-[160px]">
+            {/* CHANGED: pt-[140px] remains for mobile, but desktop is now tightly tucked at md:pt-[120px]. Desktop pb reduced to md:pb-6 to fill remaining screen. */}
+            <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-10 md:pb-6 pt-[140px] md:pt-[120px]">
                 
                 <div className="flex-1 h-full bg-white rounded-[2.5rem] shadow-lg shadow-gray-200/40 border border-gray-100 flex w-full min-h-0 overflow-hidden relative">
                     
@@ -280,7 +262,6 @@ export default function CreatorMessagesPage() {
 
                         <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                             {loadingConversations ? (
-                                // CHANGED: Replaced loading text with a nice skeleton layout
                                 <div className="space-y-3 px-2 mt-2">
                                     {[1, 2, 3].map((i) => (
                                         <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
@@ -297,13 +278,13 @@ export default function CreatorMessagesPage() {
                             ) : (
                                 conversations.map((chat) => {
                                     const name = getBusinessName(chat);
-                                    const initial = getInitial(chat.business?.email);
-                                    const isActive = activeChatId === chat.id;
+                                    const initial = getInitial(name);
+                                    const isActive = activeChatId === chat.conversationId;
                                     
                                     return (
                                         <div 
-                                            key={chat.id} 
-                                            onClick={() => handleChatSelect(chat.id)}
+                                            key={chat.conversationId} 
+                                            onClick={() => handleChatSelect(chat.conversationId)}
                                             className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                                                 isActive 
                                                 ? "bg-emerald-50" 
@@ -312,8 +293,8 @@ export default function CreatorMessagesPage() {
                                         >
                                             {/* Avatar */}
                                             <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-100 relative shrink-0 bg-emerald-100 flex items-center justify-center">
-                                                {chat.business?.avatar ? (
-                                                    <Image src={chat.business.avatar} alt={name} fill className="object-cover" />
+                                                {chat.avatar ? (
+                                                    <Image src={chat.avatar} alt={name} fill className="object-cover" />
                                                 ) : (
                                                     <span className="text-emerald-600 font-bold text-lg">{initial}</span>
                                                 )}
@@ -349,10 +330,10 @@ export default function CreatorMessagesPage() {
 
                                         {/* Avatar */}
                                         <div className="w-10 h-10 rounded-full overflow-hidden relative border border-gray-100 shrink-0 bg-emerald-100 flex items-center justify-center">
-                                            {activeConversation.business?.avatar ? (
-                                                <Image src={activeConversation.business.avatar} alt="B" fill className="object-cover" />
+                                            {activeConversation.avatar ? (
+                                                <Image src={activeConversation.avatar} alt="B" fill className="object-cover" />
                                             ) : (
-                                                <span className="text-emerald-600 font-bold text-base">{getInitial(activeConversation.business?.email)}</span>
+                                                <span className="text-emerald-600 font-bold text-base">{getInitial(getBusinessName(activeConversation))}</span>
                                             )}
                                         </div>
                                         
@@ -366,8 +347,6 @@ export default function CreatorMessagesPage() {
                                     </div>
                                     
                                     <div className="flex items-center gap-4 shrink-0">
-                                        
-                                        
                                         <button 
                                             onClick={() => setIsDetailsOpen(!isDetailsOpen)} 
                                             className={`p-2 rounded-full transition-colors ${isDetailsOpen ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
@@ -384,7 +363,6 @@ export default function CreatorMessagesPage() {
                                     </div>
 
                                     {initialLoadingMessages ? (
-                                        // CHANGED: Replaced spinner with chat bubble skeletons
                                         <div className="space-y-4 animate-pulse">
                                             <div className="flex items-end justify-start gap-2">
                                                 <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 mb-4"></div>
@@ -406,10 +384,10 @@ export default function CreatorMessagesPage() {
                                                 {/* Avatar for Incoming Messages */}
                                                 {!sentByMe && (
                                                     <div className="w-8 h-8 rounded-full overflow-hidden relative shrink-0 mb-4 border border-gray-100 bg-emerald-100 flex items-center justify-center">
-                                                        {activeConversation.business?.avatar ? (
-                                                            <Image src={activeConversation.business.avatar} alt="B" fill className="object-cover" />
+                                                        {activeConversation.avatar ? (
+                                                            <Image src={activeConversation.avatar} alt="B" fill className="object-cover" />
                                                         ) : (
-                                                            <span className="text-emerald-600 font-bold text-xs">{getInitial(activeConversation.business?.email)}</span>
+                                                            <span className="text-emerald-600 font-bold text-xs">{getInitial(getBusinessName(activeConversation))}</span>
                                                         )}
                                                     </div>
                                                 )}

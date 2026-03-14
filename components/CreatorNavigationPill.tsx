@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname ,useRouter} from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "react-hot-toast"; // Added react-hot-toast
 import { 
     ChatBubbleOvalLeftIcon, 
     WalletIcon, 
@@ -11,7 +12,8 @@ import {
     XMarkIcon, 
     ArrowRightOnRectangleIcon,
     BellIcon,
-    Cog6ToothIcon
+    Cog6ToothIcon,
+    CameraIcon 
 } from "@heroicons/react/24/outline";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -33,6 +35,8 @@ export default function CreatorNavigationPill() {
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
     const isActive = (path: string) => pathname?.includes(path);
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
@@ -137,6 +141,49 @@ export default function CreatorNavigationPill() {
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };
+
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        setIsUploadingAvatar(true);
+        const loadingToastId = toast.loading("Updating profile image...");
+
+        const formData = new FormData();
+        // CHANGED: "avatar" to "file". Update this string if your backend expects a different field name (e.g., "image").
+        formData.append("file", file);
+
+        try {
+            console.log("🔵 [API Request] PATCH /users/me/avatar");
+            const res = await fetch(`${BASE_URL}/users/me/avatar`, {
+                method: "PATCH",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: formData, 
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS", data);
+                
+                toast.success("Profile image updated successfully!", { id: loadingToastId });
+                
+                const newAvatarUrl = data.avatar || URL.createObjectURL(file);
+                setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+            } else {
+                const errorData = await res.json().catch(() => null);
+                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData);
+                toast.error(`Failed to update: ${errorData?.message || "Bad Request"}`, { id: loadingToastId });
+            }
+        } catch (error) {
+            console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", error);
+            toast.error("Network error. Please try again later.", { id: loadingToastId });
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+    };
     
     const dispName = userProfile?.displayName || userProfile?.companyName || "Creator";
     const userEmail = userProfile?.email || "creator@example.com";
@@ -144,15 +191,12 @@ export default function CreatorNavigationPill() {
 
     return (
         <>
-            {/* CHANGED: Added pt-6 for extra top breathing room */}
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* CHANGED: Increased padding (py-4 px-6 md:px-8) */}
                     <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-4 px-6 md:px-8 flex items-center justify-between relative">
                         
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                            {/* CHANGED: Increased logo size to match new padding */}
                             <div className="relative w-10 h-10 shrink-0">
                                 <Image 
                                     src="/images/Logo_transparent_icon.png" 
@@ -255,7 +299,6 @@ export default function CreatorNavigationPill() {
                                 </>
                             )}
 
-                            {/* CHANGED: Increased profile button size slightly to match larger padding */}
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
                                 className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
@@ -276,7 +319,7 @@ export default function CreatorNavigationPill() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0A0A]/50 animate-in fade-in duration-300">
                     <div className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10">
                         <button 
-                             onClick={() => setIsProfileOpen(false)}
+                            onClick={() => setIsProfileOpen(false)}
                             className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors cursor-pointer z-10"
                         >
                             <XMarkIcon className="w-6 h-6" />
@@ -284,14 +327,31 @@ export default function CreatorNavigationPill() {
 
                         <div className="flex flex-col items-center mt-4 relative z-0">
                             
-                            <div className="relative mb-4">
-                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative">
+                            {/* Updated Profile Avatar with side-badge camera icon */}
+                            <div className="relative mb-4 group cursor-pointer">
+                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative border border-gray-700">
                                     {userProfile?.avatar ? (
                                         <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
                                     ) : (
                                         <span className="text-black text-4xl font-bold">{initial}</span>
                                     )}
                                 </div>
+                                
+                                {/* White floating camera badge positioned bottom-right */}
+                                <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
+                                    {isUploadingAvatar ? (
+                                        <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <CameraIcon className="w-5 h-5 text-gray-800" />
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={handleAvatarUpload}
+                                        disabled={isUploadingAvatar}
+                                    />
+                                </label>
                             </div>
 
                             <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{dispName}</h2>
