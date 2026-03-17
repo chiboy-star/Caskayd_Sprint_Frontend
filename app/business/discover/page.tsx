@@ -2,18 +2,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import { 
-  MagnifyingGlassIcon, 
-  ChevronDownIcon, 
-  XMarkIcon, 
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  AdjustmentsHorizontalIcon,
-  ArrowLeftIcon,
-  MapPinIcon,
-  ArrowTopRightOnSquareIcon
+    MagnifyingGlassIcon, 
+    ChevronDownIcon, 
+    XMarkIcon, 
+    CheckCircleIcon,
+    ExclamationCircleIcon,
+    AdjustmentsHorizontalIcon,
+    ArrowLeftIcon,
+    MapPinIcon,
+    ArrowTopRightOnSquareIcon
 } from "@heroicons/react/24/outline";
 import { CheckBadgeIcon } from "@heroicons/react/24/solid"; 
 import NavigationPill from "@/components/NavigationPill"; 
@@ -169,13 +168,10 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
 
     const initial = (creator.displayName || "C").charAt(0).toUpperCase();
     const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
-    const placeholderImg = PLACEHOLDERS[0]; // Using standard placeholder for safety
+    const placeholderImg = PLACEHOLDERS[0]; 
 
     return (
-        // CHANGED: Added onClick={onClose} to overlay wrapper
         <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-            
-            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
                 
                 {/* Close Button */}
@@ -202,7 +198,7 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                     )}
 
                     {creator.bio && (
-                        <p className="text-sm text-gray-300 mb-6 italic px-4">"{creator.bio}"</p>
+                        <p className="text-sm text-gray-300 mb-6 italic px-4">&quot;{creator.bio}&quot;</p>
                     )}
 
                     {creator.niches && creator.niches.length > 0 && (
@@ -395,7 +391,6 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
                 endDate: formData.endDate
             };
             
-            // --- CONSOLE ADDED ---
             console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
 
             const res = await fetch(`${BASE_URL}/chat-requests`, {
@@ -417,7 +412,6 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
             onClose();
 
         } catch (error: any) {
-            // --- CONSOLE ADDED ---
             console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
@@ -428,9 +422,7 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
     if (!isOpen || !creator) return null;
 
     return (
-        // CHANGED: Added onClick={onClose} to wrapper
         <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
             <div onClick={(e) => e.stopPropagation()} className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
                 <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
                     <XMarkIcon className="w-5 h-5 text-gray-500" />
@@ -502,9 +494,7 @@ const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolea
 const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boolean, onClose: () => void, selectedNiches: string[], onToggle: (n: string) => void }) => {
     if (!isOpen) return null;
     return (
-        // CHANGED: Added onClick={onClose} to wrapper
         <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all animate-in fade-in">
-            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
             <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
                 <button aria-label="Close modal" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer">
                     <XMarkIcon className="h-6 w-6" />
@@ -512,7 +502,7 @@ const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boo
                 <h3 className="text-xl font-bold text-gray-900 mb-1">Select your Niches</h3>
                 <p className="text-sm text-gray-500 mb-6">Select between 1 and 3 categories.</p>
                 <div className="flex flex-wrap gap-3 mb-8">
-                    {AVAILABLE_NICHES.map((niche) => (
+                    {FILTER_OPTIONS.niche.map((niche) => (
                         <button
                             key={niche}
                             type="button"
@@ -583,7 +573,7 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
                     <h3 className="font-bold text-lg text-slate-900 truncate">{displayName}</h3>
                     <CheckBadgeIcon className="w-5 h-5 text-emerald-500 shrink-0" />
                 </div>
- 
+
                 <div className="flex flex-col gap-1.5 pb-1">
                     <div className="flex items-center text-xs text-gray-500 font-medium">
                         <span className="text-gray-400 mr-1">Followers:</span>
@@ -628,9 +618,6 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
 
 // --- MAIN PAGE ---
 export default function DiscoverPage() {
-  const router = useRouter();
-  
-  // --- ADDED STATE FOR SEARCH QUERY ---
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -659,7 +646,6 @@ export default function DiscoverPage() {
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               
               const url = `${BASE_URL}/creator${params.toString() ? `?${params.toString()}` : ''}`;
-              // --- CONSOLE ADDED ---
               console.log(`🔵 [API Request] GET ${url}`);
               
               const res = await fetch(url, {
@@ -668,15 +654,12 @@ export default function DiscoverPage() {
                
               if (res.ok) {
                   const data = await res.json();
-                  // --- CONSOLE ADDED ---
                   console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
               } else {
-                  // --- CONSOLE ADDED ---
                   console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
-              // --- CONSOLE ADDED ---
               console.error("🔴 [Network Error] GET /creator crashed:", error);
           } finally {
               setLoading(false);

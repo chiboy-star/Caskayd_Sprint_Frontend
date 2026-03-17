@@ -514,19 +514,19 @@ export default function LandingPage() {
                             <span className="text-gray-500 text-sm font-medium mr-2">Follow us on :</span>
                             
                             {/* X / Twitter Link */}
-                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-900 transition-colors group">
+                            <a href="https://x.com/CaskaydApp" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-900 transition-colors group">
                                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current group-hover:text-black transition-colors" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
                                 <span className="text-sm font-semibold group-hover:text-black transition-colors">Twitter</span>
                             </a>
 
                             {/* Instagram Link */}
-                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-pink-600 transition-colors group ml-2">
+                            <a href="https://www.instagram.com/caskaydapp" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-pink-600 transition-colors group ml-2">
                                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current group-hover:text-pink-600 transition-colors" aria-hidden="true"><path fillRule="evenodd" clipRule="evenodd" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 4.326c-3.148 0-3.519.012-4.755.068-2.316.106-3.486 1.488-3.592 3.805-.057 1.236-.069 1.607-.069 4.755 0 3.148.012 3.519.069 4.755.106 2.315 1.275 3.698 3.592 3.804 1.236.057 1.607.069 4.755.069 3.148 0 3.519-.012 4.755-.069 2.317-.106 3.486-1.489 3.592-3.804.057-1.236.069-1.607.069-4.755 0-3.148-.012-3.519-.069-4.755-.106-2.316-1.275-3.698-3.592-3.805-1.236-.056-1.607-.068-4.755-.068zm0 3.854a3.82 3.82 0 100 7.639 3.82 3.82 0 000-7.639zm0 5.476a1.656 1.656 0 110-3.311 1.656 1.656 0 010 3.311zm2.844-5.314a1.125 1.125 0 11-2.25 0 1.125 1.125 0 012.25 0z" /></svg>
                                 <span className="text-sm font-semibold group-hover:text-pink-600 transition-colors">Instagram</span>
                             </a>
                             
                             {/* TikTok Link */}
-                            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-black transition-colors group ml-2">
+                            <a href="https://www.tiktok.com/@caskaydapp?is_from_webapp=1&sender_device=pc" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-black transition-colors group ml-2">
                                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current group-hover:text-black transition-colors" aria-hidden="true"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
                                 <span className="text-sm font-semibold group-hover:text-black transition-colors">TikTok</span>
                             </a>
