@@ -5,10 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { 
     ChevronDownIcon, 
-    PlayCircleIcon,
-    ChartBarIcon,
-    EnvelopeOpenIcon,
-    BanknotesIcon,
     ArrowTrendingUpIcon,
     WalletIcon
 } from "@heroicons/react/24/outline";
@@ -48,7 +44,7 @@ const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
     );
 };
 
-// --- NEW: Smooth Switch Animation Wrapper for Toggles ---
+// --- Smooth Switch Animation Wrapper for Toggles ---
 const SmoothSwitch = ({ activeKey, children }: { activeKey: string, children: React.ReactNode }) => {
     const [currentChild, setCurrentChild] = useState(children);
     const [isTransitioning, setIsTransitioning] = useState(false);
@@ -380,7 +376,7 @@ export default function LandingPage() {
                         <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl mx-auto gap-8 md:gap-12 mb-12 md:mb-16">
                             <div className="flex-1">
                                 <h2 className="text-3xl font-bold mb-6">Stop Guessing, Start Scaling with Data.</h2>
-                                <p className="text-gray-600 mb-6">Don't rely on follower counts. Discover vetted creators across TikTok and Instagram using real metrics that actually impact your bottom line.</p>
+                                <p className="text-gray-600 mb-6">Don&apos;t rely on follower counts. Discover vetted creators across TikTok and Instagram using real metrics that actually impact your bottom line.</p>
                                 <ul className="space-y-3 text-sm text-gray-600">
                                     <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Filter search by audience demographics and average views.</li>
                                     <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span> Easily calculate engagement rates before you send an offer.</li>
