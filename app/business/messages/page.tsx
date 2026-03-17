@@ -44,6 +44,7 @@ interface Conversation {
     conversationId: string;
     userId: string;
     avatar: string | null;
+    displayName: string;
 }
 
 interface Message {
@@ -276,9 +277,11 @@ export default function BusinessMessagesPage() {
 
     // CHANGED: Fallback name generator since email/username is no longer in the payload
     const getCreatorName = (conv?: Conversation) => {
-        if (!conv || !conv.userId) return "Creator";
-        return `User ${conv.userId.substring(0, 4)}`; // Will show like "User 4841"
-    };
+    if (!conv) return "Creator";
+    
+    // Use displayName if it exists, otherwise fall back to the User ID string
+    return conv.displayName || `User ${conv.userId.substring(0, 4)}`;
+};
 
     const getInitial = (nameFallback?: string) => {
         if (!nameFallback) return "C";

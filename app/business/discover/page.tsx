@@ -172,13 +172,11 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
     const placeholderImg = PLACEHOLDERS[0]; // Using standard placeholder for safety
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+        // CHANGED: Added onClick={onClose} to overlay wrapper
+        <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             
-            {/* MODAL CONTAINER: 
-              - Mobile: max-w-md, dark theme, vertical layout
-              - Desktop (md:): max-w-4xl, white theme, horizontal split layout 
-            */}
-            <div className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
+            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
                 
                 {/* Close Button */}
                 <button onClick={onClose} className="absolute top-6 right-6 md:top-8 md:right-8 text-gray-400 hover:text-white md:hover:text-black transition-colors cursor-pointer z-10 p-2 md:bg-gray-100 md:rounded-full">
@@ -354,6 +352,187 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
     );
 };
 
+const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onShowToast: (msg: string, type: "success"|"error") => void }) => {
+    const [step, setStep] = useState(1);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const [formData, setFormData] = useState({
+        title: "", description: "", startDate: "", endDate: "", budget: ""
+    });
+
+    useEffect(() => {
+        if(isOpen) {
+            setStep(1);
+            setFormData({ title: "", description: "", startDate: "", endDate: "", budget: "" });
+            setIsSubmitting(false);
+        }
+    }, [isOpen]);
+
+    const handleNext = () => {
+        if (!formData.title || !formData.startDate || !formData.endDate) {
+            onShowToast("Please fill in all fields before proceeding.", "error");
+            return;
+        }
+        setStep(2);
+    };
+
+    const handleSubmit = async () => {
+        if (!formData.budget || !formData.description) {
+            onShowToast("Please provide a budget and description.", "error");
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const token = localStorage.getItem("accessToken");
+            if (!token) { onShowToast("You are not logged in.", "error"); return; }
+
+            const payload = {
+                creatorId: creator?.userId, 
+                title: formData.title,
+                message: formData.description,
+                proposedPrice: Number(formData.budget),
+                startDate: formData.startDate,
+                endDate: formData.endDate
+            };
+            
+            // --- CONSOLE ADDED ---
+            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
+
+            const res = await fetch(`${BASE_URL}/chat-requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error("🔴 [API Error] POST /chat-requests FAILED:", errorText);
+                throw new Error("Failed to send request");
+            }
+            
+            const data = await res.json().catch(() => ({})); 
+            console.log("🟢 [API Response] POST /chat-requests SUCCESS:", data);
+            
+            onShowToast("Request Sent Successfully!", "success");
+            onClose();
+
+        } catch (error: any) {
+            // --- CONSOLE ADDED ---
+            console.error("🔴 [Network Error] POST /chat-requests crashed:", error);
+            onShowToast(error.message || "Something went wrong.", "error");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (!isOpen || !creator) return null;
+
+    return (
+        // CHANGED: Added onClick={onClose} to wrapper
+        <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
+            <div onClick={(e) => e.stopPropagation()} className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
+                <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+                    <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+
+                <div className={`transition-all duration-300 ease-in-out ${step === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 hidden'}`}>
+                    {step === 1 && (
+                        <div className="space-y-6 mt-2">
+                            <h2 className="text-center text-lg font-bold text-gray-900">Send Request</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad title</label>
+                                    <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full mt-1 border-b border-gray-200 py-3 text-lg font-medium focus:outline-none focus:border-black transition-colors placeholder-gray-300" placeholder="e.g. Summer Launch" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
+                                        <input aria-label="input-start-date" type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">End Date</label>
+                                        <input aria-label="input-end-date"type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
+                                    </div>
+                                </div>
+                            </div>
+                            <button onClick={handleNext} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 cursor-pointer">Next Step</button>
+                        </div>
+                    )}
+                </div>
+
+                <div className={`transition-all duration-300 ease-in-out ${step === 2 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 hidden'}`}>
+                    {step === 2 && (
+                        <div className="space-y-6 mt-2">
+                            <div className="flex items-center gap-2 mb-4">
+                                <button aria-label="Go back" onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-gray-100 cursor-pointer"><ArrowLeftIcon className="w-5 h-5" /></button>
+                                <h2 className="text-lg font-bold">Request Details</h2>
+                            </div>
+                            
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad Description</label>
+                                <textarea 
+                                    value={formData.description} 
+                                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                                    rows={4}
+                                    className="w-full mt-2 bg-gray-50 rounded-2xl py-3 px-4 text-sm font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-black resize-none" 
+                                    placeholder="Tell the creator about the deliverables..." 
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Budget</label>
+                                <div className="relative mt-2">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₦</span>
+                                    <input type="number" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} placeholder="0.00" className="w-full bg-gray-50 rounded-2xl py-4 pl-10 pr-4 text-xl font-bold text-gray-900 focus:outline-none focus:ring-1 focus:ring-black" />
+                                </div>
+                            </div>
+
+                            <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 disabled:opacity-50 cursor-pointer">
+                                {isSubmitting ? "Sending Request..." : "Send Request"}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const NicheModal = ({ isOpen, onClose, selectedNiches, onToggle }: { isOpen: boolean, onClose: () => void, selectedNiches: string[], onToggle: (n: string) => void }) => {
+    if (!isOpen) return null;
+    return (
+        // CHANGED: Added onClick={onClose} to wrapper
+        <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all animate-in fade-in">
+            {/* CHANGED: Added onClick={(e) => e.stopPropagation()} to inner container */}
+            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+                <button aria-label="Close modal" onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer">
+                    <XMarkIcon className="h-6 w-6" />
+                </button>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">Select your Niches</h3>
+                <p className="text-sm text-gray-500 mb-6">Select between 1 and 3 categories.</p>
+                <div className="flex flex-wrap gap-3 mb-8">
+                    {AVAILABLE_NICHES.map((niche) => (
+                        <button
+                            key={niche}
+                            type="button"
+                            onClick={() => onToggle(niche)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all border cursor-pointer ${
+                                selectedNiches.includes(niche)
+                                ? "bg-emerald-500 text-white border-emerald-500 shadow-md transform scale-105" 
+                                : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
+                            }`}
+                        >
+                            {niche}
+                        </button>
+                    ))}
+                </div>
+                <button onClick={onClose} className="w-full bg-slate-900 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">Done</button>
+            </div>
+        </div>
+    );
+};
+
 // --- CREATOR CARD ---
 const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: CreatorProfile, onViewDetails: (c: CreatorProfile) => void, onInvite: (c: CreatorProfile) => void, index: number }) => {
     const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
@@ -447,141 +626,6 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
     );
 };
 
-const InviteModal = ({ isOpen, onClose, creator, onShowToast }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onShowToast: (msg: string, type: "success"|"error") => void }) => {
-    const [step, setStep] = useState(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const [formData, setFormData] = useState({
-        title: "", description: "", startDate: "", endDate: "", budget: ""
-    });
-
-    useEffect(() => {
-        if(isOpen) {
-            setStep(1);
-            setFormData({ title: "", description: "", startDate: "", endDate: "", budget: "" });
-            setIsSubmitting(false);
-        }
-    }, [isOpen]);
-
-    const handleNext = () => {
-        if (!formData.title || !formData.startDate || !formData.endDate) {
-            onShowToast("Please fill in all fields before proceeding.", "error");
-            return;
-        }
-        setStep(2);
-    };
-
-    const handleSubmit = async () => {
-        if (!formData.budget || !formData.description) {
-            onShowToast("Please provide a budget and description.", "error");
-            return;
-        }
-        setIsSubmitting(true);
-        try {
-            const token = localStorage.getItem("accessToken");
-            if (!token) { onShowToast("You are not logged in.", "error"); return; }
-
-            const payload = {
-                creatorId: creator?.userId, 
-                title: formData.title,
-                message: formData.description,
-                proposedPrice: Number(formData.budget),
-                startDate: formData.startDate,
-                endDate: formData.endDate
-            };
-            
-            const res = await fetch(`${BASE_URL}/chat-requests`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) {
-                throw new Error("Failed to send request");
-            }
-            
-            onShowToast("Request Sent Successfully!", "success");
-            onClose();
-
-        } catch (error: any) {
-            onShowToast(error.message || "Something went wrong.", "error");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    if (!isOpen || !creator) return null;
-
-    return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-[95%] max-w-md bg-white rounded-4xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-gray-900 overflow-y-auto max-h-[90vh]">
-                <button aria-label="close" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                    <XMarkIcon className="w-5 h-5 text-gray-500" />
-                </button>
-
-                <div className={`transition-all duration-300 ease-in-out ${step === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 hidden'}`}>
-                    {step === 1 && (
-                        <div className="space-y-6 mt-2">
-                            <h2 className="text-center text-lg font-bold text-gray-900">Send Request</h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad title</label>
-                                    <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full mt-1 border-b border-gray-200 py-3 text-lg font-medium focus:outline-none focus:border-black transition-colors placeholder-gray-300" placeholder="e.g. Summer Launch" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Start Date</label>
-                                        <input aria-label="input-start-date" type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">End Date</label>
-                                        <input aria-label="input-end-date"type="date" value={formData.endDate} onChange={(e) => setFormData({...formData, endDate: e.target.value})} className="w-full mt-1 bg-gray-50 rounded-xl py-3 px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-black cursor-pointer" />
-                                    </div>
-                                </div>
-                            </div>
-                            <button onClick={handleNext} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 cursor-pointer">Next Step</button>
-                        </div>
-                    )}
-                </div>
-
-                <div className={`transition-all duration-300 ease-in-out ${step === 2 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 hidden'}`}>
-                    {step === 2 && (
-                        <div className="space-y-6 mt-2">
-                            <div className="flex items-center gap-2 mb-4">
-                                <button aria-label="Go back" onClick={() => setStep(1)} className="p-1 rounded-full hover:bg-gray-100 cursor-pointer"><ArrowLeftIcon className="w-5 h-5" /></button>
-                                <h2 className="text-lg font-bold">Request Details</h2>
-                            </div>
-                            
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ad Description</label>
-                                <textarea 
-                                    value={formData.description} 
-                                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                                    rows={4}
-                                    className="w-full mt-2 bg-gray-50 rounded-2xl py-3 px-4 text-sm font-medium text-gray-900 focus:outline-none focus:ring-1 focus:ring-black resize-none" 
-                                    placeholder="Tell the creator about the deliverables..." 
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Your Budget</label>
-                                <div className="relative mt-2">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₦</span>
-                                    <input type="number" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} placeholder="0.00" className="w-full bg-gray-50 rounded-2xl py-4 pl-10 pr-4 text-xl font-bold text-gray-900 focus:outline-none focus:ring-1 focus:ring-black" />
-                                </div>
-                            </div>
-
-                            <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-black text-white font-bold py-4 rounded-full hover:bg-gray-800 transition-transform active:scale-95 shadow-xl shadow-gray-200 disabled:opacity-50 cursor-pointer">
-                                {isSubmitting ? "Sending Request..." : "Send Request"}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // --- MAIN PAGE ---
 export default function DiscoverPage() {
   const router = useRouter();
@@ -614,24 +658,32 @@ export default function DiscoverPage() {
               const params = new URLSearchParams();
               if (filters.niche) params.append("niche", filters.niche.toLowerCase());
               
-              // We removed maxPrice from the API call because we are filtering price locally now
+              const url = `${BASE_URL}/creator${params.toString() ? `?${params.toString()}` : ''}`;
+              // --- CONSOLE ADDED ---
+              console.log(`🔵 [API Request] GET ${url}`);
               
-              const res = await fetch(`${BASE_URL}/creator?${params.toString()}`, {
+              const res = await fetch(url, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
                
               if (res.ok) {
                   const data = await res.json();
+                  // --- CONSOLE ADDED ---
+                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
                   setCreators(data); 
+              } else {
+                  // --- CONSOLE ADDED ---
+                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
               }
           } catch (error) {
+              // --- CONSOLE ADDED ---
               console.error("🔴 [Network Error] GET /creator crashed:", error);
           } finally {
               setLoading(false);
           }
       };
       fetchCreators();
-  }, [filters.niche]); // Only refetch when niche changes, handle price/search locally
+  }, [filters.niche]); 
 
   const handleFilterSelect = (type: string, value: string) => {
       setFilters(prev => ({ ...prev, [type]: value }));
@@ -647,21 +699,16 @@ export default function DiscoverPage() {
       setIsDetailsModalOpen(true);
   };
 
-
-  // --- ADDED: REAL-TIME FRONTEND FILTERING LOGIC ---
   const displayedCreators = creators.filter((creator) => {
       
       // 1. Relaxed Real-Time Search Filter
       let matchesSearch = true;
       if (searchQuery) {
-          // Normalize function: converts to lowercase and strips spaces, @, _, and -
           const normalize = (str: string) => (str || "").toLowerCase().replace(/[@_\-\s]/g, "");
           const query = normalize(searchQuery);
 
-          // Check Display Name
           const name = normalize(creator.displayName || "");
           
-          // Check Handles from Links
           const extractHandle = (url: string) => {
               if (!url) return "";
               let clean = url.replace(/(^\w+:|^)\/\//, '').replace("www.", "");
@@ -781,7 +828,7 @@ export default function DiscoverPage() {
                             </div>
                         ))}
                     </div>
-                ) : displayedCreators.length > 0 ? ( // CHANGED TO USE FILTERED LIST
+                ) : displayedCreators.length > 0 ? ( 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {displayedCreators.map((creator: CreatorProfile, idx: number) => (
                             <CreatorCard 

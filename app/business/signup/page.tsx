@@ -11,7 +11,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowUpTrayIcon,
-  XMarkIcon
+  XMarkIcon,
+  ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -50,7 +51,8 @@ export default function BusinessSignup() {
   const [formData, setFormData] = useState({
     username: "", email: "", password: "",
     businessLogo: null as File | null, businessName: "",
-    industryTags: [] as string[], website: ""
+    industryTags: [] as string[], website: "",
+    location: "" 
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -58,6 +60,10 @@ export default function BusinessSignup() {
   const [isRedirecting, setIsRedirecting] = useState(false); 
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
   const [isIndustryModalOpen, setIsIndustryModalOpen] = useState(false);
+  
+  // States for the Email Exists Modal
+  const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
+  const [recoveryAction, setRecoveryAction] = useState<"discover" | "signup" | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -97,36 +103,82 @@ export default function BusinessSignup() {
     }
   };
 
-  const handleNextStep = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (step === 1) {
-        if (!formData.username || !formData.email || !formData.password) return showError("Please fill in all fields");
-        if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
-        if (formData.password.length < 6) return showError("Password must be at least 6 characters");
-        setStep(2);
-    }
-  };
-
-  // Helper function to create a slight delay between toasts so the user can read them
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-  const handleFinalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ==========================================
+  // RECOVERY LOGIN HANDLER (For Modal)
+  // ==========================================
+  const handleRecoveryLogin = async (destination: "discover" | "signup") => {
+      setRecoveryAction(destination);
+      setIsLoading(true);
+      try {
+          console.log(`🔵 [API Request] POST /auth/login (Recovery flow to ${destination})`);
+          const loginPayload = { email: formData.email, password: formData.password };
+          
+          const loginRes = await fetch(`${BASE_URL}/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(loginPayload),
+          });
 
-    if (!formData.businessName || !formData.website) return showError("Please fill in all details");
-    if (formData.industryTags.length === 0) return showError("Please select an industry");
-    if (!URL_REGEX.test(formData.website)) return showError("Please enter a valid website URL (e.g., website.com)");
+          if (!loginRes.ok) {
+              console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
+              
+              if (destination === "discover") {
+                  showError("Wrong password. Redirecting to login page...");
+                  setShowEmailExistsModal(false);
+                  await delay(2000);
+                  router.push("/business/login");
+              } else {
+                  showError("Wrong password. Please update it and try again.");
+                  setShowEmailExistsModal(false); // Keep them on step 1 to fix password
+              }
+              return;
+          }
+
+          const loginData = await loginRes.json();
+          const token = loginData.access_token || loginData.token;
+          
+          console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
+          localStorage.setItem("accessToken", token);
+          setShowEmailExistsModal(false);
+
+          if (destination === "discover") {
+              showSuccess("Logged in successfully! Redirecting...");
+              setIsRedirecting(true);
+              await delay(1000);
+              router.push("/business/discover");
+          } else {
+              showSuccess("Logged in successfully! Resuming setup...");
+              await delay(600);
+              setStep(2);
+          }
+
+      } catch (error) {
+          console.error("🔴 [Network Error] Recovery login crashed:", error);
+          showError("A network error occurred. Please try again.");
+      } finally {
+          setIsLoading(false);
+          setRecoveryAction(null);
+      }
+  };
+
+  // ==========================================
+  // STEP 1: ACCOUNT CREATION & LOGIN
+  // ==========================================
+  const handleNextStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step !== 1) return;
+
+    if (!formData.username || !formData.email || !formData.password) return showError("Please fill in all fields");
+    if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
+    if (formData.password.length < 6) return showError("Password must be at least 6 characters");
 
     setIsLoading(true);
 
     try {
-        console.log("🔵 Using Backend URL:", BASE_URL);
-
-        // ==========================================
-        // STEP 1: CREATE CORE USER ACCOUNT
-        // ==========================================
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
-        console.log("🔵 [API Request] POST /auth/signup", signupPayload);
+        console.log("🔵 [API Request] POST /auth/signup PAYLOAD:", signupPayload);
         
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
@@ -135,21 +187,26 @@ export default function BusinessSignup() {
         });
 
         const signupData = await signupRes.json();
+        
         if (!signupRes.ok) {
             console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
-            throw new Error(signupData.message || "Signup failed");
+            
+            // Intercept the 'Email already registered' error
+            if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
+                setShowEmailExistsModal(true);
+                setIsLoading(false);
+                return; // Stop execution and wait for modal interaction
+            }
+
+            throw new Error(signupData.message || "Signup failed. Please try again.");
         }
         
         console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
-        showSuccess("Account created securely!");
-        await delay(600); // Wait so toast is visible
+        showSuccess("Account created successfully!");
+        await delay(500);
 
-
-        // ==========================================
-        // STEP 2: AUTOMATIC LOGIN TO GET JWT TOKEN
-        // ==========================================
         const loginPayload = { email: formData.email, password: formData.password };
-        console.log("🔵 [API Request] POST /auth/login", loginPayload);
+        console.log("🔵 [API Request] POST /auth/login PAYLOAD:", loginPayload);
         
         const loginRes = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
@@ -159,21 +216,46 @@ export default function BusinessSignup() {
 
         if (!loginRes.ok) {
             console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
-            throw new Error("Auto-login failed");
+            throw new Error("Auto-login failed. Please try logging in manually.");
         }
         
         const loginData = await loginRes.json();
         const token = loginData.access_token || loginData.token;
+        
         console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
-        showSuccess("Logged in successfully!");
+        localStorage.setItem("accessToken", token);
+        
+        showSuccess("Authentication secured. Moving to Step 2...");
         await delay(600);
+        
+        setStep(2);
 
+    } catch (error: any) {
+        showError(error.message || "An error occurred during signup.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
-        // ==========================================
-        // STEP 3: UPDATE DISPLAY NAME (Username)
-        // ==========================================
+  // ==========================================
+  // STEP 2: PROFILE CREATION
+  // ==========================================
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.businessLogo) return showError("Please upload a business logo to continue.");
+    if (!formData.businessName || !formData.website || !formData.location) return showError("Please fill in all details."); 
+    if (formData.industryTags.length === 0) return showError("Please select an industry.");
+    if (!URL_REGEX.test(formData.website)) return showError("Please enter a valid website URL (e.g., website.com)");
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) return showError("Authentication lost. Please log in and try again.");
+
+    setIsLoading(true);
+
+    try {
         const profilePayload = { displayName: formData.username };
-        console.log("🔵 [API Request] PATCH /users/profile", profilePayload);
+        console.log("🔵 [API Request] PATCH /users/profile PAYLOAD:", profilePayload);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
             method: "PATCH",
@@ -185,60 +267,43 @@ export default function BusinessSignup() {
         });
 
         if (profileUpdateRes.ok) {
-            const profileUpdateData = await profileUpdateRes.json();
-            console.log("🟢 [API Response] PATCH /users/profile SUCCESS:", profileUpdateData);
-            showSuccess("Username saved!");
-            await delay(600);
+            console.log("🟢 [API Response] PATCH /users/profile SUCCESS");
         } else {
-            console.error("🔴 [API Error] PATCH /users/profile FAILED:", await profileUpdateRes.text());
-            // We don't throw an error here, we just log it, so it doesn't break the rest of the flow
+            console.warn("🟠 [API Warning] PATCH /users/profile FAILED:", await profileUpdateRes.text());
         }
 
+        console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading Logo...)");
+        let uploadedLogoUrl = null;
+        const uploadData = new FormData();
+        uploadData.append("file", formData.businessLogo);
 
-        // ==========================================
-        // STEP 4: UPLOAD BUSINESS LOGO (If provided)
-        // ==========================================
-        let uploadedLogoUrl = "";
-        if (formData.businessLogo) {
-            try {
-                console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
-                const uploadData = new FormData();
-                uploadData.append("file", formData.businessLogo);
+        const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
+            method: "PATCH",
+            headers: { "Authorization": `Bearer ${token}` },
+            body: uploadData
+        });
 
-                const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
-                    method: "PATCH",
-                    headers: { "Authorization": `Bearer ${token}` },
-                    body: uploadData
-                });
-
-                if (uploadRes.ok) {
-                    const uploadResult = await uploadRes.json();
-                    console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
-                    uploadedLogoUrl = uploadResult.avatar; 
-                    showSuccess("Logo uploaded successfully!");
-                    await delay(600);
-                } else {
-                    console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
-                }
-            } catch (uploadError) {
-                console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", uploadError);
-            }
+        if (uploadRes.ok) {
+            const uploadResult = await uploadRes.json();
+            console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
+            uploadedLogoUrl = uploadResult.avatar || uploadResult.profileImageUrl; 
+            showSuccess("Logo uploaded successfully!");
+            await delay(500);
+        } else {
+            console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
+            throw new Error("Failed to upload logo. Please try again.");
         }
 
-
-        // ==========================================
-        // STEP 5: CREATE BUSINESS PROFILE
-        // ==========================================
-        // FIXED: Changed payload keys to match the backend expectation. 
-        // Changed `businessName` -> `companyName` and `websiteUrl` -> `website`.
         const businessPayload = {
             companyName: formData.businessName, 
-            website: formData.website, 
+            websiteUrl: formData.website, 
             category: formData.industryTags.join(", "),
-            profileImageUrl: uploadedLogoUrl || undefined 
+            profileImageUrl: uploadedLogoUrl || null, 
+            location: formData.location 
         };
+        
+        console.log("🔵 [API Request] POST /business PAYLOAD:", JSON.stringify(businessPayload, null, 2));
 
-        console.log("🔵 [API Request] POST /business", businessPayload);
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
             headers: { 
@@ -250,21 +315,16 @@ export default function BusinessSignup() {
 
         if (!businessRes.ok) {
             console.error("🔴 [API Error] POST /business FAILED:", await businessRes.text());
-            throw new Error("Failed to create business details");
+            throw new Error("Failed to finalize business details. Please try again.");
         }
         
         const businessData = await businessRes.json();
         console.log("🟢 [API Response] POST /business SUCCESS:", businessData);
 
-
-        // ==========================================
-        // ALL DONE: FINAL REDIRECT
-        // ==========================================
         showSuccess("Profile Complete! Redirecting...");
-        localStorage.setItem("accessToken", token);
         
         setIsRedirecting(true); 
-        await delay(1500); // Give user a second to read final toast
+        await delay(1500);
         router.push("/business/discover");
 
     } catch (error: any) {
@@ -279,6 +339,48 @@ export default function BusinessSignup() {
     <div className={`min-h-screen flex flex-col md:flex-row bg-white ${inter.className} overflow-hidden`}>
       <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} />
 
+      {/* --- EMAIL EXISTS MODAL --- */}
+      {showEmailExistsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ExclamationTriangleIcon className="w-8 h-8 text-amber-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Exists</h3>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    {/* FIXED: Added break-all so long emails don't overflow the container */}
+                    The email <span className="font-semibold text-gray-900 break-all">{formData.email}</span> is already registered. Would you like to go to your dashboard, or resume setting up your profile?
+                </p>
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={() => handleRecoveryLogin("discover")}
+                        disabled={isLoading}
+                        className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex justify-center items-center"
+                    >
+                        {/* FIXED: Only shows loading on the clicked button */}
+                        {isLoading && recoveryAction === "discover" ? "Checking..." : "Login to Discover"}
+                    </button>
+                    <button 
+                        onClick={() => handleRecoveryLogin("signup")}
+                        disabled={isLoading}
+                        className="w-full bg-indigo-50 text-indigo-700 font-bold py-3.5 rounded-xl hover:bg-indigo-100 transition-colors disabled:opacity-50 flex justify-center items-center"
+                    >
+                        {/* FIXED: Only shows loading on the clicked button */}
+                        {isLoading && recoveryAction === "signup" ? "Checking..." : "Resume Profile Setup"}
+                    </button>
+                    <button 
+                        onClick={() => setShowEmailExistsModal(false)}
+                        disabled={isLoading}
+                        className="w-full text-gray-500 font-semibold py-3 rounded-xl hover:text-gray-800 transition-colors mt-2"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- INDUSTRY MODAL --- */}
       {isIndustryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
@@ -336,7 +438,7 @@ export default function BusinessSignup() {
             )}
           </div>
 
-          <div className="relative w-full overflow-hidden min-h-[480px]">
+          <div className="relative w-full overflow-hidden min-h-[580px]">
             {/* STEP 1 */}
             <div className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out transform ${getAnimationClass(1)}`}>
                 <form onSubmit={handleNextStep} className="space-y-8 px-1">
@@ -358,7 +460,9 @@ export default function BusinessSignup() {
                         </div>
                     </div>
                     <div className="pt-4">
-                        <button type="submit" className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 cursor-pointer">One more step</button>
+                        <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading && !showEmailExistsModal ? "Processing..." : "Next Step"}
+                        </button>
                         <div className="text-center mt-4"><Link href="/business/login" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors cursor-pointer">Already have an account? <span className="font-semibold underline">Log in</span></Link></div>
                     </div>
                 </form>
@@ -366,18 +470,24 @@ export default function BusinessSignup() {
 
             {/* STEP 2 */}
             <div className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out transform ${getAnimationClass(2)}`}>
-                <form onSubmit={handleFinalSubmit} className="space-y-6 px-1">
+                <form onSubmit={handleFinalSubmit} className="space-y-6 px-1 pb-4">
                     <div className="flex flex-col items-center justify-center mb-6">
                         <div className="relative w-28 h-28 rounded-full bg-slate-900 flex items-center justify-center cursor-pointer hover:bg-slate-800 transition-all group overflow-hidden border-4 border-white shadow-lg">
                             <input aria-label="Proflie input" type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
                             {formData.businessLogo ? <Image src={URL.createObjectURL(formData.businessLogo)} alt="Preview" fill className="object-cover" /> : <ArrowUpTrayIcon className="h-8 w-8 text-white group-hover:-translate-y-1 transition-transform" />}
                         </div>
-                        <p className="text-sm font-medium text-gray-600 mt-3 bg-white/60 px-3 py-1 rounded-full">Upload business logo</p>
+                        <p className="text-sm font-medium text-gray-600 mt-3 bg-white/60 px-3 py-1 rounded-full">Upload business logo <span className="text-red-500">*</span></p>
                     </div>
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
                         <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Your Company Ltd" />
                     </div>
+                    
+                    <div className="relative">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+                        <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="e.g., Lagos, Nigeria" />
+                    </div>
+
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Industry <span className="text-gray-400 font-normal text-xs ml-1">(Max 3)</span></label>
                         <div onClick={() => setIsIndustryModalOpen(true)} className="w-full min-h-[46px] border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent cursor-pointer hover:border-indigo-500 transition-all flex flex-wrap items-center gap-2 rounded-t-md">
@@ -397,16 +507,15 @@ export default function BusinessSignup() {
                         <input type="text" name="website" value={formData.website} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://yourbusiness.com" />
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
-                        <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 flex justify-center gap-2 cursor-pointer">
-                            {isLoading ? "Creating Account..." : "Let's go!"}
+                        <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-semibold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transform hover:-translate-y-0.5 flex justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading && !showEmailExistsModal ? "Setting up Profile..." : "Complete Profile"}
                         </button>
-                        <button type="button" onClick={() => setStep(1)} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
                     </div>
                 </form>
             </div>
           </div>
-        </div>
+        </div> 
       </div>
     </div>
-  );
+  ); 
 }

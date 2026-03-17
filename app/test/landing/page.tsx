@@ -13,7 +13,7 @@ import {
     WalletIcon
 } from "@heroicons/react/24/outline";
 
-// --- Scroll Reveal Animation Wrapper ---
+// --- NEW: Scroll Reveal Animation Wrapper ---
 const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
     const [isVisible, setIsVisible] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -23,10 +23,10 @@ const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
             ([entry]) => {
                 if (entry.isIntersecting) {
                     setIsVisible(true);
-                    observer.unobserve(entry.target); 
+                    observer.unobserve(entry.target); // Stop observing once it's visible
                 }
             },
-            { threshold: 0.1, rootMargin: "0px 0px -50px 0px" } 
+            { threshold: 0.1, rootMargin: "0px 0px -50px 0px" } // Triggers slightly before it fully enters the viewport
         );
 
         if (ref.current) {
@@ -44,28 +44,6 @@ const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
             }`}
         >
             {children}
-        </div>
-    );
-};
-
-// --- NEW: Smooth Switch Animation Wrapper for Toggles ---
-const SmoothSwitch = ({ activeKey, children }: { activeKey: string, children: React.ReactNode }) => {
-    const [currentChild, setCurrentChild] = useState(children);
-    const [isTransitioning, setIsTransitioning] = useState(false);
-
-    useEffect(() => {
-        setIsTransitioning(true);
-        const timeout = setTimeout(() => {
-            setCurrentChild(children);
-            setIsTransitioning(false);
-        }, 200); // 200ms halfway point for the swap
-
-        return () => clearTimeout(timeout);
-    }, [activeKey, children]);
-
-    return (
-        <div className={`w-full transition-all duration-300 ease-in-out transform ${isTransitioning ? "opacity-0 scale-[0.98] translate-y-2" : "opacity-100 scale-100 translate-y-0"}`}>
-            {currentChild}
         </div>
     );
 };
@@ -117,13 +95,13 @@ export default function LandingPage() {
                         />
                     </Link>
                     <Link 
-                        href="/business/login" 
+                        href="/login" 
                         className="font-bold text-lg bg-gradient-to-b from-[#7D7FF3] to-[#212250] bg-clip-text text-transparent hover:opacity-80 transition-opacity"
                     >
                         Business    
                     </Link>
                     <Link 
-                        href="/creator/login" 
+                        href="/login" 
                         className="font-bold text-lg bg-gradient-to-b from-[#37C496] to-[#053D2B] bg-clip-text text-transparent hover:opacity-80 transition-opacity"
                     >
                         Creator
@@ -135,7 +113,7 @@ export default function LandingPage() {
                 
                 {/* 1. HERO SECTION */}
                 <ScrollReveal>
-                    <section className="pt-12 pb-12 md:pt-16 md:pb-16 flex flex-col lg:flex-row items-center justify-between gap-12">
+                    <section className="pt-12 pb-16 md:pt-16 md:pb-24 flex flex-col lg:flex-row items-center justify-between gap-12">
                         <div className="flex-1 max-w-2xl">
                             <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
                                 Connect Brands With Top <br />
@@ -173,89 +151,78 @@ export default function LandingPage() {
 
                 {/* 2. MAIN TOGGLE SECTION */}
                 <ScrollReveal>
-                    <section className="py-12 md:py-16 flex flex-col items-center">
+                    <section className="py-16 md:py-20 flex flex-col items-center">
                         {/* Role Toggle */}
-                        <div className="bg-white p-1 rounded-full border border-gray-200 inline-flex mb-10 shadow-sm">
+                        <div className="bg-white p-1 rounded-full border border-gray-200 inline-flex mb-12 shadow-sm">
                             <button 
                                 onClick={() => setMainRole("brands")}
-                                className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${mainRole === "brands" ? "bg-gradient-to-b from-[#7D7FF3] to-[#212250] text-white shadow-sm border border-gray-100" : "text-gray-500 hover:text-gray-700"}`}
+                                className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${mainRole === "brands" ? "bg-white text-gray-900 shadow-sm border border-gray-100" : "text-gray-500 hover:text-gray-700"}`}
                             >
                                 For Brands
                             </button>
                             <button 
                                 onClick={() => setMainRole("creators")}
-                                className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${mainRole === "creators" ? "bg-gradient-to-b from-[#37C496] to-[#053D2B] text-white shadow-md shadow-emerald-200" : "text-gray-500 hover:text-gray-700"}`}
+                                className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${mainRole === "creators" ? "bg-[#00D68F] text-white shadow-md shadow-emerald-200" : "text-gray-500 hover:text-gray-700"}`}
                             >
                                 For Creators
                             </button>
                         </div>
 
-                        <h2 className="text-3xl font-bold mb-12 text-center">Your Creativity. Your Terms.</h2>
+                        <h2 className="text-3xl font-bold mb-16 text-center">Your Creativity. Your Terms.</h2>
 
-                        <SmoothSwitch activeKey={mainRole}>
-                            {mainRole === "creators" ? (
-                                <div className="w-full flex flex-col items-center">
-                                    {/* Feature Zig-Zag 1 */}
-                                    <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl gap-8 md:gap-12 mb-12 md:mb-16">
-                                        <div className="flex-1 max-w-sm">
-                                            <h3 className="text-xl font-bold mb-4">Guaranteed, On-Time Payouts.</h3>
-                                            <p className="text-gray-600">Your creative work is valuable. Say goodbye to chasing invoices and ghosting clients. When you deliver, you get paid. Period.</p>
-                                        </div>
-                                        <div className="flex-1 w-full relative aspect-video bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                            <Image 
-                                                src="/images/LandingImage1.png" 
-                                                alt="Payouts Mockup" 
-                                                fill 
-                                                className="object-cover" 
-                                            />
-                                        </div>
-                                    </div>
+                        {/* Feature Zig-Zag 1 */}
+                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl gap-12 mb-16 md:mb-20">
+                            <div className="flex-1 max-w-sm">
+                                <h3 className="text-xl font-bold mb-4">Guaranteed, On-Time Payouts.</h3>
+                                <p className="text-gray-600">Your creative work is valuable. Say goodbye to chasing invoices and ghosting clients. When you deliver, you get paid. Period.</p>
+                            </div>
+                            <div className="flex-1 w-full relative aspect-video bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                <Image 
+                                    src="/images/LandingImage1.png" 
+                                    alt="Payouts Mockup" 
+                                    fill 
+                                    className="object-cover" 
+                                />
+                            </div>
+                        </div>
 
-                                    {/* Feature Zig-Zag 2 */}
-                                    <div className="flex flex-col md:flex-row-reverse items-center justify-between w-full max-w-5xl gap-8 md:gap-12 mb-12 md:mb-16">
-                                        <div className="flex-1 max-w-sm">
-                                            <h3 className="text-xl font-bold mb-4">Crystal Clear Expectations.</h3>
-                                            <p className="text-gray-600">No more scope creep or confusing feedback. Every deliverable is tied to an actionable brief and milestone so you always know your tasks.</p>
-                                        </div>
-                                        <div className="flex-1 w-full relative aspect-video bg-gray-50 rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                            <Image 
-                                                src="/images/LandingImage1.png" 
-                                                alt="Briefing UI Mockup" 
-                                                fill 
-                                                className="object-cover" 
-                                            />
-                                        </div>
-                                    </div>
+                        {/* Feature Zig-Zag 2 */}
+                        <div className="flex flex-col md:flex-row-reverse items-center justify-between w-full max-w-5xl gap-12 mb-16 md:mb-20">
+                            <div className="flex-1 max-w-sm">
+                                <h3 className="text-xl font-bold mb-4">Crystal Clear Expectations.</h3>
+                                <p className="text-gray-600">No more scope creep or confusing feedback. Every deliverable is tied to an actionable brief and milestone so you always know your tasks.</p>
+                            </div>
+                            <div className="flex-1 w-full relative aspect-video bg-gray-50 rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                <Image 
+                                    src="/images/LandingImage1.png" 
+                                    alt="Briefing UI Mockup" 
+                                    fill 
+                                    className="object-cover" 
+                                />
+                            </div>
+                        </div>
 
-                                    {/* Feature Zig-Zag 3 */}
-                                    <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl gap-8 md:gap-12">
-                                        <div className="flex-1 max-w-sm">
-                                            <h3 className="text-xl font-bold mb-4">Work with brands you love.</h3>
-                                            <p className="text-gray-600">Filter your inbound opportunities to connect with brands that align with your niche and values.</p>
-                                        </div>
-                                        <div className="flex-1 w-full relative aspect-video bg-indigo-50 rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                            <Image 
-                                                src="/images/LandingImage2.png" 
-                                                alt="Creator Collaboration Mockup" 
-                                                fill 
-                                                className="object-cover" 
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                // Placeholder for Brands section in the Zig-Zag area
-                                <div className="text-center text-gray-400 py-12 w-full">
-                                    Brand features coming next...
-                                </div>
-                            )}
-                        </SmoothSwitch>
+                        {/* Feature Zig-Zag 3 */}
+                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl gap-12 mb-16 md:mb-20">
+                            <div className="flex-1 max-w-sm">
+                                <h3 className="text-xl font-bold mb-4">Work with brands you love.</h3>
+                                <p className="text-gray-600">Filter your inbound opportunities to connect with brands that align with your niche and values.</p>
+                            </div>
+                            <div className="flex-1 w-full relative aspect-video bg-indigo-50 rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                <Image 
+                                    src="/images/LandingImage2.png" 
+                                    alt="Creator Collaboration Mockup" 
+                                    fill 
+                                    className="object-cover" 
+                                />
+                            </div>
+                        </div>
                     </section>
                 </ScrollReveal>
 
                 {/* 3. THREE COLUMN SECTION */}
                 <ScrollReveal>
-                    <section className="py-12 md:py-16 text-center w-full max-w-6xl mx-auto">
+                    <section className="py-16 md:py-20 text-center w-full max-w-6xl mx-auto">
                         
                         {/* Role Toggle for this specific section */}
                         <div className="flex justify-center items-center gap-4 md:gap-8 mb-8">
@@ -273,111 +240,111 @@ export default function LandingPage() {
                             </button>
                         </div>
 
-                        <SmoothSwitch activeKey={focusRole}>
-                            {/* Dynamic Title based on toggle */}
-                            <h2 className="text-3xl font-bold mb-10 md:mb-12">
-                                {focusRole === "creators" 
-                                    ? "Focus on portfolio building, receiving work, and getting paid." 
-                                    : "Focus on discovery, initiation, and security."}
-                            </h2>
-                            
-                            {focusRole === "creators" ? (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
-                                    {/* CREATOR Column 1 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
-                                            <Image src="/images/LandingCardCreator1.png" alt="Sync Analytics" fill className="object-contain" />
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">1</span> Sync Your Analytics.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Build your portfolio instantly. Connect your Instagram and TikTok profiles to automatically pull your engagement stats, proving your value to premium brands.
-                                        </p>
+                        {/* Dynamic Title based on toggle */}
+                        <h2 className="text-3xl font-bold mb-12 md:mb-16">
+                            {focusRole === "creators" 
+                                ? "Focus on portfolio building, receiving work, and getting paid." 
+                                : "Focus on discovery, initiation, and security."}
+                        </h2>
+                        
+                        {focusRole === "creators" ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
+                                {/* CREATOR Column 1 */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        <Image src="/images/LandingCardCreator1.png" alt="Sync Analytics" fill className="object-contain" />
                                     </div>
-
-                                    {/* CREATOR Column 2 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
-                                            <Image src="/images/LandingCardCreator2.png" alt="Review Brand Offers" fill className="object-contain" />
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">2</span> Review Brand Offers.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Skip the cold outreach. Receive direct messages and clear, structured campaign briefs right in your dashboard from brands looking for your specific audience.
-                                        </p>
-                                    </div>
-
-                                    {/* CREATOR Column 3 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
-                                            <Image src="/images/LandingCardCreator3.png" alt="Deliver & Withdraw" fill className="object-contain" />
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">3</span> Deliver & Withdraw.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Submit your approved content and watch your Wallet tab update. Track your Escrow balance and withdraw your guaranteed funds directly to your bank account with one click.
-                                        </p>
-                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">1</span> Sync Your Analytics.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Build your portfolio instantly. Connect your Instagram and TikTok profiles to automatically pull your engagement stats, proving your value to premium brands.
+                                    </p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
-                                    {/* BRAND Column 1 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative mb-8 mx-auto flex items-center justify-center">
-                                            <div className="absolute left-4 bottom-2 w-36 h-21 rounded-3xl shadow-xl border border-gray-100 overflow-hidden z-10">
-                                                <Image src="/images/LandingCardBusiness1.png" alt="Brand Identity 1" fill className="object-cover" />
-                                            </div>
-                                            <div className="absolute right-8 top-0 w-24 h-27 rounded-full shadow-lg border border-gray-100 overflow-hidden z-0">
-                                                <Image src="/images/LandingCardBusiness2.png" alt="Brand Identity 2" fill className="object-cover" />
-                                            </div>
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">1</span> Define Your Identity.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Create your brand profile in seconds. Upload your logo, define your industry, and set the stage for top-tier creators to understand your mission.
-                                        </p>
-                                    </div>
 
-                                    {/* BRAND Column 2 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
-                                            <Image src="/images/LandingCardBusiness3.png" alt="Discover Data" fill className="object-contain" />
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">2</span> Discover & Filter Data.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Access the Explore feed. Filter verified creators by niche, budget, and real-time performance metrics across TikTok and Instagram to find your exact match.
-                                        </p>
+                                {/* CREATOR Column 2 */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        <Image src="/images/LandingCardCreator2.png" alt="Review Brand Offers" fill className="object-contain" />
                                     </div>
-
-                                    {/* BRAND Column 3 */}
-                                    <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
-                                            <Image src="/images/LandingCardBusiness4.png" alt="Fund Securely" fill className="object-contain" />
-                                        </div>
-                                        <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
-                                            <span className="text-gray-300 font-light text-2xl">3</span> Connect & Fund Securely.
-                                        </h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                            Initiate a direct chat, share your campaign brief, and fund the project via Escrow. Your money is locked and safe until the final asset is approved.
-                                        </p>
-                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">2</span> Review Brand Offers.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Skip the cold outreach. Receive direct messages and clear, structured campaign briefs right in your dashboard from brands looking for your specific audience.
+                                    </p>
                                 </div>
-                            )}
-                        </SmoothSwitch>
+
+                                {/* CREATOR Column 3 */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        <Image src="/images/LandingCardCreator3.png" alt="Deliver & Withdraw" fill className="object-contain" />
+                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">3</span> Deliver & Withdraw.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Submit your approved content and watch your Wallet tab update. Track your Escrow balance and withdraw your guaranteed funds directly to your bank account with one click.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
+                                {/* BRAND Column 1 - Overlapping Images Custom Layout */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative mb-8 mx-auto flex items-center justify-center">
+                                        {/* Bottom Overlapping Image */}
+                                        <div className="absolute left-4 bottom-2 w-36 h-21 rounded-3xl shadow-xl border border-gray-100 overflow-hidden z-10">
+                                            <Image src="/images/LandingCardBusiness1.png" alt="Brand Identity 1" fill className="object-cover" />
+                                        </div>
+                                        {/* Top Right Overlapping Image */}
+                                        <div className="absolute right-8 top-0 w-24 h-27 rounded-full shadow-lg border border-gray-100 overflow-hidden z-0">
+                                            <Image src="/images/LandingCardBusiness2.png" alt="Brand Identity 2" fill className="object-cover" />
+                                        </div>
+                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">1</span> Define Your Identity.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Create your brand profile in seconds. Upload your logo, define your industry, and set the stage for top-tier creators to understand your mission.
+                                    </p>
+                                </div>
+
+                                {/* BRAND Column 2 */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
+                                        <Image src="/images/LandingCardBusiness3.png" alt="Discover Data" fill className="object-contain" />
+                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">2</span> Discover & Filter Data.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Access the Explore feed. Filter verified creators by niche, budget, and real-time performance metrics across TikTok and Instagram to find your exact match.
+                                    </p>
+                                </div>
+
+                                {/* BRAND Column 3 */}
+                                <div className="flex flex-col">
+                                    <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
+                                        <Image src="/images/LandingCardBusiness4.png" alt="Fund Securely" fill className="object-contain" />
+                                    </div>
+                                    <h4 className="font-bold text-xl mb-3 flex items-baseline gap-2">
+                                        <span className="text-gray-300 font-light text-2xl">3</span> Connect & Fund Securely.
+                                    </h4>
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        Initiate a direct chat, share your campaign brief, and fund the project via Escrow. Your money is locked and safe until the final asset is approved.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </section>
                 </ScrollReveal>
 
                 {/* 4. BRAND FEATURES SECTION */}
                 <ScrollReveal>
-                    <section className="py-12 md:py-16">
+                    <section className="py-16 md:py-20">
                         {/* Block 1 */}
-                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl mx-auto gap-8 md:gap-12 mb-12 md:mb-16">
+                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl mx-auto gap-12 mb-16 md:mb-24">
                             <div className="flex-1">
                                 <h2 className="text-3xl font-bold mb-6">Stop Guessing, Start Scaling with Data.</h2>
                                 <p className="text-gray-600 mb-6">Don't rely on follower counts. Discover vetted creators across TikTok and Instagram using real metrics that actually impact your bottom line.</p>
@@ -393,7 +360,7 @@ export default function LandingPage() {
                         </div>
 
                         {/* Block 2 */}
-                        <div className="flex flex-col md:flex-row-reverse items-center justify-between w-full max-w-5xl mx-auto gap-8 md:gap-12 mb-12 md:mb-16">
+                        <div className="flex flex-col md:flex-row-reverse items-center justify-between w-full max-w-5xl mx-auto gap-12 mb-16 md:mb-24">
                             <div className="flex-1">
                                 <h2 className="text-3xl font-bold mb-6">Context Meets Collaboration.</h2>
                                 <p className="text-gray-600 mb-6">Say goodbye to scattered email chains. Manage your entire partnership in one seamless workspace where the brief is always front and center.</p>
@@ -408,7 +375,7 @@ export default function LandingPage() {
                         </div>
 
                         {/* Block 3 */}
-                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl mx-auto gap-8 md:gap-12">
+                        <div className="flex flex-col md:flex-row items-center justify-between w-full max-w-5xl mx-auto gap-12">
                             <div className="flex-1">
                                 <h2 className="text-3xl font-bold mb-6">Bulletproof Payments. Zero Anxiety.</h2>
                                 <p className="text-gray-600 mb-6">We handle the complete scope of work. Our secure escrow infrastructure protects both parties, from the first pitch to the final payout.</p>
@@ -427,8 +394,8 @@ export default function LandingPage() {
 
                 {/* 5. FAQ SECTION */}
                 <ScrollReveal>
-                    <section className="py-12 md:py-16 border-t border-gray-200/60 max-w-4xl mx-auto w-full">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                    <section className="py-16 md:py-20 border-t border-gray-200/60 max-w-4xl mx-auto w-full">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                             <h2 className="text-3xl font-bold">Frequently asked questions</h2>
                             
                             {/* FAQ Toggle */}
@@ -448,33 +415,31 @@ export default function LandingPage() {
                             </div>
                         </div>
 
-                        <SmoothSwitch activeKey={faqRole}>
-                            <div className="space-y-4 w-full">
-                                {/* Dynamically render FAQs based on the selected role */}
-                                {(faqRole === "brands" ? brandFaqs : creatorFaqs).map((faq, index) => (
-                                    <div key={index} className="border-b border-gray-200 pb-4">
-                                        <button 
-                                            onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                                            className="w-full flex justify-between items-center py-2 text-left font-semibold text-gray-900 hover:text-[#5B4DFF] transition-colors cursor-pointer"
-                                        >
-                                            {faq}
-                                            <ChevronDownIcon className={`w-5 h-5 transition-transform ${openFaq === index ? "rotate-180 text-[#5B4DFF]" : "text-gray-400"}`} />
-                                        </button>
-                                        {openFaq === index && (
-                                            <p className="text-sm text-gray-600 mt-2 mb-4 pr-8 animate-in fade-in duration-300">
-                                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                                            </p>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </SmoothSwitch>
+                        <div className="space-y-4">
+                            {/* Dynamically render FAQs based on the selected role */}
+                            {(faqRole === "brands" ? brandFaqs : creatorFaqs).map((faq, index) => (
+                                <div key={index} className="border-b border-gray-200 pb-4">
+                                    <button 
+                                        onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                                        className="w-full flex justify-between items-center py-2 text-left font-semibold text-gray-900 hover:text-[#5B4DFF] transition-colors cursor-pointer"
+                                    >
+                                        {faq}
+                                        <ChevronDownIcon className={`w-5 h-5 transition-transform ${openFaq === index ? "rotate-180 text-[#5B4DFF]" : "text-gray-400"}`} />
+                                    </button>
+                                    {openFaq === index && (
+                                        <p className="text-sm text-gray-600 mt-2 mb-4 pr-8">
+                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </section>
                 </ScrollReveal>
 
                 {/* 6. BOTTOM CTA SECTION */}
                 <ScrollReveal>
-                    <section className="py-12 md:py-16 max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
+                    <section className="py-16 md:py-20 max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
                         <div className="flex-1">
                             <h2 className="text-4xl font-extrabold mb-4">The New Standard for Creative Partnerships.</h2>
                             <p className="text-gray-600 mb-8 max-w-md">Join thousands of brands and creators utilizing streamlined workflows, secure escrow, and real-time analytics. Choose your path below.</p>

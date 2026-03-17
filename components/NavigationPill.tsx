@@ -84,49 +84,62 @@ export default function NavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
+                console.log("🔵 [API Request] GET /users/profile");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
+                    console.log("🟢 [API Response] GET /users/profile SUCCESS:", profileData);
+                    
                     if (Array.isArray(profileData) && profileData.length > 0) {
                         const activeBusinessProfile = profileData.find((p: any) => p.companyName) || profileData[0];
                         setUserProfile(activeBusinessProfile);
                     } else if (profileData && typeof profileData === 'object') {
                         setUserProfile(profileData);
                     }
-                } 
+                } else {
+                    console.error("🔴 [API Error] GET /users/profile FAILED:", await profileRes.text());
+                }
             } catch (error) {
-                console.error("🔴 [Business Network Error] GET /users/profiles crashed:", error);
+                console.error("🔴 [Network Error] GET /users/profile crashed:", error);
             }
         };
 
         const fetchAlerts = async () => {
             // Unread Messages
             try {
+                console.log("🔵 [API Request] GET /messages/unread/count");
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
                     const msgCount = await msgRes.text(); 
+                    console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", msgCount);
                     setUnreadMessages(Number(msgCount) || 0);
+                } else {
+                    console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
                 }
             } catch (error) {
-                console.error("🔴 [Business Network Error] GET /messages/unread/count crashed:", error);
+                console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
             // Notifications
             try {
+                console.log("🔵 [API Request] GET /notifications");
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
                     const notifData = await notifRes.json();
+                    console.log("🟢 [API Response] GET /notifications SUCCESS:", notifData);
                     setNotifications(notifData);
+                } else {
+                    console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
                 }
             } catch (error) {
-                console.error("🔴 [Business Network Error] GET /notifications crashed:", error);
+                console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
 
             // Sent Invites Count
@@ -150,7 +163,7 @@ export default function NavigationPill() {
                     console.error("🔴 [API Error] GET /chat-requests/business/sent-count FAILED:", await sentRes.text());
                 }
             } catch (error) {
-                console.error("🔴 [Business Network Error] GET /chat-requests/business/sent-count crashed:", error);
+                console.error("🔴 [Network Error] GET /chat-requests/business/sent-count crashed:", error);
             }
         };
 
@@ -170,15 +183,20 @@ export default function NavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
+            console.log(`🔵 [API Request] PATCH /notifications/${id}/read`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (!res.ok) {
+                console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
+            } else {
+                console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
             }
         } catch (error) {
+            console.error(`🔴 [Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };
@@ -199,6 +217,7 @@ export default function NavigationPill() {
         formData.append("file", file);
 
         try {
+            console.log("🔵 [API Request] PATCH /users/me/avatar");
             const res = await fetch(`${BASE_URL}/users/me/avatar`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` },
@@ -207,15 +226,18 @@ export default function NavigationPill() {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", data);
                 showToast("Profile image updated successfully!", "success");
                 
                 const newAvatarUrl = data.avatar || URL.createObjectURL(file);
                 setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
             } else {
                 const errorData = await res.json().catch(() => null);
+                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData);
                 showToast(`Failed to update: ${errorData?.message || "Bad Request"}`, "error");
             }
         } catch (error) {
+            console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", error);
             showToast("Network error. Please try again later.", "error");
         } finally {
             setIsUploadingAvatar(false);
@@ -231,6 +253,7 @@ export default function NavigationPill() {
 
         setIsUpdating(true);
         try {
+            console.log("🔵 [API Request] PATCH /users/password");
             const res = await fetch(`${BASE_URL}/users/password`, {
                 method: "PATCH",
                 headers: { 
@@ -241,14 +264,17 @@ export default function NavigationPill() {
             });
 
             if (res.ok) {
+                console.log("🟢 [API Response] PATCH /users/password SUCCESS");
                 showToast("Password updated successfully", "success");
                 setPasswordData({ currentPassword: "", newPassword: "" });
                 setView("profile"); 
             } else {
                 const err = await res.json();
+                console.error("🔴 [API Error] PATCH /users/password FAILED:", err);
                 showToast(err.message || "Failed to update password", "error");
             }
         } catch (error) {
+            console.error("🔴 [Network Error] PATCH /users/password crashed:", error);
             showToast("Network error occurred", "error");
         } finally {
             setIsUpdating(false);
@@ -273,7 +299,6 @@ export default function NavigationPill() {
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 sm:px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* MOBILE ALIGNMENT FIX: Adjusted padding and layout distribution */}
                     <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 px-4 sm:px-6 md:py-4 md:px-8 flex items-center justify-between relative">
                         
                         {/* Logo */}
@@ -291,12 +316,11 @@ export default function NavigationPill() {
                             </span>
                         </div>
 
-                        {/* Center Links (Map & Chat) - Now naturally flows on mobile to prevent overlapping */}
                         <div className="flex items-center gap-3 sm:gap-6 md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
-                                        <MapIcon className="w-6 h-6" /> {/* Standardized size */}
+                                        <MapIcon className="w-6 h-6" /> 
                                         <span className="hidden sm:block text-[15px]">Discover</span>
                                     </div>
                                     <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/discover') ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -306,7 +330,7 @@ export default function NavigationPill() {
                             <Link href="/business/messages" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors relative ${isActive('/business/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1 relative">
-                                        <ChatBubbleOvalLeftIcon className="w-6 h-6" /> {/* Standardized size */}
+                                        <ChatBubbleOvalLeftIcon className="w-6 h-6" /> 
                                         <span className="hidden sm:block text-[15px]">Messages</span>
                                         {unreadMessages > 0 && (
                                             <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
@@ -319,7 +343,6 @@ export default function NavigationPill() {
                             </Link>
                         </div>
 
-                        {/* Right Icons (Plane, Bell, Avatar) */}
                         <div className="flex items-center gap-2 sm:gap-3 md:gap-5 shrink-0 relative">
                             
                             {/* --- NEW INVITE (PLANE) ICON --- */}
@@ -332,6 +355,7 @@ export default function NavigationPill() {
                                 </button>
                                 {showSentCount && (
                                     <>
+                                        {/* CHANGED: Fixed the background click closing for the sent invites popover */}
                                         <div className="fixed inset-0 z-40" onClick={() => setShowSentCount(false)}></div>
                                         <div className="absolute top-14 left-1/2 -translate-x-1/2 w-36 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 p-4 items-center">
                                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1 text-center">Invites Sent</span>
@@ -345,7 +369,7 @@ export default function NavigationPill() {
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                                 className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
                             >
-                                <BellIcon className="w-6 h-6" /> {/* Standardized size */}
+                                <BellIcon className="w-6 h-6" /> 
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
@@ -399,8 +423,9 @@ export default function NavigationPill() {
 
             {/* --- PROFILE MODAL OVERLAY --- */}
             {isProfileOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50  animate-in fade-in duration-300">
-                    <div className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10 overflow-hidden">
+                // CHANGED: Added onClick={onClose} to wrapper and stopPropagation to inner container
+                <div onClick={() => setIsProfileOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50  animate-in fade-in duration-300">
+                    <div onClick={(e) => e.stopPropagation()} className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10 overflow-hidden">
                         
                         <button 
                             onClick={() => setIsProfileOpen(false)}
@@ -422,7 +447,6 @@ export default function NavigationPill() {
                                         )}
                                     </div>
 
-                                    {/* White floating camera badge positioned bottom-right */}
                                     <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-200 transition-colors border border-gray-200 z-10">
                                         {isUploadingAvatar ? (
                                             <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>

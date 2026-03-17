@@ -12,7 +12,8 @@ import {
     CheckCircleIcon,
     XCircleIcon,
     XMarkIcon,
-    ChevronUpDownIcon
+    ChevronUpDownIcon,
+    ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -110,6 +111,10 @@ export default function CreatorSignup() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
   
+  // NEW: Recovery Modal States
+  const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
+  const [recoveryAction, setRecoveryAction] = useState<"dashboard" | "signup" | null>(null);
+
   const [isNicheModalOpen, setIsNicheModalOpen] = useState(false);
   const [banks, setBanks] = useState<{name: string, code: string}[]>(FALLBACK_BANKS);
   const [bankSearchTerm, setBankSearchTerm] = useState("");
@@ -124,7 +129,6 @@ export default function CreatorSignup() {
                 const data = await response.json();
                 console.log("🟢 [API Response] GET https://api.paystack.co/bank SUCCESS");
                 if (data.status) {
-                    
                     const uniqueBanksMap = new Map();
                     data.data.forEach((bank: {name: string, code: string}) => {
                         const normalizedName = bank.name.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -134,7 +138,6 @@ export default function CreatorSignup() {
                     });
                     
                     const uniqueBanks = Array.from(uniqueBanksMap.values()) as {name: string, code: string}[];
-                    
                     uniqueBanks.sort((a, b) => a.name.localeCompare(b.name));
                     setBanks(uniqueBanks);
                     return;
@@ -190,30 +193,158 @@ export default function CreatorSignup() {
     }
   };
 
-  const handleNextStep = (e: React.FormEvent) => {
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+  // ==========================================
+  // RECOVERY LOGIN HANDLER (For Modal)
+  // ==========================================
+  const handleRecoveryLogin = async (destination: "dashboard" | "signup") => {
+      setRecoveryAction(destination);
+      setIsLoading(true);
+      try {
+          console.log(`🔵 [API Request] POST /auth/login (Recovery flow to ${destination})`);
+          const loginPayload = { email: formData.email, password: formData.password };
+          
+          const loginRes = await fetch(`${BASE_URL}/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(loginPayload),
+          });
+
+          if (!loginRes.ok) {
+              console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
+              
+              if (destination === "dashboard") {
+                  showError("Wrong password. Redirecting to login page...");
+                  setShowEmailExistsModal(false);
+                  await delay(2000);
+                  router.push("/creator/login");
+              } else {
+                  showError("Wrong password. Please update it and try again.");
+                  setShowEmailExistsModal(false); // Keep them on step 1 to fix password
+              }
+              return;
+          }
+
+          const loginData = await loginRes.json();
+          const token = loginData.access_token || loginData.token;
+          
+          console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
+          localStorage.setItem("accessToken", token);
+          setShowEmailExistsModal(false);
+
+          if (destination === "dashboard") {
+              showSuccess("Logged in successfully! Redirecting...");
+              setIsRedirecting(true);
+              await delay(1000);
+              router.push("/creator/dashboard");
+          } else {
+              showSuccess("Logged in successfully! Resuming setup...");
+              await delay(600);
+              setStep(2);
+          }
+
+      } catch (error) {
+          console.error("🔴 [Network Error] Recovery login crashed:", error);
+          showError("A network error occurred. Please try again.");
+      } finally {
+          setIsLoading(false);
+          setRecoveryAction(null);
+      }
+  };
+
+  // ==========================================
+  // STEP ROUTING & STEP 1 AUTH LOGIC
+  // ==========================================
+  const handleNextStep = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate Step 1 and Handle Signup/Login
     if (step === 1) {
         if (!formData.username || !formData.email || !formData.password) return showError("Please fill in all fields");
         if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
         if (formData.password.length < 6) return showError("Password must be at least 6 characters");
-        setStep(2);
-    } else if (step === 2) {
-        if (formData.nicheTags.length === 0) return showError("Please select at least one niche");
-        if (!formData.bio) return showError("Please tell us a bit about yourself");
-        if (!formData.location) return showError("Please enter your location");
         
-        if (!formData.rate) return showError("Please enter your base rate");
-        if (!formData.pricePerPost) return showError("Please enter your price per post");
-        if (!formData.pricePerStory) return showError("Please enter your price per story");
-        if (!formData.pricePerVideo) return showError("Please enter your price per video");
+        setIsLoading(true);
+
+        try {
+            const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
+            console.log("🔵 [API Request] POST /auth/signup PAYLOAD:", signupPayload);
+            
+            const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(signupPayload),
+            });
+
+            const signupData = await signupRes.json();
+            
+            if (!signupRes.ok) {
+                console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
+                
+                if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
+                    setShowEmailExistsModal(true);
+                    setIsLoading(false);
+                    return; 
+                }
+
+                throw new Error(signupData.message || "Signup failed. Please try again.");
+            }
+            
+            console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
+            showSuccess("Account created successfully!");
+            await delay(500);
+
+            const loginPayload = { email: formData.email, password: formData.password };
+            console.log("🔵 [API Request] POST /auth/login PAYLOAD:", loginPayload);
+            
+            const loginRes = await fetch(`${BASE_URL}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(loginPayload),
+            });
+
+            if (!loginRes.ok) {
+                console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
+                throw new Error("Auto-login failed. Please try logging in manually.");
+            }
+            
+            const loginData = await loginRes.json();
+            const token = loginData.access_token || loginData.token;
+            
+            console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received.");
+            localStorage.setItem("accessToken", token);
+            
+            showSuccess("Authentication secured. Moving to Step 2...");
+            await delay(600);
+            
+            setStep(2);
+
+        } catch (error: any) {
+            showError(error.message || "An error occurred during signup.");
+        } finally {
+            setIsLoading(false);
+        }
+
+    } 
+    // Validate Step 2 and move to Step 3
+    else if (step === 2) {
+        if (!formData.profilePic) return showError("Please upload a profile photo to continue."); // Strictly required
+        if (formData.nicheTags.length === 0) return showError("Please select at least one niche.");
+        if (!formData.bio) return showError("Please tell us a bit about yourself.");
+        if (!formData.location) return showError("Please enter your location.");
+        if (!formData.rate) return showError("Please enter your base rate.");
+        if (!formData.pricePerPost) return showError("Please enter your price per post.");
+        if (!formData.pricePerStory) return showError("Please enter your price per story.");
+        if (!formData.pricePerVideo) return showError("Please enter your price per video.");
         
         setStep(3);
     }
   };
 
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-  // --- FINAL SUBMIT LOGIC ---
+  // ==========================================
+  // FINAL STEP: PROFILE CREATION
+  // ==========================================
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -221,64 +352,17 @@ export default function CreatorSignup() {
     if (!formData.accountNumber || !formData.bankCode) return showError("Please select a valid bank and enter account number");
     if (formData.accountNumber.length < 10) return showError("Account number looks too short");
 
+    const token = localStorage.getItem("accessToken");
+    if (!token) return showError("Authentication lost. Please log in and try again.");
+
     setIsLoading(true);
 
     try {
         console.log("🔵 Using Backend URL:", BASE_URL);
 
-        // ==========================================
-        // STEP 1: CREATE CORE USER ACCOUNT
-        // ==========================================
-        const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
-        console.log("🔵 [API Request] POST /auth/signup", signupPayload);
-        
-        const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(signupPayload),
-        });
-
-        const signupData = await signupRes.json();
-        if (!signupRes.ok) {
-            console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
-            throw new Error(signupData.message || "Signup failed");
-        }
-        
-        console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
-        showSuccess("Account created securely!");
-        await delay(600);
-
-        // ==========================================
-        // STEP 2: AUTOMATIC LOGIN TO GET JWT TOKEN
-        // ==========================================
-        const loginPayload = { email: formData.email, password: formData.password };
-        console.log("🔵 [API Request] POST /auth/login", loginPayload);
-        
-        const loginRes = await fetch(`${BASE_URL}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(loginPayload),
-        });
-
-        if (!loginRes.ok) {
-            console.error("🔴 [API Error] POST /auth/login FAILED:", await loginRes.text());
-            throw new Error("Auto-login failed after signup");
-        }
-        
-        const loginData = await loginRes.json();
-        const token = loginData.access_token || loginData.token;
-        if (!token) throw new Error("No access token received");
-        
-        localStorage.setItem("accessToken", token);
-        console.log("🟢 [API Response] POST /auth/login SUCCESS. Token stored.");
-        showSuccess("Logged in successfully!");
-        await delay(600);
-
-        // ==========================================
-        // STEP 3: UPDATE DISPLAY NAME (Username)
-        // ==========================================
+        // 1. UPDATE DISPLAY NAME
         const profilePayloadName = { displayName: formData.username };
-        console.log("🔵 [API Request] PATCH /users/profile", profilePayloadName);
+        console.log("🔵 [API Request] PATCH /users/profile PAYLOAD:", profilePayloadName);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
             method: "PATCH",
@@ -292,57 +376,46 @@ export default function CreatorSignup() {
         if (profileUpdateRes.ok) {
             const profileUpdateData = await profileUpdateRes.json();
             console.log("🟢 [API Response] PATCH /users/profile SUCCESS:", profileUpdateData);
-            showSuccess("Username saved!");
-            await delay(600);
         } else {
-            console.error("🔴 [API Error] PATCH /users/profile FAILED:", await profileUpdateRes.text());
+            console.warn("🟠 [API Warning] PATCH /users/profile FAILED:", await profileUpdateRes.text());
         }
 
-        // ==========================================
-        // STEP 4: FILE UPLOAD (If profile picture exists)
-        // ==========================================
-        let uploadedProfilePicUrl = "";
+        // 2. UPLOAD PROFILE PICTURE
+        let uploadedProfilePicUrl = null;
         if (formData.profilePic) {
-            try {
-                console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
-                const uploadData = new FormData();
-                uploadData.append("file", formData.profilePic);
+            console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
+            const uploadData = new FormData();
+            uploadData.append("file", formData.profilePic);
 
-                const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
-                    method: "PATCH",
-                    headers: { "Authorization": `Bearer ${token}` },
-                    body: uploadData 
-                });
+            const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
+                method: "PATCH",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: uploadData 
+            });
 
-                if (uploadRes.ok) {
-                    const uploadResult = await uploadRes.json();
-                    console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
-                    uploadedProfilePicUrl = uploadResult.avatar; 
-                    showSuccess("Photo uploaded successfully!");
-                    await delay(600);
-                } else {
-                    console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
-                }
-            } catch (uploadError) {
-                console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", uploadError);
+            if (uploadRes.ok) {
+                const uploadResult = await uploadRes.json();
+                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
+                uploadedProfilePicUrl = uploadResult.avatar || uploadResult.profileImageUrl; 
+            } else {
+                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
+                throw new Error("Failed to upload profile photo.");
             }
         }
 
-        // ==========================================
-        // STEP 5: CREATE CREATOR PROFILE
-        // ==========================================
+        // 3. CREATE CREATOR PROFILE
         const creatorPayload = {
-            displayName:formData.username,
+            displayName: formData.username,
             bio: formData.bio,
-            niches: formData.nicheTags, 
+            niches: formData.nicheTags.join(", "), // Niches mapping
             location: formData.location,
             tiktok: formData.tiktok,
             instagram: formData.instagram,
-            pricePerPost:formData.pricePerPost,
-            profileImageUrl: uploadedProfilePicUrl || undefined
+            pricePerPost: Number(formData.pricePerPost),
+            profileImageUrl: uploadedProfilePicUrl || null
         };
         
-        console.log("🔵 [API Request] POST /creator", creatorPayload);
+        console.log("🔵 [API Request] POST /creator PAYLOAD:", JSON.stringify(creatorPayload, null, 2));
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
             headers: { 
@@ -359,10 +432,7 @@ export default function CreatorSignup() {
         }
         console.log("🟢 [API Response] POST /creator SUCCESS:", profileData);
 
-
-        // ==========================================
-        // STEP 6: FINANCE SETTINGS
-        // ==========================================
+        // 4. CREATE FINANCE SETTINGS
         const financePayload = {
             pricePerPost: Number(formData.pricePerPost),
             pricePerStory: Number(formData.pricePerStory),
@@ -371,7 +441,7 @@ export default function CreatorSignup() {
             bankName: formData.bankName,
             accountNumber: formData.accountNumber,
         };
-        console.log("🔵 [API Request] POST /creator/finance", financePayload);
+        console.log("🔵 [API Request] POST /creator/finance PAYLOAD:", financePayload);
         
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
@@ -389,15 +459,12 @@ export default function CreatorSignup() {
         }
         console.log("🟢 [API Response] POST /creator/finance SUCCESS:", financeData);
  
-
-        // ==========================================
-        // STEP 7: COMPLETE PROFILE (BANK DETAILS)
-        // ==========================================
+        // 5. CREATE SUBACCOUNT (BANK DETAILS)
         const bankPayload = {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("🔵 [API Request] POST /payments/creator/subaccount", bankPayload);
+        console.log("🔵 [API Request] POST /payments/creator/subaccount PAYLOAD:", bankPayload);
         
         const bankRes = await fetch(`${BASE_URL}/payments/creator/subaccount`, { 
             method: "POST",
@@ -411,14 +478,11 @@ export default function CreatorSignup() {
         const bankData = await bankRes.json();
         if (!bankRes.ok) {
             console.error("🔴 [API Error] POST /payments/creator/subaccount FAILED:", bankData);
-            throw new Error(bankData.message || "Failed to complete bank profile");
+            throw new Error(bankData.message || "Failed to link bank account");
         }
         console.log("🟢 [API Response] POST /payments/creator/subaccount SUCCESS:", bankData);
 
-
-        // ==========================================
-        // ALL DONE: FINAL REDIRECT
-        // ==========================================
+        // ALL DONE
         showSuccess("Profile complete! Redirecting...");
         
         setIsRedirecting(true); 
@@ -426,7 +490,7 @@ export default function CreatorSignup() {
         router.push("/creator/dashboard");
 
     } catch (error: any) {
-        console.error("Signup Process Error:", error);
+        console.error("🔴 Signup Process Error:", error);
         showError(error.message || "Something went wrong. Please try again.");
         setIsLoading(false);
     }
@@ -440,6 +504,44 @@ export default function CreatorSignup() {
     <div className={`min-h-screen flex flex-col md:flex-row bg-white ${inter.className} overflow-hidden`}>
       <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} />
       
+      {/* --- EMAIL EXISTS MODAL --- */}
+      {showEmailExistsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ExclamationTriangleIcon className="w-8 h-8 text-amber-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Exists</h3>
+                <p className="text-gray-600 mb-8 leading-relaxed">
+                    The email <span className="font-semibold text-gray-900 break-all">{formData.email}</span> is already registered. Would you like to go to your dashboard, or resume setting up your profile?
+                </p>
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={() => handleRecoveryLogin("dashboard")}
+                        disabled={isLoading}
+                        className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 transition-colors shadow-md disabled:opacity-50 flex justify-center items-center cursor-pointer"
+                    >
+                        {isLoading && recoveryAction === "dashboard" ? "Checking..." : "Login to Dashboard"}
+                    </button>
+                    <button 
+                        onClick={() => handleRecoveryLogin("signup")}
+                        disabled={isLoading}
+                        className="w-full bg-emerald-50 text-emerald-700 font-bold py-3.5 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50 flex justify-center items-center cursor-pointer"
+                    >
+                        {isLoading && recoveryAction === "signup" ? "Checking..." : "Resume Profile Setup"}
+                    </button>
+                    <button 
+                        onClick={() => setShowEmailExistsModal(false)}
+                        disabled={isLoading}
+                        className="w-full text-gray-500 font-semibold py-3 rounded-xl hover:text-gray-800 transition-colors mt-2 cursor-pointer"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <NicheModal 
         isOpen={isNicheModalOpen} 
         onClose={() => {
@@ -476,6 +578,7 @@ export default function CreatorSignup() {
           </div>
 
           <div className="relative w-full overflow-hidden min-h-[600px]">
+            
             {/* STEP 1 */}
             <div className={`absolute top-0 left-0 w-full transition-all duration-500 ease-in-out transform ${getAnimationClass(1)}`}>
                 <form onSubmit={handleNextStep} className="space-y-8 px-1">
@@ -497,7 +600,9 @@ export default function CreatorSignup() {
                         </div>
                     </div>
                     <div className="text-right"><Link href="/creator/login" className="text-xs text-blue-600 hover:underline">Or pick up from where you left</Link></div>
-                    <button type="submit" className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 cursor-pointer">Next</button>
+                    <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isLoading && !showEmailExistsModal ? "Processing..." : "Next Step"}
+                    </button>
                 </form>
             </div>
 
@@ -509,7 +614,7 @@ export default function CreatorSignup() {
                             <input aria-label="input for images" type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
                             {formData.profilePic ? <Image src={URL.createObjectURL(formData.profilePic)} alt="Preview" fill className="object-cover" /> : <ArrowUpTrayIcon className="h-8 w-8 text-white group-hover:-translate-y-1 transition-transform" />}
                         </div>
-                        <p className="text-xs font-medium text-gray-600 mt-2 bg-white/60 px-3 py-1 rounded-full">Upload profile photo</p>
+                        <p className="text-xs font-medium text-gray-600 mt-2 bg-white/60 px-3 py-1 rounded-full">Upload profile photo <span className="text-red-500">*</span></p>
                     </div>
                     
                     <div className="relative">
@@ -539,15 +644,15 @@ export default function CreatorSignup() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Post</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Post</label>
                             <input type="number" name="pricePerPost" min="0" value={formData.pricePerPost} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Story</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Story</label>
                             <input type="number" name="pricePerStory" min="0" value={formData.pricePerStory} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative col-span-2">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price / Video</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Video</label>
                             <input type="number" name="pricePerVideo" min="0" value={formData.pricePerVideo} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                     </div>
@@ -558,8 +663,8 @@ export default function CreatorSignup() {
                     </div>
 
                     <div className="pt-2 flex flex-col gap-2">
+                        {/* CHANGED: Removed the "Go Back" button to prevent user from going back to auth step */}
                         <button type="submit" className="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 text-sm cursor-pointer">Almost There</button>
-                        <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
                     </div>
                 </form>
             </div>
@@ -575,7 +680,7 @@ export default function CreatorSignup() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">TikTok URL</label>
                         <input type="text" name="tiktok" value={formData.tiktok} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="https://tiktok.com/@username" />
                     </div>
-                    <div className="relative">
+                    <div className="relative"> 
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Bank Name</label>
                         <div className="relative">
                             <input type="text" value={bankSearchTerm} onChange={(e) => { setBankSearchTerm(e.target.value); setIsBankDropdownOpen(true); setFormData(prev => ({...prev, bankCode: ""})); }} onFocus={() => setIsBankDropdownOpen(true)} className="w-full border-b border-gray-300 py-3 px-2 pr-8 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Search your bank..." />
@@ -597,10 +702,11 @@ export default function CreatorSignup() {
                         <input type="text" name="accountNumber" maxLength={10} value={formData.accountNumber} onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setFormData(prev => ({...prev, accountNumber: val})) }} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="0000000000" />
                     </div>
                     <div className="pt-4 flex flex-col gap-3">
-                        <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 flex justify-center gap-2 cursor-pointer">
-                            {isLoading ? "Creating Account..." : "Get Started"}
+                        <button type="submit" disabled={isLoading} className="w-full bg-emerald-500 text-white font-semibold py-4 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 transform hover:-translate-y-0.5 flex justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isLoading ? "Creating Profile..." : "Get Started"}
                         </button>
-                        <button type="button" onClick={() => setStep(2)} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 py-2 cursor-pointer">Go Back</button>
+                        {/* We leave "Go Back" here because going back to Step 2 is safe (no auth calls happened) */}
+                        <button type="button" disabled={isLoading} onClick={() => setStep(2)} className="w-full text-center text-sm text-gray-500 hover:text-gray-800 py-2 cursor-pointer disabled:opacity-50">Go Back</button>
                     </div>
                 </form>
             </div>
