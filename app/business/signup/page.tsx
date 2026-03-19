@@ -255,9 +255,9 @@ export default function BusinessSignup() {
 
     try {
         const profilePayload = { companyName: formData.username };
-        console.log("🔵 [API Request] PATCH /users/profile PAYLOAD:", profilePayload);
+        console.log("🔵 [API Request] PATCH /users/business/profile PAYLOAD:", profilePayload);
 
-        const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
+        const profileUpdateRes = await fetch(`${BASE_URL}/users/business/profile`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
@@ -267,9 +267,9 @@ export default function BusinessSignup() {
         });
 
         if (profileUpdateRes.ok) {
-            console.log("🟢 [API Response] PATCH /users/profile SUCCESS");
+            console.log("🟢 [API Response] PATCH /users/business/profile SUCCESS");
         } else {
-            console.warn("🟠 [API Warning] PATCH /users/profile FAILED:", await profileUpdateRes.text());
+            console.warn("🟠 [API Warning] PATCH /users/business/profile FAILED:", await profileUpdateRes.text());
         }
 
         console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading Logo...)");
@@ -290,19 +290,22 @@ export default function BusinessSignup() {
             showSuccess("Logo uploaded successfully!");
             await delay(500);
         } else {
-            console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", await uploadRes.text());
-            throw new Error("Failed to upload logo. Please try again.");
+            // CHANGED: Safely parse error JSON to show exact backend error (e.g., "File too large")
+            const errorData = await uploadRes.json().catch(() => null);
+            console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData || uploadRes.statusText);
+            const errorMessage = errorData?.message || errorData?.error || "Failed to upload logo. File might be too large.";
+            throw new Error(errorMessage);
         }
 
         const businessPayload = {
-            companyName: formData.businessName, 
+            companyName: formData.username, 
             websiteUrl: formData.website, 
             category: formData.industryTags.join(", "),
             profileImageUrl: uploadedLogoUrl || null, 
             location: formData.location 
         };
         
-        console.log("🔵 [API Request] POST /business PAYLOAD:", JSON.stringify(businessPayload, null, 2));
+        console.log("🔵 [API Request] POST /business/profile PAYLOAD:", JSON.stringify(businessPayload, null, 2));
 
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
@@ -314,12 +317,15 @@ export default function BusinessSignup() {
         });
 
         if (!businessRes.ok) {
-            console.error("🔴 [API Error] POST /business FAILED:", await businessRes.text());
-            throw new Error("Failed to finalize business details. Please try again.");
+            // CHANGED: Safely parse error JSON to pass to the Toast
+            const errorData = await businessRes.json().catch(() => null);
+            console.error("🔴 [API Error] POST /business/profile FAILED:", errorData || businessRes.statusText);
+            const errorMessage = errorData?.message || errorData?.error || "Failed to finalize business details. Please try again.";
+            throw new Error(errorMessage);
         }
         
         const businessData = await businessRes.json();
-        console.log("🟢 [API Response] POST /business SUCCESS:", businessData);
+        console.log("🟢 [API Response] POST /business/profile SUCCESS:", businessData);
 
         showSuccess("Profile Complete! Redirecting...");
         
@@ -328,6 +334,7 @@ export default function BusinessSignup() {
         router.push("/business/discover");
 
     } catch (error: any) {
+        // Will now accurately display the extracted backend error message
         showError(error.message || "Something went wrong.");
         setIsLoading(false);
     }
@@ -348,7 +355,6 @@ export default function BusinessSignup() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Account Exists</h3>
                 <p className="text-gray-600 mb-8 leading-relaxed">
-                    {/* FIXED: Added break-all so long emails don't overflow the container */}
                     The email <span className="font-semibold text-gray-900 break-all">{formData.email}</span> is already registered. Would you like to go to your dashboard, or resume setting up your profile?
                 </p>
                 <div className="flex flex-col gap-3">
@@ -357,7 +363,6 @@ export default function BusinessSignup() {
                         disabled={isLoading}
                         className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-md disabled:opacity-50 flex justify-center items-center"
                     >
-                        {/* FIXED: Only shows loading on the clicked button */}
                         {isLoading && recoveryAction === "discover" ? "Checking..." : "Login to Discover"}
                     </button>
                     <button 
@@ -365,7 +370,6 @@ export default function BusinessSignup() {
                         disabled={isLoading}
                         className="w-full bg-indigo-50 text-indigo-700 font-bold py-3.5 rounded-xl hover:bg-indigo-100 transition-colors disabled:opacity-50 flex justify-center items-center"
                     >
-                        {/* FIXED: Only shows loading on the clicked button */}
                         {isLoading && recoveryAction === "signup" ? "Checking..." : "Resume Profile Setup"}
                     </button>
                     <button 

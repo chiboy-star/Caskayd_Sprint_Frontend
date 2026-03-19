@@ -12,7 +12,9 @@ import {
     ArrowLeftIcon,
     XMarkIcon,
     InformationCircleIcon,
-    BanknotesIcon
+    BanknotesIcon,
+    CheckCircleIcon,
+    XCircleIcon
 } from "@heroicons/react/24/outline";
 import { Inter } from "next/font/google";
 
@@ -39,7 +41,6 @@ interface Creator {
     avatar?: string | null; 
 }
 
-// CHANGED: Updated to match new backend response
 interface Conversation {
     conversationId: string;
     userId: string;
@@ -47,15 +48,40 @@ interface Conversation {
     displayName: string;
 }
 
+// Updated Message interface to support files and images
 interface Message {
     id: string;
     content: string;
     createdAt: string;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    type?: string;
     sender: {
         id: string; 
         username?: string;
     };
 }
+
+// --- TOAST COMPONENT ---
+const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
+    useEffect(() => {
+        if (isVisible) {
+            const timer = setTimeout(onClose, 4000); 
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible, onClose]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
+            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+        } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
+            {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
+            <span className="font-bold text-sm">{message}</span>
+        </div>
+    );
+};
 
 export default function BusinessMessagesPage() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -73,8 +99,15 @@ export default function BusinessMessagesPage() {
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [initialLoadingMessages, setInitialLoadingMessages] = useState(false); 
     
+    // Message and File states
     const [newMessage, setNewMessage] = useState("");
+    const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
+    
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const showToast = (message: string, type: "success"|"error") => setToast({ message, type, isVisible: true });
 
     // --- 1. FETCH CONVERSATIONS ---
     useEffect(() => {
@@ -83,7 +116,7 @@ export default function BusinessMessagesPage() {
                 const token = localStorage.getItem("accessToken");
                 if (!token) return;
 
-                console.log("🔵 [API Request] GET /conversations");
+                console.log("🔵 [API Request] GET /conversations | Sent: No body");
                 const res = await fetch(`${BASE_URL}/conversations`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -116,7 +149,7 @@ export default function BusinessMessagesPage() {
             if (!token) return;
 
             try {
-                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
+                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId} | Sent: No body`);
                 const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -134,7 +167,7 @@ export default function BusinessMessagesPage() {
                 }
 
                 // Mark as read silently
-                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
+                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId} | Sent: No body`);
                 const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                     method: "PATCH",
                     headers: { "Authorization": `Bearer ${token}` }
@@ -159,7 +192,7 @@ export default function BusinessMessagesPage() {
 
     }, [activeChatId]);
 
-    // --- 3. SEND MESSAGE ---
+    // --- 3. SEND TEXT MESSAGE ---
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
@@ -201,16 +234,71 @@ export default function BusinessMessagesPage() {
         }
     };
 
+    // --- 4. HANDLE FILE UPLOAD & SEND MESSAGE (Single Step) ---
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !activeChatId) return;
+
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        setIsUploadingFile(true);
+        
+        // Build FormData with the complete DTO structure the backend likely expects
+        const formData = new FormData();
+        formData.append("conversationId", activeChatId);
+        formData.append("type", file.type.startsWith("image/") ? "IMAGE" : "FILE");
+        formData.append("content", ""); // Empty content string as requested by backend
+        formData.append("file", file); // Must be appended last and explicitly named 'file'
+
+        // Diagnostic log to show backend developer exactly what is being sent
+        console.log("-----------------------------------------");
+        console.log("📦 FORM DATA ENTRIES BEING SENT TO BACKEND:");
+        for (let [key, value] of (formData as any).entries()) {
+            console.log(`- ${key}:`, value instanceof File ? `File(${value.name}, type: ${value.type})` : value);
+        }
+        console.log("-----------------------------------------");
+
+        try {
+            console.log(`🔵 [API Request] POST /messages (File) | Sent: FormData (See logs above)`);
+            const msgRes = await fetch(`${BASE_URL}/messages`, {
+                method: "POST",
+                headers: {
+                    // Do NOT set Content-Type here; browser MUST set it to generate the multipart boundary
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (msgRes.ok) {
+                const savedMessage = await msgRes.json();
+                console.log("🟢 [API Response] POST /messages (File) SUCCESS:", savedMessage);
+                setMessages(prev => [...prev, savedMessage]);
+                scrollToBottom();
+            } else {
+                // Safely catch backend errors (like 500 Internal Server Error)
+                const errData = await msgRes.json().catch(() => null);
+                console.error(`🔴 [API Error] POST /messages (File) FAILED: Status ${msgRes.status}`, errData || msgRes.statusText);
+                throw new Error(errData?.message || errData?.error || `Server responded with status ${msgRes.status}`);
+            }
+        } catch (error: any) {
+            console.error("🔴 [Network Error] File upload process crashed:", error);
+            showToast(error.message || "An error occurred during file upload", "error");
+        } finally {
+            setIsUploadingFile(false);
+            if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+        }
+    };
+
     const scrollToBottom = () => {
         setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
     };
 
-    // CHANGED: Update lookup to use the new conversationId
     const activeConversation = conversations.find(c => c.conversationId === activeChatId);
 
-    // --- 4. HANDLE PAYMENT LOGIC ---
+    // --- 5. HANDLE PAYMENT LOGIC ---
     const handlePaymentSubmit = async () => {
         if (!paymentAmount || isNaN(Number(paymentAmount)) || !activeConversation) return;
 
@@ -221,7 +309,7 @@ export default function BusinessMessagesPage() {
 
         try {
             const payload = {
-                creatorId: activeConversation.userId, // CHANGED: Using userId from the new data structure
+                creatorId: activeConversation.userId, 
                 amount: Number(paymentAmount)
             };
 
@@ -265,8 +353,6 @@ export default function BusinessMessagesPage() {
     const platformFee = isNaN(numericAmount) ? 0 : numericAmount * 0.10;
     const totalAmount = isNaN(numericAmount) ? 0 : numericAmount + platformFee;
 
-
-    // CHANGED: Since we lost the business details on the conversation object, if the sender is NOT the creator we are chatting with, we assume it's "me"
     const isMe = (msg: Message) => {
         if (!activeConversation) return false;
         const senderId = msg?.sender?.id;
@@ -275,13 +361,10 @@ export default function BusinessMessagesPage() {
         return senderId !== activeConversation.userId;
     };
 
-    // CHANGED: Fallback name generator since email/username is no longer in the payload
     const getCreatorName = (conv?: Conversation) => {
-    if (!conv) return "Creator";
-    
-    // Use displayName if it exists, otherwise fall back to the User ID string
-    return conv.displayName || `User ${conv.userId.substring(0, 4)}`;
-};
+        if (!conv) return "Creator";
+        return conv.displayName || `User ${conv.userId.substring(0, 4)}`;
+    };
 
     const getInitial = (nameFallback?: string) => {
         if (!nameFallback) return "C";
@@ -301,9 +384,9 @@ export default function BusinessMessagesPage() {
     return (
         <div className={`h-screen w-full flex flex-col bg-[#F8F9FB] ${inter.className} overflow-hidden`}>
             
+            <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({...prev, isVisible: false}))} />
             <NavigationPill />
 
-            {/* CHANGED: Adjusted pt and pb values here for desktop/mobile consistency with the creator side */}
             <main className="flex-1 flex flex-col min-h-0 w-full max-w-[90rem] mx-auto px-4 md:px-8 pb-10 md:pb-6 pt-[140px] md:pt-[120px]">
                 
                 <div className="flex-1 h-full bg-white rounded-[2rem] shadow-md shadow-gray-200/40 border border-gray-100 flex w-full min-h-0 overflow-hidden relative">
@@ -326,12 +409,10 @@ export default function BusinessMessagesPage() {
                                 conversations.map((chat) => {
                                     const name = getCreatorName(chat);
                                     const initial = getInitial(name);
-                                    // CHANGED: Using conversationId for keys and active state
                                     const isActive = activeChatId === chat.conversationId;
                                     return (
                                         <div key={chat.conversationId} onClick={() => handleChatSelect(chat.conversationId)} className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${isActive ? "bg-indigo-50" : "hover:bg-gray-50 bg-transparent"}`}>
                                             <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-100 relative shrink-0 bg-indigo-100 flex items-center justify-center">
-                                                {/* CHANGED: Using new avatar path */}
                                                 {chat.avatar ? (
                                                     <Image src={chat.avatar} alt={name} fill className="object-cover" />
                                                 ) : (
@@ -356,7 +437,6 @@ export default function BusinessMessagesPage() {
                                     <div className="flex items-center gap-4 min-w-0">
                                         <button onClick={handleBackToList} className="md:hidden p-1 -ml-2 text-gray-600"><ArrowLeftIcon className="w-5 h-5" /></button>
                                         <div className="w-10 h-10 rounded-full overflow-hidden relative border border-gray-100 shrink-0 bg-indigo-100 flex items-center justify-center">
-                                            {/* CHANGED: Updated Avatar mapping */}
                                             {activeConversation.avatar ? (
                                                 <Image src={activeConversation.avatar} alt="C" fill className="object-cover" />
                                             ) : (
@@ -382,7 +462,6 @@ export default function BusinessMessagesPage() {
                                             <div key={msg.id} className={`flex items-end gap-2 ${sentByMe ? "justify-end" : "justify-start"}`}>
                                                 {!sentByMe && (
                                                     <div className="w-8 h-8 rounded-full overflow-hidden relative bg-indigo-100 shrink-0 mb-4 border border-gray-100 flex items-center justify-center">
-                                                        {/* CHANGED: Updated Avatar mapping */}
                                                         {activeConversation.avatar ? (
                                                             <Image src={activeConversation.avatar} alt="C" fill className="object-cover" />
                                                         ) : (
@@ -391,7 +470,24 @@ export default function BusinessMessagesPage() {
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col max-w-[75%] md:max-w-[65%]">
-                                                    <div className={`px-5 py-3 text-sm leading-relaxed shadow-sm break-words ${sentByMe ? "bg-[#5B4DFF] text-white rounded-2xl rounded-br-none" : "bg-[#F3F4F6] text-gray-900 rounded-2xl rounded-bl-none"}`}>{msg.content}</div>
+                                                    <div className={`px-5 py-3 text-sm leading-relaxed shadow-sm break-words ${sentByMe ? "bg-[#5B4DFF] text-white rounded-2xl rounded-br-none" : "bg-[#F3F4F6] text-gray-900 rounded-2xl rounded-bl-none"}`}>
+                                                        
+                                                        {/* Dynamic rendering based on fileType */}
+                                                        {msg.fileUrl ? (
+                                                            msg.type === "IMAGE" ? (
+                                                                <div className="relative w-48 h-48 rounded-lg overflow-hidden border border-white/20">
+                                                                    <Image src={msg.fileUrl} alt={msg.fileName || "Uploaded image"} fill className="object-cover" />
+                                                                </div>
+                                                            ) : (
+                                                                <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 underline font-semibold hover:text-opacity-80 transition-opacity text-white">
+                                                                    <DocumentTextIcon className="w-5 h-5 shrink-0" />
+                                                                    <span className="truncate">{msg.fileName || "View Document"}</span>
+                                                                </a>
+                                                            )
+                                                        ) : (
+                                                            msg.content
+                                                        )}
+                                                    </div>
                                                     <span className={`text-[10px] text-gray-400 mt-1 ${sentByMe ? "text-right" : "text-left"}`}>{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                                 </div>
                                             </div>
@@ -402,7 +498,29 @@ export default function BusinessMessagesPage() {
 
                                 <div className="p-4 md:p-6 bg-white border-t border-gray-100 shrink-0">
                                     <div className="bg-[#F8F9FB] rounded-2xl px-2 py-2 flex items-center gap-2 border border-gray-100 focus-within:border-indigo-300 transition-colors shadow-sm">
-                                        <button className="p-2 text-gray-400 hover:text-[#5B4DFF] transition-colors rounded-full hover:bg-gray-100"><PaperClipIcon className="w-5 h-5" /></button>
+                                        
+                                        {/* Hidden File Input */}
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            onChange={handleFileUpload} 
+                                            className="hidden" 
+                                            disabled={isUploadingFile}
+                                        />
+                                        
+                                        {/* Trigger File Input */}
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isUploadingFile}
+                                            className="p-2 text-gray-400 hover:text-[#5B4DFF] transition-colors rounded-full hover:bg-gray-100 disabled:opacity-50"
+                                        >
+                                            {isUploadingFile ? (
+                                                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <PaperClipIcon className="w-5 h-5 cursor-pointer" />
+                                            )}
+                                        </button>
+                                        
                                         <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }} placeholder="Type a message" className="flex-1 bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" />
                                         <button onClick={(e) => { e.preventDefault(); handleSendMessage(); }} disabled={!newMessage.trim()} className="bg-[#5B4DFF] p-2.5 rounded-xl text-white hover:bg-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:shadow-none cursor-pointer"><PaperAirplaneIcon className="w-5 h-5" /></button>
                                     </div>

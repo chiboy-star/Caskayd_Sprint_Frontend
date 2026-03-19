@@ -362,9 +362,9 @@ export default function CreatorSignup() {
 
         // 1. UPDATE DISPLAY NAME
         const profilePayloadName = { displayName: formData.username };
-        console.log("🔵 [API Request] PATCH /users/profile PAYLOAD:", profilePayloadName);
+        console.log("🔵 [API Request] PATCH /users/creator/profile PAYLOAD:", profilePayloadName);
 
-        const profileUpdateRes = await fetch(`${BASE_URL}/users/profile`, {
+        const profileUpdateRes = await fetch(`${BASE_URL}/users/creator/profile`, {
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
@@ -375,9 +375,9 @@ export default function CreatorSignup() {
 
         if (profileUpdateRes.ok) {
             const profileUpdateData = await profileUpdateRes.json();
-            console.log("🟢 [API Response] PATCH /users/profile SUCCESS:", profileUpdateData);
+            console.log("🟢 [API Response] PATCH /users/creator/profile SUCCESS:", profileUpdateData);
         } else {
-            console.warn("🟠 [API Warning] PATCH /users/profile FAILED:", await profileUpdateRes.text());
+            console.warn("🟠 [API Warning] PATCH /users/creator/profile FAILED:", await profileUpdateRes.text());
         }
 
         // 2. UPLOAD PROFILE PICTURE
