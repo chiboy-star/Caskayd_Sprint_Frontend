@@ -474,9 +474,8 @@ export default function NavigationPill() {
                                     </label>
                                 </div>
 
-                                <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{compName}</h2>
-                                <p className="text-gray-400 text-sm mb-8 text-center truncate w-full px-2">{dispName}</p>
-
+                                <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{dispName}</h2>
+                                
                                 <div className="w-full space-y-3">
                                     <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
                                         <div className="flex flex-col min-w-0">
