@@ -3,7 +3,7 @@
 import { useState,useEffect } from "react";
 import { Inter } from "next/font/google";
 import CreatorNavigationPill from "@/components/CreatorNavigationPill";
-import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -29,7 +29,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 };
 
 export default function CreatorSettingsPage() {
-    const [activeTab, setActiveTab] = useState<"profile" | "security">("profile");
+    const [activeTab, setActiveTab] = useState<"profile" | "security" | "danger">("profile");
     const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -129,6 +129,33 @@ export default function CreatorSettingsPage() {
         }
     };
 
+    // --- DELETE ACCOUNT ---
+    const handleDeleteAccount = async () => {
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        setIsLoading(true);
+        try {
+            const res = await fetch(`${BASE_URL}/users/account`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                showToast("Account deleted successfully", "success");
+                localStorage.clear();
+                window.location.href = "/creator/login";
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.message || "Failed to delete account", "error");
+            }
+        } catch (error) {
+            showToast("Network error occurred", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className={`min-h-screen bg-[#F8F9FB] flex flex-col ${inter.className}`}>
             <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({...prev, isVisible: false}))} />
@@ -156,6 +183,14 @@ export default function CreatorSettingsPage() {
                                 }`}
                             >
                                 <KeyIcon className="w-5 h-5" /> Security
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab("danger")}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
+                                    activeTab === "danger" ? "bg-white shadow-sm text-red-600" : "text-gray-500 hover:bg-red-50 hover:text-red-600"
+                                }`}
+                            >
+                                <TrashIcon className="w-5 h-5" /> Delete Account
                             </button>
                         </div>
                     </div>
@@ -230,10 +265,24 @@ export default function CreatorSettingsPage() {
                                 </div>
                             </form>
                         )}
+
+                        {activeTab === "danger" && (
+                            <div className="max-w-md animate-in fade-in duration-300 space-y-6">
+                                <h3 className="text-2xl font-bold text-red-600 mb-4">Delete Account</h3>
+                                <p className="text-gray-600">Are you sure you want to delete your account? This action is permanent and all your data will be removed forever.</p>
+                                <button
+                                    onClick={handleDeleteAccount}
+                                    disabled={isLoading}
+                                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-xl shadow-md disabled:opacity-50 transition-colors"
+                                >
+                                    {isLoading ? "Deleting..." : "Yes, Delete My Account"}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                 </div>
             </main>
         </div>
     );
-} 
+}

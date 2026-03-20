@@ -13,7 +13,9 @@ import {
     ArrowRightOnRectangleIcon,
     BellIcon,
     Cog6ToothIcon,
-    CameraIcon 
+    CameraIcon,
+    CheckCircleIcon,
+    XCircleIcon
 } from "@heroicons/react/24/outline";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -24,6 +26,26 @@ interface AppNotification {
     message: string;
     isRead: boolean;
 }
+
+const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
+    useEffect(() => {
+        if (isVisible) {
+            const timer = setTimeout(onClose, 4000); 
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible, onClose]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
+            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+        } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
+            {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
+            <span className="font-bold text-sm">{message}</span>
+        </div>
+    );
+};
 
 export default function CreatorNavigationPill() {
     const pathname = usePathname();
@@ -37,7 +59,9 @@ export default function CreatorNavigationPill() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+    const [toastState, setToastState] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
+    const showToast = (message: string, type: "success"|"error") => setToastState({ message, type, isVisible: true });
     const isActive = (path: string) => pathname?.includes(path);
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
 
@@ -52,7 +76,6 @@ export default function CreatorNavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
-                // Log the API request
                 console.log("🔵 [API Request] GET /users/profile");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -60,7 +83,6 @@ export default function CreatorNavigationPill() {
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
-                    // Log the API response success
                     console.log("🟢 [API Response] GET /users/profile SUCCESS:", profileData);
                     
                     if (Array.isArray(profileData) && profileData.length > 0) {
@@ -70,60 +92,50 @@ export default function CreatorNavigationPill() {
                         setUserProfile(profileData);
                     }
                 } else {
-                    // Log the API response failure
                     console.error("🔴 [API Error] GET /users/profile FAILED:", await profileRes.text());
                 }
             } catch (error) {
-                // Log network errors
                 console.error("🔴 [Network Error] GET /users/profile crashed:", error);
             }
         };
 
         const fetchAlerts = async () => {
             try {
-                // Log unread message count request
                 console.log("🔵 [API Request] GET /messages/unread/count");
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
                     const msgCount = await msgRes.text(); 
-                    // Log unread message count response
                     console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", msgCount);
                     setUnreadMessages(Number(msgCount) || 0);
                 } else {
-                    // Log unread message count failure
                     console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
                 }
             } catch (error) {
-                // Log network errors
                 console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
             try {
-                // Log notifications request
                 console.log("🔵 [API Request] GET /notifications");
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
                     const notifData = await notifRes.json();
-                    // Log notifications response
                     console.log("🟢 [API Response] GET /notifications SUCCESS:", notifData);
                     setNotifications(notifData);
                 } else {
-                    // Log notifications failure
                     console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
                 }
             } catch (error) {
-                // Log network errors
                 console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
         };
 
         fetchUserProfile(); 
         fetchAlerts();      
-        const interval = setInterval(fetchAlerts, 15000); // Polling unread alerts
+        const interval = setInterval(fetchAlerts, 15000); 
         return () => clearInterval(interval);
     }, []);
 
@@ -136,7 +148,6 @@ export default function CreatorNavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            // Log mark as read request
             console.log(`🔵 [API Request] PATCH /notifications/${id}/read`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
@@ -144,15 +155,12 @@ export default function CreatorNavigationPill() {
             });
 
             if (res.ok) {
-                // Log mark as read response
                 console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
             } else {
-                // Log mark as read failure
                 console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
             }
         } catch (error) {
-            // Log network errors
             console.error(`🔴 [Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
@@ -169,11 +177,9 @@ export default function CreatorNavigationPill() {
         const loadingToastId = toast.loading("Updating profile image...");
 
         const formData = new FormData();
-        // CHANGED: "avatar" to "file". Update this string if your backend expects a different field name (e.g., "image").
         formData.append("file", file);
 
         try {
-            // Log avatar upload request
             console.log("🔵 [API Request] PATCH /users/me/avatar");
             const res = await fetch(`${BASE_URL}/users/me/avatar`, {
                 method: "PATCH",
@@ -183,7 +189,6 @@ export default function CreatorNavigationPill() {
 
             if (res.ok) {
                 const data = await res.json();
-                // Log avatar upload response
                 console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS", data);
                 
                 toast.success("Profile image updated successfully!", { id: loadingToastId });
@@ -192,12 +197,10 @@ export default function CreatorNavigationPill() {
                 setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
             } else {
                 const errorData = await res.json().catch(() => null);
-                // Log avatar upload failure
                 console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData);
                 toast.error(`Failed to update: ${errorData?.message || "Bad Request"}`, { id: loadingToastId });
             }
         } catch (error) {
-            // Log network errors
             console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", error);
             toast.error("Network error. Please try again later.", { id: loadingToastId });
         } finally {
@@ -211,15 +214,16 @@ export default function CreatorNavigationPill() {
 
     return (
         <>
-            <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
+            <Toast message={toastState.message} type={toastState.type} isVisible={toastState.isVisible} onClose={() => setToastState(prev => ({...prev, isVisible: false}))} />
+
+            <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* Main Nav Container - tighter spacing on mobile */}
-                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-4 px-6 md:px-8 flex items-center justify-between relative gap-2 sm:gap-4">
+                    {/* CHANGED: Layout adjusted for even spacing on mobile while maintaining desktop structure */}
+                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 md:gap-4">
                         
-                        <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                            {/* Full logo for sm screens and up */}
-                            <div className="relative w-40 h-10 shrink-0 hidden sm:block">
+                        <div className="flex items-center shrink-0">
+                            <div className="relative w-32 h-8 md:w-40 md:h-10 hidden sm:block">
                                 <Image 
                                     src="/images/LandingLogo.png" 
                                     alt="Caskayd" 
@@ -227,7 +231,6 @@ export default function CreatorNavigationPill() {
                                     className="object-cover"
                                 />
                             </div>
-                            {/* Small icon logo for mobile */}
                             <div className="relative w-8 h-8 shrink-0 sm:hidden">
                                 <Image 
                                     src="/images/Logo_transparent_icon.png" 
@@ -238,15 +241,16 @@ export default function CreatorNavigationPill() {
                             </div>
                         </div>
 
-                        {/* Central Pill Nav - reduced mobile gaps, better arranging/alignment */}
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-6 sm:gap-10">
+                        {/* CHANGED: Flex-1 and justify-evenly to spread icons out evenly on mobile */}
+                        <div className="flex flex-1 justify-evenly items-center md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/creator/dashboard" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/dashboard') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
                                         <Squares2X2Icon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block text-[15px]">Dashboard</span>
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/dashboard') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
+                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/dashboard') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
 
@@ -256,7 +260,8 @@ export default function CreatorNavigationPill() {
                                         <WalletIcon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block text-[15px]">Wallet</span>
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/wallet') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
+                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/wallet') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
                             
@@ -266,25 +271,25 @@ export default function CreatorNavigationPill() {
                                         <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block text-[15px]">Messages</span>
                                         {unreadMessages > 0 && (
-                                            <span className="absolute top-0 right-0 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                                            <span className="absolute top-0 -right-1 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                                 {unreadMessages > 9 ? '9+' : unreadMessages}
                                             </span>
                                         )}
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
+                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
                         </div>
 
-                        {/* Right Section Icons - proper alignment and spacing */}
-                        <div className="flex items-center gap-2 sm:gap-4 shrink-0 relative">
+                        <div className="flex items-center gap-3 sm:gap-4 shrink-0 relative">
                             <button 
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
+                                className="relative p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
                             >
-                                <BellIcon className="w-7 h-7" />
+                                <BellIcon className="w-6 h-6 sm:w-7 sm:h-7" />
                                 {unreadNotificationCount > 0 && (
-                                    <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                                         {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
                                     </span>
                                 )}
@@ -329,10 +334,9 @@ export default function CreatorNavigationPill() {
                                 </>
                             )}
 
-                            {/* Updated Profile Button - inner padding for better fit/isolated image */}
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
-                                className="w-10 h-10 md:w-11 md:h-11 rounded-full   flex items-center justify-center font-bold text-sm cursor-pointer  transition-colors shadow-md relative overflow-hidden"
+                                className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer transition-colors shadow-md relative overflow-hidden"
                             >
                                 <div className="absolute inset-[2px] rounded-full flex items-center justify-center overflow-hidden">
                                     {userProfile?.avatar ? (
@@ -349,8 +353,8 @@ export default function CreatorNavigationPill() {
 
             {/* --- PROFILE MODAL OVERLAY --- */}
             {isProfileOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0A0A]/50 animate-in fade-in duration-300">
-                    <div className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10">
+                <div onClick={() => setIsProfileOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0A0A]/50 animate-in fade-in duration-300">
+                    <div onClick={(e) => e.stopPropagation()} className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10">
                         <button 
                             onClick={() => setIsProfileOpen(false)}
                             className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors cursor-pointer z-10"
@@ -370,7 +374,6 @@ export default function CreatorNavigationPill() {
                                     )}
                                 </div>
                                 
-                                {/* Avatar Camera Icon Badge */}
                                 <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
                                     {isUploadingAvatar ? (
                                         <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
