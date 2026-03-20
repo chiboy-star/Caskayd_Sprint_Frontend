@@ -11,11 +11,10 @@ import {
     CameraIcon, 
     ArrowRightOnRectangleIcon,
     BellIcon,
-    KeyIcon, 
     CheckCircleIcon,
     XCircleIcon,
-    ArrowLeftIcon,
-    PaperAirplaneIcon
+    PaperAirplaneIcon,
+    Cog6ToothIcon
 } from "@heroicons/react/24/outline";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -66,11 +65,6 @@ export default function NavigationPill() {
     const [showSentCount, setShowSentCount] = useState(false);
     
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-
-    // Profile modal views (profile details vs password change)
-    const [view, setView] = useState<"profile" | "password">("profile");
-    const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "" });
-    const [isUpdating, setIsUpdating] = useState(false);
     const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
     const showToast = (message: string, type: "success"|"error") => setToast({ message, type, isVisible: true });
@@ -202,7 +196,7 @@ export default function NavigationPill() {
         }
     };
 
-    // Handle uploading a new profile picture
+    // Handle uploading a new profile picture with the 2-step process
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -214,71 +208,60 @@ export default function NavigationPill() {
         }
 
         setIsUploadingAvatar(true);
-        const formData = new FormData();
-        formData.append("file", file);
 
         try {
-            console.log("🔵 [API Request] PATCH /users/me/avatar | Sent: FormData(file)");
-            const res = await fetch(`${BASE_URL}/users/me/avatar`, {
-                method: "PATCH",
-                headers: { "Authorization": `Bearer ${token}` },
+            // STEP 1: Upload the file to get the URL
+            const formData = new FormData();
+            formData.append("file", file);
+
+            console.log("🔵 [API Request] POST /upload/avatar | Sent: FormData(file)");
+            const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }, // No Content-Type header
                 body: formData, 
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", data);
-                showToast("Profile image updated successfully!", "success");
-                
-                const newAvatarUrl = data.avatar || URL.createObjectURL(file);
-                setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
-            } else {
-                const errorData = await res.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData);
-                showToast(`Failed to update: ${errorData?.message || "Bad Request"}`, "error");
+            if (!uploadRes.ok) {
+                const errorData = await uploadRes.json().catch(() => null);
+                throw new Error(errorData?.message || "Failed to upload image to server.");
             }
-        } catch (error) {
-            console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", error);
-            showToast("Network error. Please try again later.", "error");
-        } finally {
-            setIsUploadingAvatar(false);
-            event.target.value = "";
-        }
-    };
 
-    // Handle changing the user's password
-    const handlePasswordSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const token = localStorage.getItem("accessToken");
-        if (!token) return;
+            const uploadData = await uploadRes.json();
+            console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadData);
+            
+            const newAvatarUrl = uploadData.url || uploadData.avatar;
+            if (!newAvatarUrl) throw new Error("Server did not return an image URL.");
 
-        setIsUpdating(true);
-        try {
-            console.log("🔵 [API Request] PATCH /users/password | Sent:", passwordData);
-            const res = await fetch(`${BASE_URL}/users/password`, {
+            // STEP 2: Update the business profile with the new URL
+            const profilePayload = { profileImageUrl: newAvatarUrl };
+            console.log("🔵 [API Request] PATCH /users/business/profile | Sent:", profilePayload);
+            
+            const profileRes = await fetch(`${BASE_URL}/users/business/profile`, {
                 method: "PATCH",
                 headers: { 
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}` 
                 },
-                body: JSON.stringify(passwordData)
+                body: JSON.stringify(profilePayload), 
             });
 
-            if (res.ok) {
-                console.log("🟢 [API Response] PATCH /users/password SUCCESS");
-                showToast("Password updated successfully", "success");
-                setPasswordData({ currentPassword: "", newPassword: "" });
-                setView("profile"); 
-            } else {
-                const err = await res.json();
-                console.error("🔴 [API Error] PATCH /users/password FAILED:", err);
-                showToast(err.message || "Failed to update password", "error");
+            if (!profileRes.ok) {
+                const errorData = await profileRes.json().catch(() => null);
+                throw new Error(errorData?.message || "Failed to save profile image URL.");
             }
-        } catch (error) {
-            console.error("🔴 [Network Error] PATCH /users/password crashed:", error);
-            showToast("Network error occurred", "error");
+
+            const profileData = await profileRes.json();
+            console.log("🟢 [API Response] PATCH /users/business/profile SUCCESS:", profileData);
+
+            showToast("Profile image updated successfully!", "success");
+            setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+
+        } catch (error: any) {
+            console.error("🔴 [Network Error] Avatar upload process crashed:", error);
+            showToast(error.message || "Network error. Please try again later.", "error");
         } finally {
-            setIsUpdating(false);
+            setIsUploadingAvatar(false);
+            event.target.value = "";
         }
     };
 
@@ -288,10 +271,10 @@ export default function NavigationPill() {
         router.push("/business/login");
     };
 
-    const compName = userProfile?.companyName || "Your Company";
-    const dispName = userProfile?.displayName || "Business Account";
+    // Display Name Fallback logic
+    const dispName = userProfile?.displayName || userProfile?.companyName || "Business Account";
     const userEmail = userProfile?.email || "business@example.com";
-    const initial = compName.charAt(0).toUpperCase();
+    const initial = dispName.charAt(0).toUpperCase();
 
     return (
         <>
@@ -300,11 +283,12 @@ export default function NavigationPill() {
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* Main Nav Container */}
-                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-4 px-6 md:px-8 flex items-center justify-between relative gap-2 sm:gap-4">
+                    {/* Main Nav Container - tighter spacing on mobile for equal alignment */}
+                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 sm:gap-4">
                         
                         {/* Responsive Logo Container */}
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                            {/* Full logo for sm screens and up */}
                             <div className="relative w-40 h-10 shrink-0 hidden sm:block">
                                 <Image 
                                     src="/images/LandingLogo.png" 
@@ -313,6 +297,7 @@ export default function NavigationPill() {
                                     className="object-cover"
                                 />
                             </div>
+                            {/* Small icon logo for mobile */}
                             <div className="relative w-8 h-8 shrink-0 sm:hidden">
                                 <Image 
                                     src="/images/Logo_transparent_icon.png" 
@@ -323,15 +308,16 @@ export default function NavigationPill() {
                             </div>
                         </div>
 
-                        {/* CHANGED: Central Pill Menu - Flex-1 on mobile prevents overlap, Absolute on md screens perfectly centers it */}
-                        <div className="flex flex-1 justify-center items-center gap-3 sm:gap-6 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
+                        {/* Central Pill Menu - Flex-1 perfectly centers on mobile */}
+                        <div className="flex flex-1 justify-center items-center gap-4 sm:gap-6 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
                                     <div className="flex items-center gap-2 font-bold p-1">
                                         <MapIcon className="w-6 h-6 sm:w-5 sm:h-5" /> 
                                         <span className="hidden sm:block text-[15px]">Discover</span>
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/discover') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    {/* Hidden on mobile to keep icons leveled */}
+                                    <div className={`hidden sm:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/discover') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
                             
@@ -346,13 +332,14 @@ export default function NavigationPill() {
                                             </span>
                                         )}
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    {/* Hidden on mobile to keep icons leveled */}
+                                    <div className={`hidden sm:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/business/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
                         </div>
 
                         {/* Right Section Icons */}
-                        <div className="flex items-center gap-2 sm:gap-4 shrink-0 relative z-10">
+                        <div className="flex items-center gap-1 sm:gap-4 shrink-0 relative z-10">
                             
                             {/* Sent Invites Button */}
                             <div className="relative flex items-center">
@@ -386,39 +373,10 @@ export default function NavigationPill() {
                                 )}
                             </button>
 
-                            {isNotificationsOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                                    <div className="absolute top-16 right-0 md:right-12 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
-                                        <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                            <h3 className="font-bold text-gray-900">Notifications</h3>
-                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
-                                        </div>
-                                        <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                                            {notifications.length === 0 ? (
-                                                <div className="px-5 py-8 text-center text-sm text-gray-500">You're all caught up!</div>
-                                            ) : (
-                                                notifications.map((notif) => (
-                                                    <div key={notif.id} onClick={() => handleMarkAsRead(notif.id, notif.isRead)} className={`px-5 py-4 border-b border-gray-50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-indigo-50/50 hover:bg-indigo-50'}`}>
-                                                        <div className="flex gap-3">
-                                                            <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${notif.isRead ? 'bg-transparent' : 'bg-[#5B4DFF]'}`}></div>
-                                                            <div>
-                                                                <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>{notif.message}</p>
-                                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1 block">{notif.type.replace('_', ' ')}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
                             {/* Profile Button */}
                             <button 
-                                onClick={() => { setIsProfileOpen(true); setView("profile"); }}
-                                className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden shrink-0"
+                                onClick={() => setIsProfileOpen(true)}
+                                className="w-10 h-10 md:w-11 md:h-11 ml-1 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden shrink-0"
                             >
                                 <div className="absolute inset-[2px] rounded-full flex items-center justify-center overflow-hidden">
                                     {userProfile?.avatar ? (
@@ -445,104 +403,55 @@ export default function NavigationPill() {
                             <XMarkIcon className="w-6 h-6" />
                         </button>
 
-                        {/* === PROFILE VIEW === */}
-                        {view === "profile" && (
-                            <div className="flex flex-col items-center mt-2 animate-in slide-in-from-left-4 duration-300">
-                                
-                                <div className="relative mb-4 group cursor-pointer">
-                                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative border border-gray-700">
-                                        {userProfile?.avatar ? (
-                                            <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
-                                        ) : (
-                                            <span className="text-black text-4xl font-bold">{initial}</span>
-                                        )}
-                                    </div>
-
-                                    <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-200 transition-colors border border-gray-200 z-10">
-                                        {isUploadingAvatar ? (
-                                            <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
-                                        ) : (
-                                            <CameraIcon className="w-5 h-5 text-gray-800" />
-                                        )}
-                                        <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            className="hidden" 
-                                            onChange={handleAvatarUpload}
-                                            disabled={isUploadingAvatar}
-                                        />
-                                    </label>
+                        <div className="flex flex-col items-center mt-2 animate-in slide-in-from-left-4 duration-300">
+                            
+                            <div className="relative mb-4 group cursor-pointer">
+                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative border border-gray-700">
+                                    {userProfile?.avatar ? (
+                                        <Image src={userProfile.avatar} alt="Avatar" fill className="object-cover" />
+                                    ) : (
+                                        <span className="text-black text-4xl font-bold">{initial}</span>
+                                    )}
                                 </div>
 
-                                <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{dispName}</h2>
-                                
-                                <div className="w-full space-y-3">
-                                    <div className="bg-white/5 rounded-xl p-4 flex items-center justify-between border border-white/5">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-xs text-gray-500 font-medium mb-1">Email Address</span>
-                                            <span className="text-sm font-medium truncate w-[240px]">{userEmail}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3 pt-2">
-                                        <button 
-                                            onClick={() => setView("password")}
-                                            className="bg-white/10 border border-white/5 hover:bg-white/20 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer"
-                                        >
-                                            <KeyIcon className="w-4 h-4" /> Password
-                                        </button>
-                                        <button 
-                                            onClick={handleLogout}
-                                            className="bg-red-500/10 hover:bg-black text-red-500 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors text-sm cursor-pointer"
-                                        >
-                                            <ArrowRightOnRectangleIcon className="w-4 h-4" /> Logout
-                                        </button>
-                                    </div>
-                                </div>
+                                <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-200 transition-colors border border-gray-200 z-10">
+                                    {isUploadingAvatar ? (
+                                        <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <CameraIcon className="w-5 h-5 text-gray-800" />
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={handleAvatarUpload}
+                                        disabled={isUploadingAvatar}
+                                    />
+                                </label>
                             </div>
-                        )}
 
-                        {/* === PASSWORD VIEW === */}
-                        {view === "password" && (
-                            <div className="flex flex-col mt-2 animate-in slide-in-from-right-4 duration-300">
-                                <button onClick={() => setView("profile")} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 text-sm font-semibold w-fit cursor-pointer">
-                                    <ArrowLeftIcon className="w-4 h-4" /> Back
+                            <h2 className="text-2xl font-bold mb-1 text-center truncate w-full px-2">{dispName}</h2>
+                            <p className="text-gray-400 text-sm mb-8 text-center truncate w-full px-2">{userEmail}</p>
+
+                            <div className="w-full space-y-3">
+                                <Link 
+                                    href="/business/settings" 
+                                    onClick={() => setIsProfileOpen(false)}
+                                    className="w-full bg-white/10 border border-white/5 hover:bg-white/20 text-white py-3.5 px-4 rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+                                >
+                                    <Cog6ToothIcon className="w-5 h-5 text-gray-300" />
+                                    <span className="font-semibold text-sm">Account Settings</span>
+                                </Link>
+
+                                <button 
+                                    onClick={handleLogout}
+                                    className="w-full bg-red-500/20 border hover:bg-black text-red-500 py-3.5 px-4 rounded-xl font-semibold flex items-center gap-3 transition-colors cursor-pointer"
+                                >
+                                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                                    <span className="font-semibold text-sm">Log Out</span>
                                 </button>
-                                
-                                <h2 className="text-2xl font-bold mb-6 text-center">Change Password</h2>
-
-                                <form onSubmit={handlePasswordSubmit} className="space-y-4 w-full">
-                                    <div>
-                                        <label className="block text-xs text-gray-400 font-medium mb-1.5 pl-1">Current Password</label>
-                                        <input 
-                                            type="password" required 
-                                            value={passwordData.currentPassword} 
-                                            onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})} 
-                                            className="w-full bg-[#1A1A1A]/50 border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-50 transition-colors" 
-                                            placeholder="••••••••" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-400 font-medium mb-1.5 pl-1">New Password</label>
-                                        <input 
-                                            type="password" required minLength={6}
-                                            value={passwordData.newPassword} 
-                                            onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} 
-                                            className="w-full bg-[#1A1A1A]/50 border border-gray-800 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-50 transition-colors" 
-                                            placeholder="••••••••" 
-                                        />
-                                    </div>
-
-                                    <button 
-                                        type="submit" 
-                                        disabled={isUpdating || !passwordData.currentPassword || !passwordData.newPassword}
-                                        className="w-full bg-white text-black hover:bg-gray-200 font-bold py-3.5 rounded-xl transition-colors disabled:opacity-50 mt-4 cursor-pointer"
-                                    >
-                                        {isUpdating ? "Updating..." : "Save Password"}
-                                    </button>
-                                </form>
                             </div>
-                        )}
+                        </div>
 
                     </div>
                 </div>

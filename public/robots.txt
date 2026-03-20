@@ -1,0 +1,11 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /api
+Disallow: /_next
+
+# Host
+Host: https://www.caskaya.com
+
+# Sitemaps
+Sitemap: https://www.caskaya.com/sitemap.xml
