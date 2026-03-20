@@ -89,7 +89,7 @@ export default function BusinessSettingsClient() {
         setIsSaving(true);
         try {
             console.log("🔵 [API Request] PATCH /user/business/profile PAYLOAD:", generalData);
-            const res = await fetch(`${BASE_URL}/user/business/profile`, {
+            const res = await fetch(`${BASE_URL}/users/business/profile`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
