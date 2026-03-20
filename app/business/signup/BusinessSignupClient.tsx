@@ -56,7 +56,6 @@ export default function BusinessSignupClient() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  // NEW: State for tracking Terms acceptance
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false); 
@@ -169,7 +168,6 @@ export default function BusinessSignupClient() {
     if (!formData.email || !formData.password) return showError("Please fill in all fields");
     if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
     if (formData.password.length < 6) return showError("Password must be at least 6 characters");
-    // NEW: Validation guard for Terms of Service
     if (!hasAcceptedTerms) return showError("You must agree to the Terms and Privacy Policy to create an account.");
 
     setIsLoading(true);
@@ -269,37 +267,39 @@ export default function BusinessSignupClient() {
             console.warn("🟠 [API Warning] PATCH /users/business/profile FAILED:", errorData || profileUpdateRes.statusText);
         }
 
-        console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading Logo...)");
+        // --- UPDATED LOGO UPLOAD LOGIC ---
+        console.log("🔵 [API Request] POST /upload/avatar (Uploading Logo...)");
         let uploadedLogoUrl = null;
         const uploadData = new FormData();
         uploadData.append("file", formData.businessLogo);
 
-        const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
-            method: "PATCH",
+        const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
+            method: "POST", // Changed to POST
             headers: { "Authorization": `Bearer ${token}` },
             body: uploadData
         });
 
         if (uploadRes.ok) {
             const uploadResult = await uploadRes.json();
-            console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
-            uploadedLogoUrl = uploadResult.avatar || uploadResult.profileImageUrl; 
+            console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadResult);
+            // Captured the URL but leaving it alone as requested
+            uploadedLogoUrl = uploadResult.url; 
             showSuccess("Logo uploaded successfully!");
             await delay(500);
         } else {
             const errorData = await uploadRes.json().catch(() => null);
-            console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData || uploadRes.statusText);
+            console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData || uploadRes.statusText);
             const errorMessage = errorData?.message || errorData?.error || "Failed to upload logo. File might be too large.";
             throw new Error(errorMessage);
         }
 
+        // We format the payload without sending the URL anywhere as per instructions
         const businessPayload = {
             companyName: formData.companyName, 
             websiteUrl: formData.website, 
             category: formData.industryTags.join(", "),
             location: formData.location,
-            description: formData.description,
-            profileImageUrl: uploadedLogoUrl || null 
+            description: formData.description
         };
         
         console.log("🔵 [API Request] POST /business PAYLOAD:", JSON.stringify(businessPayload, null, 2));
@@ -338,9 +338,9 @@ export default function BusinessSignupClient() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Create a Business Account | Caskaya",
-    "description": "Sign up as a brand on Caskaya to discover, hire, and manage top content creators.",
-    "url": "https://www.caskaya.com/business/signup"
+    "name": "Create a Business Account | Caskayd",
+    "description": "Sign up as a brand on Caskayd to discover, hire, and manage top content creators.",
+    "url": "https://www.caskayd.com/business/signup"
   };
 
   if (isRedirecting) return <Loader />;
@@ -430,7 +430,7 @@ export default function BusinessSignupClient() {
         <div className="max-w-md w-full relative flex flex-col h-full justify-center">
           
           <div className="mb-8 flex flex-col items-center text-center">
-            <h1 className="sr-only">Create a Business Account on Caskaya</h1>
+            <h1 className="sr-only">Create a Business Account on Caskayd</h1>
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
               <Image 
                 src="/images/Logo_transparent_icon.webp" 
@@ -469,7 +469,6 @@ export default function BusinessSignupClient() {
                         </div>
                     </div>
                     
-                    {/* NEW: Mandatory Terms and Conditions Checkbox */}
                     <div className="flex items-start gap-3 mt-4">
                         <div className="flex items-center h-5">
                             <input 

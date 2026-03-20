@@ -196,72 +196,47 @@ export default function NavigationPill() {
         }
     };
 
-    // Handle uploading a new profile picture with the 2-step process
+    // --- UPDATED: Avatar Upload Process ---
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         const token = localStorage.getItem("accessToken");
-        if (!token) {
-            showToast("Authentication error. Please log in again.", "error");
-            return;
-        }
+        if (!token) return;
 
         setIsUploadingAvatar(true);
 
-        try {
-            // STEP 1: Upload the file to get the URL
-            const formData = new FormData();
-            formData.append("file", file);
+        const formData = new FormData();
+        formData.append("file", file);
 
-            console.log("🔵 [API Request] POST /upload/avatar | Sent: FormData(file)");
-            const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` }, // No Content-Type header
+        try {
+            console.log("🔵 [API Request] POST /upload/avatar");
+            const res = await fetch(`${BASE_URL}/upload/avatar`, {
+                method: "POST", // Changed to POST
+                headers: { "Authorization": `Bearer ${token}` },
                 body: formData, 
             });
 
-            if (!uploadRes.ok) {
-                const errorData = await uploadRes.json().catch(() => null);
-                throw new Error(errorData?.message || "Failed to upload image to server.");
+            if (res.ok) {
+                const data = await res.json();
+                console.log("🟢 [API Response] POST /upload/avatar SUCCESS", data);
+                
+                showToast("Profile image updated successfully!", "success");
+                
+                // Extracting URL from new response structure
+                const newAvatarUrl = data.url || URL.createObjectURL(file);
+                setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+            } else {
+                const errorData = await res.json().catch(() => null);
+                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData);
+                showToast(`Failed to update: ${errorData?.message || "Bad Request"}`, "error");
             }
-
-            const uploadData = await uploadRes.json();
-            console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadData);
-            
-            const newAvatarUrl = uploadData.url || uploadData.avatar;
-            if (!newAvatarUrl) throw new Error("Server did not return an image URL.");
-
-            // STEP 2: Update the business profile with the new URL
-            const profilePayload = { profileImageUrl: newAvatarUrl };
-            console.log("🔵 [API Request] PATCH /users/business/profile | Sent:", profilePayload);
-            
-            const profileRes = await fetch(`${BASE_URL}/users/business/profile`, {
-                method: "PATCH",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` 
-                },
-                body: JSON.stringify(profilePayload), 
-            });
-
-            if (!profileRes.ok) {
-                const errorData = await profileRes.json().catch(() => null);
-                throw new Error(errorData?.message || "Failed to save profile image URL.");
-            }
-
-            const profileData = await profileRes.json();
-            console.log("🟢 [API Response] PATCH /users/business/profile SUCCESS:", profileData);
-
-            showToast("Profile image updated successfully!", "success");
-            setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
-
-        } catch (error: any) {
-            console.error("🔴 [Network Error] Avatar upload process crashed:", error);
-            showToast(error.message || "Network error. Please try again later.", "error");
+        } catch (error) {
+            console.error("🔴 [Network Error] POST /upload/avatar crashed:", error);
+            showToast("Network error. Please try again later.", "error");
         } finally {
             setIsUploadingAvatar(false);
-            event.target.value = "";
+            event.target.value = ""; // Reset input
         }
     };
 
@@ -452,7 +427,6 @@ export default function NavigationPill() {
                                 </button>
                             </div>
                         </div>
-
                     </div>
                 </div>
             )}

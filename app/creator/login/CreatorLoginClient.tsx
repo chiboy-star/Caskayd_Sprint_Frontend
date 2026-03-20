@@ -102,9 +102,9 @@ export default function CreatorLoginClient() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Creator Login | Caskaya",
-    "description": "Log in to your Caskaya creator account.",
-    "url": "https://www.caskaya.com/creator/login"
+    "name": "Creator Login | Caskayd",
+    "description": "Log in to your Caskayd creator account.",
+    "url": "https://www.caskayd.com/creator/login"
   };
 
   // USE SHARED LOADER
@@ -130,7 +130,7 @@ export default function CreatorLoginClient() {
           
           <div className="text-center flex flex-col items-center mb-10">
             {/* SEO Fix: Added a visually hidden H1 tag for Google bots */}
-            <h1 className="sr-only">Log in to your Caskaya Creator Account</h1>
+            <h1 className="sr-only">Log in to your Caskayd Creator Account</h1>
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
                 {/* Converted to .webp */}
                 <Image 

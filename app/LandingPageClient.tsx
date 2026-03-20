@@ -126,9 +126,9 @@ export default function LandingPageClient() {
         "@graph": [
             {
                 "@type": "Organization",
-                "name": "Caskaya",
-                "url": "https://www.caskaya.com",
-                "logo": "https://www.caskaya.com/images/LandingLogo.webp",
+                "name": "caskayd",
+                "url": "https://www.caskayd.com",
+                "logo": "https://www.caskayd.com/images/LandingLogo.webp",
                 "description": "The all-in-one platform connecting brands with top content creators."
             },
             {
@@ -166,7 +166,7 @@ export default function LandingPageClient() {
                     <Link href="/">
                         <Image 
                             src="/images/LandingLogo.webp" 
-                            alt="Caskaya Logo" 
+                            alt="Caskayd Logo" 
                             width={160} 
                             height={40} 
                             className="object-contain"
@@ -554,7 +554,7 @@ export default function LandingPageClient() {
                             <div className="w-64 h-64 relative flex items-center justify-center">
                                 <Image 
                                     src="/images/LandingPageLogo.webp" 
-                                    alt="Caskaya Emblem" 
+                                    alt="Caskayd Emblem" 
                                     fill 
                                     className="object-contain" 
                                 />

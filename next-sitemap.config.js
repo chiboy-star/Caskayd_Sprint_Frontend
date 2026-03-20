@@ -1,7 +1,7 @@
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
   // Replace this with your actual production URL when you launch
-  siteUrl: process.env.SITE_URL || 'https://www.caskaya.com',
+  siteUrl: process.env.SITE_URL || 'https://www.caskayd.com',
   
   // Automatically generate a robots.txt file
   generateRobotsTxt: true,

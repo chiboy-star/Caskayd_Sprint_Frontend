@@ -102,9 +102,9 @@ export default function BusinessLoginClient() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Business Login | Caskaya",
-    "description": "Log in to your Caskaya business account.",
-    "url": "https://www.caskaya.com/business/login"
+    "name": "Business Login | Caskayd",
+    "description": "Log in to your Caskayd business account.",
+    "url": "https://www.caskayd.com/business/login"
   };
 
   if (isRedirecting) return <Loader />;
@@ -130,7 +130,7 @@ export default function BusinessLoginClient() {
           {/* --- CENTERED LOGO SECTION --- */}
           <div className="mb-10 flex flex-col items-center text-center">
             {/* SEO Fix: Added a visually hidden H1 tag for Google bots */}
-            <h1 className="sr-only">Log in to your Caskaya Business Account</h1>
+            <h1 className="sr-only">Log in to your Caskayd Business Account</h1>
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
               {/* Converted to .webp */}
               <Image 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -104,7 +104,6 @@ export default function CreatorSignupClient() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  // NEW: State for tracking Terms acceptance
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -262,7 +261,6 @@ export default function CreatorSignupClient() {
         if (!formData.email || !formData.password) return showError("Please fill in all fields");
         if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
         if (formData.password.length < 6) return showError("Password must be at least 6 characters");
-        // NEW: Validation guard for Terms of Service
         if (!hasAcceptedTerms) return showError("You must agree to the Terms and Privacy Policy to create an account.");
         
         setIsLoading(true);
@@ -313,7 +311,7 @@ export default function CreatorSignupClient() {
             const loginData = await loginRes.json();
             const token = loginData.access_token || loginData.token;
             
-            console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received:", loginData);
+            console.log("🟢 [API Response] POST /auth/login SUCCESS:", loginData);
             localStorage.setItem("accessToken", token);
             
             showSuccess("Authentication secured. Moving to Step 2...");
@@ -382,31 +380,31 @@ export default function CreatorSignupClient() {
             console.warn("🟠 [API Warning] PATCH /users/creator/profile FAILED:", errorData || profileUpdateRes.statusText);
         }
 
-        // 2. UPLOAD PROFILE PICTURE
+        // 2. UPLOAD PROFILE PICTURE (UPDATED LOGIC)
         let uploadedProfilePicUrl = null;
         if (formData.profilePic) {
-            console.log("🔵 [API Request] PATCH /users/me/avatar (Uploading file...)");
+            console.log("🔵 [API Request] POST /upload/avatar (Uploading file...)");
             const uploadData = new FormData();
             uploadData.append("file", formData.profilePic);
 
-            const uploadRes = await fetch(`${BASE_URL}/users/me/avatar`, {
-                method: "PATCH",
+            const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
+                method: "POST", // Changed to POST
                 headers: { "Authorization": `Bearer ${token}` },
                 body: uploadData 
             });
 
             if (uploadRes.ok) {
                 const uploadResult = await uploadRes.json();
-                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS:", uploadResult);
-                uploadedProfilePicUrl = uploadResult.avatar || uploadResult.profileImageUrl; 
+                console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadResult);
+                uploadedProfilePicUrl = uploadResult.url; // Use 'url' from new endpoint
             } else {
                 const errorData = await uploadRes.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData || uploadRes.statusText);
+                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData || uploadRes.statusText);
                 throw new Error("Failed to upload profile photo.");
             }
         }
 
-        // 3. CREATE CREATOR PROFILE
+        // 3. CREATE CREATOR PROFILE (UPDATED PAYLOAD)
         const creatorPayload = {
             displayName: formData.displayName,
             bio: formData.bio,
@@ -415,7 +413,7 @@ export default function CreatorSignupClient() {
             tiktok: formData.tiktok,
             instagram: formData.instagram,
             pricePerPost: Number(formData.pricePerPost),
-            profileImageUrl: uploadedProfilePicUrl || null
+            // Removed profileImageUrl here as requested
         };
         
         console.log("🔵 [API Request] POST /creator PAYLOAD:", JSON.stringify(creatorPayload, null, 2));
@@ -467,9 +465,9 @@ export default function CreatorSignupClient() {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("🔵 [API Request] POST /payments/creator/subaccount PAYLOAD:", bankPayload);
+        console.log("🔵 [API Request] POST /creator/complete-profile PAYLOAD:", bankPayload);
         
-        const bankRes = await fetch(`${BASE_URL}/payments/creator/subaccount`, { 
+        const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
@@ -480,10 +478,10 @@ export default function CreatorSignupClient() {
 
         const bankData = await bankRes.json();
         if (!bankRes.ok) {
-            console.error("🔴 [API Error] POST /payments/creator/subaccount FAILED:", bankData);
+            console.error("🔴 [API Error] POST /creator/complete-profile FAILED:", bankData);
             throw new Error(bankData.message || "Failed to link bank account");
         }
-        console.log("🟢 [API Response] POST /payments/creator/subaccount SUCCESS:", bankData);
+        console.log("🟢 [API Response] POST /creator/complete-profile SUCCESS:", bankData);
 
         // ALL DONE
         showSuccess("Profile complete! Redirecting...");
@@ -504,9 +502,9 @@ export default function CreatorSignupClient() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Sign Up as a Content Creator | Caskaya",
-    "description": "Join Caskaya as a content creator to connect with premium brands and scale your influencer business.",
-    "url": "https://www.caskaya.com/creator/signup"
+    "name": "Sign Up as a Content Creator | Caskayd",
+    "description": "Join Caskayd as a content creator to connect with premium brands and scale your influencer business.",
+    "url": "https://www.caskayd.com/creator/signup"
   };
 
   if (isRedirecting) return <Loader />;
@@ -576,7 +574,7 @@ export default function CreatorSignupClient() {
         <div className="max-w-md w-full relative flex flex-col h-full justify-center">
           
           <div className="mb-8 flex flex-col items-center text-center"> 
-            <h1 className="sr-only">Sign Up as a Creator on Caskaya</h1>
+            <h1 className="sr-only">Sign Up as a Creator on Caskayd</h1>
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 
                 <Image 
                     src="/images/Logo_transparent_icon.webp" 
@@ -677,15 +675,15 @@ export default function CreatorSignupClient() {
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Post</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price per Post</label>
                             <input type="number" name="pricePerPost" min="0" value={formData.pricePerPost} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Story</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price per Story</label>
                             <input type="number" name="pricePerStory" min="0" value={formData.pricePerStory} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                         <div className="relative col-span-2">
-                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price pre Video</label>
+                            <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Price per Video</label>
                             <input type="number" name="pricePerVideo" min="0" value={formData.pricePerVideo} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500  transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="₦" />
                         </div>
                     </div>
@@ -746,8 +744,8 @@ export default function CreatorSignupClient() {
                 </form>
             </div>
           </div>
-        </div>
+        </div> 
       </div>
     </div>
-  );
+  ); 
 }

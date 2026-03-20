@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { toast } from "react-hot-toast"; // Added react-hot-toast
+import { toast } from "react-hot-toast"; 
 import { 
     ChatBubbleOvalLeftIcon, 
     WalletIcon, 
@@ -166,6 +166,7 @@ export default function CreatorNavigationPill() {
         }
     };
 
+    // --- UPDATED AVATAR UPLOAD LOGIC ---
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -174,34 +175,35 @@ export default function CreatorNavigationPill() {
         if (!token) return;
 
         setIsUploadingAvatar(true);
-        const loadingToastId = toast.loading("Updating profile image...");
+        const loadingToastId = toast.loading("Uploading profile image...");
 
         const formData = new FormData();
         formData.append("file", file);
 
         try {
-            console.log("🔵 [API Request] PATCH /users/me/avatar");
-            const res = await fetch(`${BASE_URL}/users/me/avatar`, {
-                method: "PATCH",
+            console.log("🔵 [API Request] POST /upload/avatar");
+            const res = await fetch(`${BASE_URL}/upload/avatar`, {
+                method: "POST", // Changed to POST
                 headers: { "Authorization": `Bearer ${token}` },
                 body: formData, 
             });
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] PATCH /users/me/avatar SUCCESS", data);
+                console.log("🟢 [API Response] POST /upload/avatar SUCCESS", data);
                 
-                toast.success("Profile image updated successfully!", { id: loadingToastId });
+                toast.success("Profile image uploaded successfully!", { id: loadingToastId });
                 
-                const newAvatarUrl = data.avatar || URL.createObjectURL(file);
+                // Extracting URL from new response structure and setting local state only
+                const newAvatarUrl = data.url || URL.createObjectURL(file);
                 setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
             } else {
                 const errorData = await res.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /users/me/avatar FAILED:", errorData);
-                toast.error(`Failed to update: ${errorData?.message || "Bad Request"}`, { id: loadingToastId });
+                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData);
+                toast.error(`Failed to upload: ${errorData?.message || "Bad Request"}`, { id: loadingToastId });
             }
         } catch (error) {
-            console.error("🔴 [Network Error] PATCH /users/me/avatar crashed:", error);
+            console.error("🔴 [Network Error] POST /upload/avatar crashed:", error);
             toast.error("Network error. Please try again later.", { id: loadingToastId });
         } finally {
             setIsUploadingAvatar(false);
@@ -219,7 +221,6 @@ export default function CreatorNavigationPill() {
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
                     
-                    {/* CHANGED: Layout adjusted for even spacing on mobile while maintaining desktop structure */}
                     <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 md:gap-4">
                         
                         <div className="flex items-center shrink-0">
@@ -241,7 +242,6 @@ export default function CreatorNavigationPill() {
                             </div>
                         </div>
 
-                        {/* CHANGED: Flex-1 and justify-evenly to spread icons out evenly on mobile */}
                         <div className="flex flex-1 justify-evenly items-center md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/creator/dashboard" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/dashboard') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
@@ -249,7 +249,6 @@ export default function CreatorNavigationPill() {
                                         <Squares2X2Icon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block text-[15px]">Dashboard</span>
                                     </div>
-                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
                                     <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/dashboard') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
@@ -260,7 +259,6 @@ export default function CreatorNavigationPill() {
                                         <WalletIcon className="w-6 h-6 sm:w-5 sm:h-5" />
                                         <span className="hidden sm:block text-[15px]">Wallet</span>
                                     </div>
-                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
                                     <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/wallet') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>
@@ -276,7 +274,6 @@ export default function CreatorNavigationPill() {
                                             </span>
                                         )}
                                     </div>
-                                    {/* CHANGED: Hidden on mobile to maintain vertical alignment */}
                                     <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
                                 </div>
                             </Link>

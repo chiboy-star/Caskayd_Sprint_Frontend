@@ -5,7 +5,7 @@ Disallow: /api
 Disallow: /_next
 
 # Host
-Host: https://www.caskaya.com
+Host: https://www.caskayd.com
 
 # Sitemaps
-Sitemap: https://www.caskaya.com/sitemap.xml
+Sitemap: https://www.caskayd.com/sitemap.xml
