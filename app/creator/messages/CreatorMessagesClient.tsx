@@ -11,7 +11,6 @@ import {
     ShieldCheckIcon,
     ArrowLeftIcon,
     XMarkIcon,
-    InformationCircleIcon,
     CheckCircleIcon,
     XCircleIcon
 } from "@heroicons/react/24/outline";
@@ -86,8 +85,14 @@ export default function CreatorMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false); 
+    // Removed isDetailsOpen state here
     
+    // --- VERIFY PAYMENT MODAL STATES ---
+    const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+    const [paymentReference, setPaymentReference] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verificationResult, setVerificationResult] = useState<{status: string, amount?: number} | null>(null);
+
     // Loading States
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [initialLoadingMessages, setInitialLoadingMessages] = useState(false); 
@@ -95,7 +100,6 @@ export default function CreatorMessagesClient() {
     const [newMessage, setNewMessage] = useState("");
     const [isUploadingFile, setIsUploadingFile] = useState(false);
 
-    // ADDED BACK: The missing toast state!
     const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -179,7 +183,6 @@ export default function CreatorMessagesClient() {
                     if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
                 }
 
-                // Mark as read silently
                 if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
                 
                 const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
@@ -189,7 +192,7 @@ export default function CreatorMessagesClient() {
 
                 if (readRes.ok) {
                     if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
-                    fetchUnreadCount(token); // Update global badge
+                    fetchUnreadCount(token); 
                 } else {
                     if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
                 }
@@ -278,7 +281,7 @@ export default function CreatorMessagesClient() {
             console.log(`🔵 [API Request] POST /messages/${activeChatId} (File) | Sent: FormData`);
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${token}` }, // Browser sets multipart boundary
+                headers: { "Authorization": `Bearer ${token}` },
                 body: formData
             });
 
@@ -298,6 +301,47 @@ export default function CreatorMessagesClient() {
         } finally {
             setIsUploadingFile(false);
             if (fileInputRef.current) fileInputRef.current.value = ""; 
+        }
+    };
+
+    // --- 5. VERIFY PAYMENT ---
+    const handleVerifyPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!paymentReference.trim()) return;
+
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        setIsVerifying(true);
+        setVerificationResult(null);
+
+        try {
+            const trimmedRef = paymentReference.trim();
+            console.log(`🔵 [API Request] GET /payments/verify/${trimmedRef}`);
+            
+            const res = await fetch(`${BASE_URL}/payments/verify/${trimmedRef}`, {
+                method: "GET",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) {
+                console.log("🟢 [API Response] GET /payments/verify SUCCESS:", data);
+                // Update state to show success details in the modal
+                setVerificationResult({
+                    status: data.status || "success",
+                    amount: data.amount
+                });
+            } else {
+                console.error("🔴 [API Error] GET /payments/verify FAILED:", data || res.statusText);
+                showToast(data.message || "Verification failed. Check the reference ID.", "error");
+            }
+        } catch (error) {
+            console.error("🔴 [Network Error] Verify payment crashed:", error);
+            showToast("Network error. Please try again.", "error");
+        } finally {
+            setIsVerifying(false);
         }
     };
 
@@ -330,12 +374,14 @@ export default function CreatorMessagesClient() {
 
     const handleChatSelect = (id: string) => {
         setActiveChatId(id);
-        setIsDetailsOpen(false); 
+        // Reset verification states if switching chats
+        setPaymentReference("");
+        setVerificationResult(null);
+        setIsVerifyModalOpen(false);
     };
 
     const handleBackToList = () => { 
         setActiveChatId(null); 
-        setIsDetailsOpen(false); 
     };
 
     return (
@@ -367,7 +413,6 @@ export default function CreatorMessagesClient() {
 
                         <div className="px-6 pt-4 mb-2 flex justify-between items-center shrink-0">
                             <h2 className="text-gray-900 font-bold text-lg">Conversations</h2>
-                            {/* UNREAD BADGE */}
                             {globalUnreadCount > 0 && (
                                 <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                                     {globalUnreadCount} New
@@ -453,12 +498,13 @@ export default function CreatorMessagesClient() {
                                         </div>
                                     </div>
                                     
-                                    <div className="flex items-center gap-4 shrink-0">
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        {/* Added Verify Payment Button to Chat Header */}
                                         <button 
-                                            onClick={() => setIsDetailsOpen(!isDetailsOpen)} 
-                                            className={`p-2 rounded-full transition-colors ${isDetailsOpen ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
+                                            onClick={() => setIsVerifyModalOpen(true)} 
+                                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow-sm cursor-pointer whitespace-nowrap"
                                         >
-                                            <InformationCircleIcon className="w-6 h-6" />
+                                            Verify Payment
                                         </button>
                                     </div>
                                 </div>
@@ -594,35 +640,89 @@ export default function CreatorMessagesClient() {
                             </div>
                         )}
                     </div>
-
-                    {/* --- RIGHT PANEL: PROJECT DETAILS (Absolute Slide Out) --- */}
-                    <div className={`absolute right-0 top-0 h-full bg-white border-l border-gray-100 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] flex flex-col p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] transition-transform duration-300 ease-in-out z-40 w-full md:w-80 ${
-                        isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}>
-                        <div className="flex justify-between items-center mb-6 shrink-0">
-                            <h2 className="font-bold text-gray-900 text-lg">Details</h2>
-                            <button onClick={() => setIsDetailsOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500 cursor-pointer">
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="bg-[#EBE9FE] w-full aspect-[4/5] rounded-3xl flex flex-col items-center justify-center text-[#5B4DFF] mb-auto shrink-0">
-                            <DocumentTextIcon className="w-16 h-16 mb-4 opacity-80" />
-                            <span className="text-sm font-bold">Brief Preview</span>
-                        </div>
-
-                        <div className="w-full bg-[#E8FBE3]/60 rounded-2xl p-5 text-center mt-6 border border-[#D1F7C4] shrink-0">
-                            <div className="flex items-center justify-center gap-1.5 text-[#00D68F] text-xs font-bold mb-4 uppercase tracking-wide">
-                                <ShieldCheckIcon className="w-4 h-4" /> Escrow Funded
-                            </div>
-                            <button className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm cursor-pointer">
-                                Request Payment
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
             </main>
+
+            {/* --- VERIFY PAYMENT MODAL --- */}
+            {isVerifyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 border border-gray-100">
+                        
+                        <button 
+                            onClick={() => {
+                                setIsVerifyModalOpen(false);
+                                setPaymentReference("");
+                                setVerificationResult(null);
+                            }}
+                            className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"
+                        >
+                            <XMarkIcon className="w-6 h-6" />
+                        </button>
+
+                        <div className="flex flex-col mt-2">
+                            <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
+                                <ShieldCheckIcon className="w-8 h-8 text-emerald-600" />
+                            </div>
+
+                            <h2 className="text-2xl font-bold mb-2 text-gray-900">Verify Payment</h2>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Paste the reference ID sent by <span className="font-semibold text-gray-900">{getBusinessName(activeConversation)}</span> to check the payment status.
+                            </p>
+
+                            {/* Show the input form if we haven't successfully verified yet */}
+                            {!verificationResult ? (
+                                <form onSubmit={handleVerifyPayment}>
+                                    <div className="mb-6">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Reference ID</label>
+                                        <input 
+                                            type="text"
+                                            required
+                                            value={paymentReference}
+                                            onChange={(e) => setPaymentReference(e.target.value)}
+                                            placeholder="Caskayd_..."
+                                            className="w-full bg-[#F8F9FB] border border-gray-200 rounded-xl py-3.5 px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 transition-all font-mono text-sm"
+                                        />
+                                    </div>
+
+                                    <button 
+                                        type="submit"
+                                        disabled={isVerifying || !paymentReference.trim()}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {isVerifying ? (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            "Check Status"
+                                        )}
+                                    </button>
+                                </form>
+                            ) : (
+                                /* Show the neat result card after verification */
+                                <div className="bg-[#F8F9FB] rounded-2xl p-6 border border-gray-100 flex flex-col items-center text-center animate-in fade-in">
+                                    <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-sm">
+                                        <CheckCircleIcon className="w-8 h-8" />
+                                    </div>
+                                    <h3 className="font-bold text-xl text-gray-900 mb-1">Payment Verified!</h3>
+                                    <p className="text-gray-500 text-sm mb-6">The escrow account has been successfully funded by the business.</p>
+                                    
+                                    <div className="w-full bg-white rounded-xl border border-gray-200 p-4 space-y-3 text-left shadow-sm">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-500">Status</span>
+                                            <span className="font-bold text-emerald-600 uppercase tracking-wide text-xs bg-emerald-50 px-2 py-1 rounded">{verificationResult.status}</span>
+                                        </div>
+                                        {verificationResult.amount && (
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-500">Funded Amount</span>
+                                                <span className="font-bold text-gray-900 font-mono">₦{verificationResult.amount.toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

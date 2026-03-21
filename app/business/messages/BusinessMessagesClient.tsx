@@ -11,7 +11,7 @@ import {
     ShieldCheckIcon,
     ArrowLeftIcon,
     XMarkIcon,
-    InformationCircleIcon,
+    // Removed InformationCircleIcon since details panel is gone
     BanknotesIcon,
     CheckCircleIcon,
     XCircleIcon
@@ -88,7 +88,7 @@ export default function BusinessMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false); 
+    // Removed isDetailsOpen state here
     
     // --- PAYMENT MODAL STATES ---
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -117,7 +117,6 @@ export default function BusinessMessagesClient() {
             });
             if (res.ok) {
                 const data = await res.json();
-                // Handle both raw numbers or objects like { count: 5 }
                 const count = typeof data === 'number' ? data : (data.count || data.unreadCount || 0);
                 setGlobalUnreadCount(count);
             }
@@ -132,7 +131,6 @@ export default function BusinessMessagesClient() {
                 const token = localStorage.getItem("accessToken");
                 if (!token) return;
 
-                // Fetch Unread Counts
                 await fetchUnreadCount(token);
 
                 console.log("🔵 [API Request] GET /conversations | Sent: No body");
@@ -185,7 +183,6 @@ export default function BusinessMessagesClient() {
                     if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
                 }
 
-                // Mark as read silently
                 if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId} | Sent: No body`);
                 const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                     method: "PATCH",
@@ -194,7 +191,6 @@ export default function BusinessMessagesClient() {
 
                 if (readRes.ok) {
                     if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
-                    // Update global unread count silently after reading
                     fetchUnreadCount(token);
                 } else {
                     if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
@@ -235,7 +231,7 @@ export default function BusinessMessagesClient() {
                 headers: { 
                     "Authorization": `Bearer ${token}`
                 },
-                body: formData // Using FormData as requested by backend
+                body: formData 
             });
 
             if (res.ok) {
@@ -269,7 +265,7 @@ export default function BusinessMessagesClient() {
 
         const formData = new FormData();
         formData.append("type", type);
-        formData.append("content", ""); // Optional text alongside file
+        formData.append("content", ""); 
         formData.append("file", file); 
 
         console.log("-----------------------------------------");
@@ -318,7 +314,7 @@ export default function BusinessMessagesClient() {
 
     // --- 5. HANDLE PAYMENT LOGIC ---
     const handlePaymentSubmit = async () => {
-        if (!paymentAmount || isNaN(Number(paymentAmount)) || !activeConversation) return;
+        if (!paymentAmount || isNaN(Number(paymentAmount)) || !activeConversation || !activeChatId) return;
 
         const token = localStorage.getItem("accessToken");
         if (!token) return;
@@ -346,13 +342,39 @@ export default function BusinessMessagesClient() {
                 console.log("🟢 [API Response] POST /payments/pay SUCCESS:", data);
 
                 const authUrl = data.paymentUrl || data.data?.authorization_url;
+                const reference = data.reference || data.data?.reference;
 
-                if (authUrl) {
+                if (authUrl && reference) {
+                    
+                    try {
+                        const messageContent = `Payment initiated successfully. Reference ID: ${reference}`;
+                        const autoMsgFormData = new FormData();
+                        autoMsgFormData.append("content", messageContent);
+                        autoMsgFormData.append("type", "TEXT");
+
+                        console.log(`🔵 [API Request] POST /messages/${activeChatId} (Automated Reference) PAYLOAD:`, { content: messageContent, type: "TEXT" });
+                        
+                        const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
+                            method: "POST",
+                            headers: { "Authorization": `Bearer ${token}` },
+                            body: autoMsgFormData 
+                        });
+
+                        if (msgRes.ok) {
+                            console.log("🟢 [API Response] POST /messages (Automated Reference) SUCCESS");
+                        } else {
+                            console.error("🔴 [API Error] POST /messages (Automated Reference) FAILED:", await msgRes.text());
+                        }
+                    } catch (msgError) {
+                        console.error("🔴 [Network Error] Failed to send automated reference message:", msgError);
+                    }
+
                     console.log("🔵 [Redirect] Redirecting user to Paystack checkout:", authUrl);
                     window.location.href = authUrl;
+
                 } else {
-                    console.error("🔴 [API Error] Missing authorization_url in response:", data);
-                    alert("Payment initialized, but checkout link was missing from server.");
+                    console.error("🔴 [API Error] Missing authorization_url or reference in response:", data);
+                    alert("Payment initialized, but checkout link or reference was missing from server.");
                     setIsProcessingPayment(false);
                 }
             } else {
@@ -391,12 +413,10 @@ export default function BusinessMessagesClient() {
 
     const handleChatSelect = (id: string) => {
         setActiveChatId(id);
-        setIsDetailsOpen(false); 
     };
 
     const handleBackToList = () => { 
         setActiveChatId(null); 
-        setIsDetailsOpen(false); 
     };
 
     return (
@@ -422,7 +442,6 @@ export default function BusinessMessagesClient() {
                         
                         <div className="px-6 pt-4 mb-2 flex justify-between items-center shrink-0">
                             <h2 className="text-gray-900 font-bold text-lg">Conversations</h2>
-                            {/* UNREAD BADGE */}
                             {globalUnreadCount > 0 && (
                                 <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                                     {globalUnreadCount} New
@@ -477,8 +496,15 @@ export default function BusinessMessagesClient() {
                                             <h2 className="font-bold text-gray-900 text-base leading-tight truncate">{getCreatorName(activeConversation)}</h2>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4 shrink-0">
-                                        <button onClick={() => setIsDetailsOpen(!isDetailsOpen)} className={`p-2 rounded-full transition-colors ${isDetailsOpen ? 'bg-indigo-50 text-[#5B4DFF]' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}><InformationCircleIcon className="w-6 h-6" /></button>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        
+                                        <button 
+                                            onClick={() => setIsPaymentModalOpen(true)}
+                                            className="bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                                        >
+                                            Pay Creator
+                                        </button>
+                                        
                                     </div>
                                 </div>
 
@@ -503,7 +529,6 @@ export default function BusinessMessagesClient() {
                                                     
                                                     <div className={`px-5 py-3 text-sm leading-relaxed shadow-sm break-words ${sentByMe ? "bg-[#5B4DFF] text-white rounded-2xl rounded-br-none" : "bg-[#F3F4F6] text-gray-900 rounded-2xl rounded-bl-none"}`}>
                                                         
-                                                        {/* --- UPDATED RENDER LOGIC FOR CONTENT TYPES --- */}
                                                         {msg.type === "IMAGE" && msg.fileUrl && (
                                                             <div className="relative w-48 h-48 rounded-lg overflow-hidden border border-white/20 mb-2">
                                                                 <Image src={msg.fileUrl} alt={msg.fileName || "Uploaded image"} fill className="object-cover" />
@@ -523,7 +548,6 @@ export default function BusinessMessagesClient() {
                                                             </a>
                                                         )}
 
-                                                        {/* Render text content if it exists */}
                                                         {msg.content && (
                                                             <span>{msg.content}</span>
                                                         )}
@@ -572,36 +596,6 @@ export default function BusinessMessagesClient() {
                             </div>
                         )}
                     </div>
-
-                    {/* --- RIGHT PANEL: PROJECT DETAILS (Absolute Slide Out) --- */}
-                    <div className={`absolute right-0 top-0 h-full bg-white border-l border-gray-100 shadow-[-10px_0_30px_rgba(0,0,0,0.05)] flex flex-col p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] transition-transform duration-300 ease-in-out z-40 w-full md:w-80 ${
-                        isDetailsOpen ? 'translate-x-0' : 'translate-x-full'
-                    }`}>
-                        <div className="flex justify-between items-center mb-6 shrink-0">
-                            <h2 className="font-bold text-gray-900 text-lg">Details</h2>
-                            <button onClick={() => setIsDetailsOpen(false)} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="bg-[#EBE9FE] w-full aspect-[4/5] rounded-3xl flex flex-col items-center justify-center text-[#5B4DFF] mb-auto shrink-0">
-                            <DocumentTextIcon className="w-16 h-16 mb-4 opacity-80" />
-                            <span className="text-sm font-bold">Brief Preview</span>
-                        </div>
-
-                        <div className="w-full bg-[#E8FBE3]/60 rounded-2xl p-5 text-center mt-6 border border-[#D1F7C4] shrink-0">
-                            <div className="flex items-center justify-center gap-1.5 text-[#00D68F] text-xs font-bold mb-4 uppercase tracking-wide">
-                                <ShieldCheckIcon className="w-4 h-4" /> Escrow Ready
-                            </div>
-                            <button 
-                                onClick={() => setIsPaymentModalOpen(true)}
-                                className="w-full bg-[#D1F7C4] hover:bg-[#bbf0aa] text-[#0A4D36] font-bold py-3.5 rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
-                            >
-                                Pay Creator
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
             </main>
 
