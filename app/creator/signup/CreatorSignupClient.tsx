@@ -275,7 +275,7 @@ export default function CreatorSignupClient() {
         if (!formData.email || !formData.password) return showError("Please fill in all fields");
         if (!EMAIL_REGEX.test(formData.email)) return showError("Please enter a valid email address");
         if (formData.password.length < 6) return showError("Password must be at least 6 characters");
-        if (!hasAcceptedTerms) return showError("You must agree to the Terms and Privacy Policy to create an account.");
+        if (!hasAcceptedTerms) return showError("Kindly go through and accept the Terms and Privacy Policy to create an account.");
         
         setIsLoading(true);
 

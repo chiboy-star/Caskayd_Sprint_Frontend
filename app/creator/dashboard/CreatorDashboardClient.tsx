@@ -281,7 +281,7 @@ export default function CreatorDashboardClient() {
                                 
                                 <div className="flex items-center gap-3 mt-2">
                                     <span className="text-sm text-gray-600 font-medium bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
-                                        proposedPrice: ₦{Number(invite.proposedPrice).toLocaleString()}
+                                        Proposed price: ₦{Number(invite.proposedPrice).toLocaleString()}
                                     </span>
                                 </div>
                             </div>

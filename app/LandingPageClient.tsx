@@ -174,13 +174,13 @@ export default function LandingPageClient() {
                     </Link>
                     <div className="flex items-center gap-10">
                         <Link 
-                            href="/business/login" 
+                            href="/business/signup" 
                             className="font-bold text-lg bg-gradient-to-b from-[#7D7FF3] to-[#212250] bg-clip-text text-transparent hover:opacity-80 transition-opacity"
                         >
                             Business    
                         </Link>
                         <Link 
-                            href="/creator/login" 
+                            href="/creator/signup" 
                             className="font-bold text-lg bg-gradient-to-b from-[#37C496] to-[#053D2B] bg-clip-text text-transparent hover:opacity-80 transition-opacity"
                         >
                             Creator
