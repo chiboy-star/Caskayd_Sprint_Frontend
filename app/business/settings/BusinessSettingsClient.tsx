@@ -243,7 +243,7 @@ export default function BusinessSettingsClient() {
 
                 {/* --- SIDEBAR --- */}
                 <div className="w-full md:w-64 bg-white rounded-3xl p-4 shadow-sm border border-gray-100 shrink-0">
-                    <h2 className="text-xl font-bold mb-6 px-4 pt-2">Settings</h2>
+                    <h2 className="text-xl font-bold mb-6 px-4 pt-2 text-black">Settings</h2>
                     <div className="flex flex-col gap-2">
                         <button
                             onClick={() => setActiveTab("general")}
