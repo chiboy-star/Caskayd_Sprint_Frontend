@@ -10,7 +10,8 @@ import {
   EyeSlashIcon, 
   CheckCircleIcon,
   XCircleIcon,
-  XMarkIcon // Added icon to close the modal
+  XMarkIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -249,6 +250,9 @@ export default function CreatorLoginClient() {
       </div>
 
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-linear-to-b from-emerald-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
+      <button onClick={() => router.back()} className="absolute top-6 left-6 md:hidden text-gray-500 hover:text-gray-900 z-50 cursor-pointer transition-colors">
+            <ArrowLeftIcon className="w-6 h-6" />
+        </button>
         <div className="max-w-md w-full relative">
           
           <div className="text-center flex flex-col items-center mb-10">

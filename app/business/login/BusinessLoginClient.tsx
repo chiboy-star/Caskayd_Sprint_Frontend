@@ -10,7 +10,8 @@ import {
   EyeSlashIcon,
   CheckCircleIcon,
   XCircleIcon,
-  XMarkIcon // Added this for the modal close button
+  XMarkIcon,
+  ArrowLeftIcon // added the back arrow icon // Added this for the modal close button
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -249,8 +250,11 @@ export default function BusinessLoginClient() {
       </div>
 
       <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-6 md:p-8 bg-gradient-to-b from-indigo-50/80 to-white md:bg-none md:bg-[#F9FAFB] min-h-screen relative">
+       <button onClick={() => router.back()} className="absolute top-6 left-6 md:hidden text-gray-500 hover:text-gray-900 z-50 cursor-pointer transition-colors">
+            <ArrowLeftIcon className="w-6 h-6" />
+        </button>
         <div className="max-w-md w-full relative flex flex-col h-full justify-center">
-          
+         
           <div className="mb-10 flex flex-col items-center text-center">
             <h1 className="sr-only">Log in to your Caskayd Business Account</h1>
             <div className="relative w-48 h-16 md:w-40 md:h-12 mb-6"> 

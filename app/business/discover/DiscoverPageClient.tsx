@@ -47,9 +47,15 @@ interface CreatorProfile {
 }
 
 // --- CONFIGURATION ---
+// updated niches to the new provided list
+const AVAILABLE_NICHES = [
+    "Food & Food Stuff", "Beverages", "Electronics/Gadgets", "Flowers & Floral-inspired Gifts",
+    "Gifts & Gift packages", "Arts & Crafts", "Retail (General)", "Clothing", 
+    "Jewelry & Accessories", "Footwear", "Extensions", "Bags", "Perfumes", 
+    "Skincare", "Transportation / Travel", "Hospitality Services", "Product Customization"
+];
+
 const FILTER_OPTIONS = {
-  niche: ["fitness", "education", "fashion", "beauty", "tech", 
-  "lifestyle", "business", "travel", "food", "entertainment"],
   price: [
       { label: "Under ₦50k", value: "50000" },
       { label: "Under ₦100k", value: "100000" },
@@ -110,50 +116,108 @@ const TiktokIcon = ({ className }: { className?: string }) => (
 );
 
 const FilterDropdown = ({ label, options, onSelect }: { label: string, options: FilterOption[], onSelect: (val: string) => void }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen ? 'text-black' : 'text-gray-500 hover:text-black cursor-pointer'}`}
+            >
+                {label}
+                <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="py-2 max-h-60 overflow-y-auto">
+                        {options.map((option, idx) => {
+                            const displayLabel = typeof option === 'object' ? option.label : option;
+                            const returnValue = typeof option === 'object' ? option.value : option;
+                            return (
+                                <button 
+                                    key={idx} 
+                                    className="w-full text-left px-4 py-3 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-50 last:border-0 cursor-pointer"
+                                    onClick={() => { onSelect(returnValue); setIsOpen(false); }}
+                                >
+                                    {displayLabel}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// added a custom multi-select dropdown for the niches
+const MultiSelectDropdown = ({ label, options, selectedValues, onToggle }: { label: string, options: string[], selectedValues: string[], onToggle: (val: string[]) => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleToggle = (option: string) => {
+        if (selectedValues.includes(option)) {
+            onToggle(selectedValues.filter(v => v !== option));
+        } else {
+            onToggle([...selectedValues, option]);
+        }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen ? 'text-black' : 'text-gray-500 hover:text-black cursor-pointer'}`}
-      >
-        {label}
-        <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2 bg-transparent text-sm font-semibold transition-all whitespace-nowrap ${isOpen || selectedValues.length > 0 ? 'text-black' : 'text-gray-500 hover:text-black cursor-pointer'}`}
+            >
+                {selectedValues.length > 0 ? `${selectedValues.length} Selected` : label}
+                <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-      {isOpen && (
-          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-            <div className="py-2">
-              {options.map((option, idx) => {
-                const displayLabel = typeof option === 'object' ? option.label : option;
-                const returnValue = typeof option === 'object' ? option.value : option;
-                return (
-                    <button 
-                      key={idx} 
-                      className="w-full text-left px-4 py-3 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-emerald-600 transition-colors border-b border-gray-50 last:border-0 cursor-pointer"
-                      onClick={() => { onSelect(returnValue); setIsOpen(false); }}
-                    >
-                      {displayLabel}
-                    </button>
-                );
-              })}
-            </div>
-          </div>
-      )}
-    </div>
-  );
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="py-2 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+                        {options.map((option, idx) => {
+                            const isSelected = selectedValues.includes(option);
+                            return (
+                                <div 
+                                    key={idx} 
+                                    onClick={() => handleToggle(option)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-medium transition-colors border-b border-gray-50 last:border-0 cursor-pointer ${isSelected ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                                >
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300'}`}>
+                                        {isSelected && <CheckCircleIcon className="w-3 h-3" />}
+                                    </div>
+                                    <span className="flex-1 text-left">{option}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 // --- CREATOR DETAILS MODAL (RESPONSIVE) ---
@@ -251,7 +315,7 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                 </div>
 
                 {/* --- DESKTOP VIEW: HORIZONTAL WHITE SPLIT (Visible only on md+ screens) --- */}
-                <div className="hidden md:flex w-full items-stretch gap-12">
+                <div className="hidden md:flex w-full items-stretch gap-10 lg:gap-12">
                     
                     {/* Left: Huge Image */}
                     <div className="w-[45%] relative rounded-[2rem] overflow-hidden bg-gray-100 shrink-0 shadow-inner min-h-[450px]">
@@ -275,10 +339,10 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                     {/* Right: Details & Actions */}
                     <div className="flex-1 flex flex-col py-2">
                         
-                        <div className="mb-8 pr-10">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">{creator.displayName || "Unknown Creator"}</h2>
-                                <CheckBadgeIcon className="w-8 h-8 text-emerald-500 shrink-0" />
+                        <div className="mb-8 pr-12 relative">
+                            <div className="flex items-start gap-3 mb-1">
+                                <h2 className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight break-words line-clamp-2">{creator.displayName || "Unknown Creator"}</h2>
+                                <CheckBadgeIcon className="w-8 h-8 text-emerald-500 shrink-0 mt-1" />
                             </div>
                         </div>
 
@@ -317,26 +381,26 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                                 <button 
                                     onClick={() => handleSocialClick(igLink)} 
                                     disabled={!igLink} 
-                                    className="flex-1 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200 transition-all cursor-pointer"
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200/50 transition-all cursor-pointer"
                                 >
-                                    View Instagram Profile <ArrowTopRightOnSquareIcon className="w-4 h-4 opacity-80" />
+                                    <InstagramIcon className="w-5 h-5" /> Instagram
                                 </button>
                                 
                                 <button 
                                     onClick={() => handleSocialClick(tkLink)} 
                                     disabled={!tkLink} 
-                                    className="flex-1 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-gray-500 hover:bg-gray-600 text-white transition-colors cursor-pointer"
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-black hover:bg-gray-800 text-white shadow-md transition-colors cursor-pointer"
                                 >
-                                    View TikTok Profile <ArrowTopRightOnSquareIcon className="w-4 h-4 opacity-80" />
+                                    <TiktokIcon className="w-5 h-5" /> TikTok
                                 </button>
                             </div>
 
                             {/* Invite Button */}
                             <button 
                                 onClick={() => { onClose(); onInvite(creator); }}
-                                className="w-full bg-gray-50 hover:bg-gray-100 text-slate-900 font-extrabold py-4 rounded-xl transition-colors active:scale-[0.98] cursor-pointer text-lg mt-1 border border-gray-200"
+                                className="w-full bg-white hover:bg-gray-50 text-slate-900 font-extrabold py-4 rounded-2xl transition-all active:scale-[0.98] cursor-pointer text-lg mt-3 border-2 border-gray-100 shadow-sm"
                             >
-                                Invite To Campaign +
+                                Send Request +
                             </button>
 
                         </div>
@@ -587,8 +651,6 @@ export default function DiscoverPageClient() {
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedInviteCreator, setSelectedInviteCreator] = useState<CreatorProfile | null>(null);
-
-  
   
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDetailsCreator, setSelectedDetailsCreator] = useState<CreatorProfile | null>(null);
@@ -603,16 +665,37 @@ export default function DiscoverPageClient() {
   const [loading, setLoading] = useState(true);
   
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ niche: "", price: "", platform: "" });
+  // updated filters state to hold an array of niches
+  const [filters, setFilters] = useState({ niche: [] as string[], price: "", platform: "" });
 
-  
+  // tracking when the main search bar scrolls out of view
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [isSearchScrolledPast, setIsSearchScrolledPast] = useState(false);
+
+  // floating UI states
+  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
+  const [showFloatingFilterModal, setShowFloatingFilterModal] = useState(false);
+
+  useEffect(() => {
+      // observer to toggle floating action bar
+      const observer = new IntersectionObserver(([entry]) => {
+          setIsSearchScrolledPast(!entry.isIntersecting);
+      }, { threshold: 0 });
+
+      if (searchContainerRef.current) {
+          observer.observe(searchContainerRef.current);
+      }
+
+      return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
       const fetchCreators = async () => {
           setLoading(true);
           try {
               const params = new URLSearchParams();
-              if (filters.niche) params.append("niche", filters.niche.toLowerCase());
+              // updated to join multiple niches by comma
+              if (filters.niche.length > 0) params.append("niche", filters.niche.join(",").toLowerCase());
               
               const url = `${BASE_URL}/creator${params.toString() ? `?${params.toString()}` : ''}`;
               console.log(`🔵 [API Request] GET ${url}`);
@@ -637,7 +720,7 @@ export default function DiscoverPageClient() {
       fetchCreators();
   }, [filters.niche]); 
 
-  const handleFilterSelect = (type: string, value: string) => {
+  const handleFilterSelect = (type: string, value: string | string[]) => {
       setFilters(prev => ({ ...prev, [type]: value }));
   };
 
@@ -680,17 +763,24 @@ export default function DiscoverPageClient() {
           const priceVal = Number(filters.price);
           const creatorPrice = Number(creator.pricePerPost) || 0;
           
-          if (priceVal === 500001) { // 500k+ selected
+          if (priceVal === 500001) { 
               matchesPrice = creatorPrice >= 500000;
-          } else { // 50k, 100k, 500k selected
+          } else { 
               matchesPrice = creatorPrice <= priceVal;
           }
       }
 
-      return matchesSearch && matchesPrice;
+      // 3. Local Niche Filter (handles arrays now)
+      let matchesNiche = true;
+      if (filters.niche.length > 0) {
+          const creatorNichesLower = (creator.niches || []).map(n => n.toLowerCase());
+          // check if the creator has AT LEAST ONE of the selected niches
+          matchesNiche = filters.niche.some(selected => creatorNichesLower.includes(selected.toLowerCase()));
+      }
+
+      return matchesSearch && matchesPrice && matchesNiche;
   });
 
-  // SEO: Structured data for the Discover page
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -700,8 +790,7 @@ export default function DiscoverPageClient() {
   };
 
   return (
-    <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className} overflow-x-hidden`}>
-      {/* Inject Structured Data into the DOM */}
+    <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className} overflow-x-hidden relative`}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -713,6 +802,69 @@ export default function DiscoverPageClient() {
         isVisible={toast.visible} 
         onClose={() => setToast(prev => ({ ...prev, visible: false }))} 
       />
+
+      {/* Transparent Floating Filter Modal */}
+      {showFloatingFilterModal && (
+        <div onClick={() => setShowFloatingFilterModal(false)} className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-sm flex items-start justify-center pt-32 animate-in fade-in duration-200">
+            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm flex flex-col gap-4 animate-in slide-in-from-top-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
+                    <h3 className="font-bold text-lg">Filters</h3>
+                    <button onClick={() => setShowFloatingFilterModal(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors cursor-pointer">
+                        <XMarkIcon className="w-5 h-5 text-gray-600" />
+                    </button>
+                </div>
+                
+                {/* Reusing our custom components inside the modal */}
+                <div className="flex flex-col gap-4">
+                    <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches Selected" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
+                    <FilterDropdown label="Price Range" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
+                </div>
+
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <button onClick={() => setFilters({ niche: [], price: "", platform: "" })} className="flex-1 py-3 bg-gray-100 font-bold rounded-xl text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer">Clear</button>
+                    <button onClick={() => setShowFloatingFilterModal(false)} className="flex-1 py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-900 transition-colors cursor-pointer">Apply</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Floating Action Bar (Top Right) */}
+      {isSearchScrolledPast && (
+          // Adjusted the top value and z-index to clear the NavigationPill
+          <div className="fixed top-[130px] md:top-[140px] right-4 md:right-8 z-50 flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+              
+              {/* Sliding Search Input */}
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFloatingSearch ? 'w-48 md:w-64 opacity-100 mr-1' : 'w-0 opacity-0 mr-0'}`}>
+                  <input 
+                      type="text" 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search creators..." 
+                      className="w-full bg-white rounded-full py-2.5 px-4 shadow-lg border border-gray-100 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100" 
+                  />
+              </div>
+
+              {/* Toggle Search Button */}
+              <button 
+                  onClick={() => setShowFloatingSearch(!showFloatingSearch)}
+                  className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
+              >
+                  {showFloatingSearch ? <XMarkIcon className="w-5 h-5" /> : <MagnifyingGlassIcon className="w-5 h-5" />}
+              </button>
+
+              {/* Open Filter Modal Button */}
+              <button 
+                  onClick={() => setShowFloatingFilterModal(true)}
+                  className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-900 transition-colors cursor-pointer relative"
+              >
+                  <AdjustmentsHorizontalIcon className="w-5 h-5" />
+                  {/* notification dot if filters are active */}
+                  {(filters.niche.length > 0 || filters.price) && (
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-black"></span>
+                  )}
+              </button>
+          </div>
+      )}
 
       <InviteModal 
         isOpen={isInviteModalOpen} 
@@ -732,11 +884,10 @@ export default function DiscoverPageClient() {
 
       <main className="w-full flex-1 pb-32 pt-[160px] md:pt-[180px]">
         
-        {/* SEO Fix: Hidden H1 for context */}
         <h1 className="sr-only">Discover Top Content Creators</h1>
 
         {/* SEARCH & FILTERS SECTION */}
-        <div className="px-4 md:px-8">
+        <div className="px-4 md:px-8" ref={searchContainerRef}>
             <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
                 
                 <div className="w-full max-w-lg relative group">
@@ -761,13 +912,14 @@ export default function DiscoverPageClient() {
                     {showFilters && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                             <div className="bg-white rounded-full px-2 py-1 shadow-sm border border-gray-100 flex items-center">
-                                <FilterDropdown label={filters.niche || "Niche"} options={FILTER_OPTIONS.niche} onSelect={(val) => handleFilterSelect("niche", val)} />
+                                {/* Using the new multi-select component */}
+                                <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
                                 <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
                                 <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
                             </div>
                             
-                            {(filters.niche || filters.price || filters.platform) && (
-                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: "", price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
+                            {(filters.niche.length > 0 || filters.price || filters.platform) && (
+                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: [], price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
                             )}

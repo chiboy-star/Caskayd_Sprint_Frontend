@@ -85,7 +85,8 @@ export default function CreatorMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    // Removed isDetailsOpen state here
+    // track what the user types in the search bar
+    const [searchQuery, setSearchQuery] = useState("");
     
     // --- VERIFY PAYMENT MODAL STATES ---
     const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
@@ -328,7 +329,6 @@ export default function CreatorMessagesClient() {
 
             if (res.ok) {
                 console.log("🟢 [API Response] GET /payments/verify SUCCESS:", data);
-                // Update state to show success details in the modal
                 setVerificationResult({
                     status: data.status || "success",
                     amount: data.amount
@@ -374,7 +374,6 @@ export default function CreatorMessagesClient() {
 
     const handleChatSelect = (id: string) => {
         setActiveChatId(id);
-        // Reset verification states if switching chats
         setPaymentReference("");
         setVerificationResult(null);
         setIsVerifyModalOpen(false);
@@ -383,6 +382,11 @@ export default function CreatorMessagesClient() {
     const handleBackToList = () => { 
         setActiveChatId(null); 
     };
+
+    // only show conversations that match the search query
+    const filteredConversations = conversations.filter(chat => 
+        getBusinessName(chat).toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className={`h-screen w-full flex flex-col bg-[#F8F9FB] ${inter.className} overflow-hidden`}>
@@ -406,6 +410,8 @@ export default function CreatorMessagesClient() {
                                 <input 
                                     type="text" 
                                     placeholder="Search here" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full bg-white rounded-full py-3 pl-11 pr-4 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-shadow" 
                                 />
                             </div>
@@ -435,8 +441,10 @@ export default function CreatorMessagesClient() {
                                 </div>
                             ) : conversations.length === 0 ? (
                                 <div className="p-4 text-center text-gray-400 text-sm">No conversations yet.</div>
+                            ) : filteredConversations.length === 0 ? (
+                                <div className="p-4 text-center text-gray-400 text-sm">No matches found.</div>
                             ) : (
-                                conversations.map((chat) => {
+                                filteredConversations.map((chat) => {
                                     const name = getBusinessName(chat);
                                     const initial = getInitial(name);
                                     const isActive = activeChatId === chat.conversationId;
@@ -499,7 +507,6 @@ export default function CreatorMessagesClient() {
                                     </div>
                                     
                                     <div className="flex items-center gap-3 shrink-0">
-                                        {/* Added Verify Payment Button to Chat Header */}
                                         <button 
                                             onClick={() => setIsVerifyModalOpen(true)} 
                                             className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold py-2 px-4 rounded-xl text-sm transition-colors shadow-sm cursor-pointer whitespace-nowrap"

@@ -48,21 +48,26 @@ const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
 const SmoothSwitch = ({ activeKey, children }: { activeKey: string, children: React.ReactNode }) => {
     const [currentChild, setCurrentChild] = useState(children);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    // keeping track of the previous key to know if we are actually switching tabs
+    const prevKey = useRef(activeKey);
 
     useEffect(() => {
-        // start the fade out animation
-        setIsTransitioning(true);
-        const timeout = setTimeout(() => {
-            // swap the content exactly halfway through
+        if (prevKey.current !== activeKey) {
+            // start the fade out animation because the tab changed
+            setIsTransitioning(true);
+            const timeout = setTimeout(() => {
+                // swap the content exactly halfway through
+                setCurrentChild(children);
+                setIsTransitioning(false);
+                prevKey.current = activeKey;
+            }, 200);
+            
+            return () => clearTimeout(timeout);
+        } else {
+            // just update the content directly so things like FAQ clicks still work
             setCurrentChild(children);
-            setIsTransitioning(false);
-        }, 200);
-
-        // clear the timeout if the user clicks too fast
-        return () => clearTimeout(timeout);
-        // only trigger this effect when the activeKey actually changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeKey]);
+        }
+    }, [activeKey, children]);
 
     return (
         <div className={`w-full transition-all duration-300 ease-in-out transform ${isTransitioning ? "opacity-0 scale-[0.98] translate-y-2" : "opacity-100 scale-100 translate-y-0"}`}>
@@ -354,7 +359,8 @@ export default function LandingPageClient() {
                             {activeRole === "creators" ? (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
                                     <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        {/* removed background and shadow padding from image container */}
+                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative flex items-center justify-center mb-8 mx-auto">
                                             <Image src="/images/LandingCardCreator1.webp" alt="Sync Analytics" fill className="object-contain" />
                                         </div>
                                         <h3 className="font-bold text-xl mb-3 flex items-baseline gap-2">
@@ -366,7 +372,8 @@ export default function LandingPageClient() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        {/* removed background and shadow padding from image container */}
+                                        <div className="h-32 w-32 relative flex items-center justify-center mb-8 mx-auto">
                                             <Image src="/images/LandingCardCreator2.webp" alt="Review Brand Offers" fill className="object-contain" />
                                         </div>
                                         <h3 className="font-bold text-xl mb-3 flex items-baseline gap-2">
@@ -378,7 +385,8 @@ export default function LandingPageClient() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto bg-white">
+                                        {/* removed background and shadow padding from image container */}
+                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative flex items-center justify-center mb-8 mx-auto">
                                             <Image src="/images/LandingCardCreator3.webp" alt="Deliver & Withdraw" fill className="object-contain" />
                                         </div>
                                         <h3 className="font-bold text-xl mb-3 flex items-baseline gap-2">
@@ -392,11 +400,12 @@ export default function LandingPageClient() {
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left">
                                     <div className="flex flex-col">
+                                        {/* removed background and shadow padding from image container */}
                                         <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative mb-8 mx-auto flex items-center justify-center">
-                                            <div className="absolute left-4 bottom-2 w-36 h-21 rounded-3xl shadow-xl border border-gray-100 overflow-hidden z-10">
+                                            <div className="absolute left-4 bottom-2 w-36 h-21 overflow-hidden z-10">
                                                 <Image src="/images/LandingCardBusiness1.webp" alt="Brand Identity 1" fill className="object-cover" />
                                             </div>
-                                            <div className="absolute right-8 top-0 w-24 h-27 rounded-full shadow-lg border border-gray-100 overflow-hidden z-0">
+                                            <div className="absolute right-8 top-0 w-24 h-27 overflow-hidden z-0">
                                                 <Image src="/images/LandingCardBusiness2.webp" alt="Brand Identity 2" fill className="object-cover" />
                                             </div>
                                         </div>
@@ -409,7 +418,8 @@ export default function LandingPageClient() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <div className="h-32 w-32 relative rounded-[2rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
+                                        {/* removed background and shadow padding from image container */}
+                                        <div className="h-32 w-32 relative flex items-center justify-center mb-8 mx-auto">
                                             <Image src="/images/Brand-sub.webp" alt="Discover Data" fill className="object-contain" />
                                         </div>
                                         <h3 className="font-bold text-xl mb-3 flex items-baseline gap-2">
@@ -421,7 +431,8 @@ export default function LandingPageClient() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative rounded-[3rem] shadow-lg flex items-center justify-center mb-8 overflow-hidden mx-auto ">
+                                        {/* removed background and shadow padding from image container */}
+                                        <div className="h-32 w-full md:max-w-full lg:max-w-[280px] relative flex items-center justify-center mb-8 mx-auto">
                                             <Image src="/images/LandingCardBusiness4.webp" alt="Fund Securely" fill className="object-contain" />
                                         </div>
                                         <h3 className="font-bold text-xl mb-3 flex items-baseline gap-2">

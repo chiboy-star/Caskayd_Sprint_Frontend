@@ -88,7 +88,8 @@ export default function BusinessMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    // Removed isDetailsOpen state here
+    // --- SEARCH STATE ---
+    const [searchQuery, setSearchQuery] = useState("");
     
     // --- PAYMENT MODAL STATES ---
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -419,6 +420,11 @@ export default function BusinessMessagesClient() {
         setActiveChatId(null); 
     };
 
+    // Filter conversations based on the search query
+    const filteredConversations = conversations.filter(chat => 
+        getCreatorName(chat).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className={`h-screen w-full flex flex-col bg-[#F8F9FB] ${inter.className} overflow-hidden`}>
             
@@ -436,7 +442,13 @@ export default function BusinessMessagesClient() {
                         <div className="p-6 pb-2 shrink-0">
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                                <input type="text" placeholder="Search here" className="w-full bg-white rounded-full py-3 pl-11 pr-4 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search here" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-white rounded-full py-3 pl-11 pr-4 text-sm text-gray-700 placeholder-gray-400 border border-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-shadow" 
+                                />
                             </div>
                         </div>
                         
@@ -454,8 +466,10 @@ export default function BusinessMessagesClient() {
                                 <div className="p-4 text-center text-gray-400 text-sm animate-pulse">Loading chats...</div>
                             ) : conversations.length === 0 ? (
                                 <div className="p-4 text-center text-gray-400 text-sm">No conversations yet.</div>
+                            ) : filteredConversations.length === 0 ? (
+                                <div className="p-4 text-center text-gray-400 text-sm">No matches found.</div>
                             ) : (
-                                conversations.map((chat) => {
+                                filteredConversations.map((chat) => {
                                     const name = getCreatorName(chat);
                                     const initial = getInitial(name);
                                     const isActive = activeChatId === chat.conversationId;
