@@ -16,6 +16,8 @@ import {
     PaperAirplaneIcon,
     Cog6ToothIcon
 } from "@heroicons/react/24/outline";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { toast } from "react-hot-toast"; // Or use your custom Toast
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -72,6 +74,18 @@ export default function NavigationPill() {
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
 
     // Fetch initial data on mount and poll alerts
+    usePushNotifications((payload) => {
+    // This runs when a message hits while the app is actively open
+    const title = payload?.notification?.title || "New Message";
+    const body = payload?.notification?.body || "You have a new message.";
+    
+    // Fire your custom toast or react-hot-toast
+    showToast(`${title}: ${body}`, "success");
+    
+    // You can also manually increment your unreadMessages state here!
+    setUnreadMessages(prev => prev + 1);
+});
+
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
@@ -158,6 +172,30 @@ export default function NavigationPill() {
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /chat-requests/business/sent-count crashed:", error);
+            }
+
+            try {
+                const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (msgRes.ok) {
+                    const msgCount = await msgRes.text(); 
+                    const count = Number(msgCount) || 0;
+                    setUnreadMessages(count);
+
+                    // --- NEW: UPDATE THE APP ICON BADGE ---
+                    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+                        if (count > 0) {
+                            navigator.setAppBadge(count); // Shows the red dot with the number
+                        } else {
+                            navigator.clearAppBadge(); // Removes the red dot when read
+                        }
+                    }
+                    // --------------------------------------
+
+                }
+            } catch (error) {
+                console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
         };
 

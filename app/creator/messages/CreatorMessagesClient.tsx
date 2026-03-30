@@ -15,6 +15,7 @@ import {
     XCircleIcon
 } from "@heroicons/react/24/outline";
 import { Inter } from "next/font/google";
+import { useSocket } from "@/components/SocketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -71,7 +72,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     return (
         <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
-            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
             <span className="font-bold text-sm">{message}</span>
@@ -84,17 +85,15 @@ export default function CreatorMessagesClient() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
+    const { socket, isConnected } = useSocket();
     
-    // track what the user types in the search bar
     const [searchQuery, setSearchQuery] = useState("");
     
-    // --- VERIFY PAYMENT MODAL STATES ---
     const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
     const [paymentReference, setPaymentReference] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationResult, setVerificationResult] = useState<{status: string, amount?: number} | null>(null);
 
-    // Loading States
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [initialLoadingMessages, setInitialLoadingMessages] = useState(false); 
     
@@ -108,7 +107,17 @@ export default function CreatorMessagesClient() {
 
     const showToast = (message: string, type: "success"|"error") => setToast({ message, type, isVisible: true });
 
-    // --- 1. FETCH CONVERSATIONS & UNREAD COUNT ---
+    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
+
+    const isMe = (msg: Message) => {
+        if (!activeConversation) return false;
+        if (msg?.sender?.id === "me") return true; 
+
+        const senderId = msg?.sender?.id;
+        if (!senderId) return false;
+        return senderId !== activeConversation.userId;
+    };
+
     const fetchUnreadCount = async (token: string) => {
         try {
             const res = await fetch(`${BASE_URL}/messages/unread/count`, {
@@ -121,6 +130,47 @@ export default function CreatorMessagesClient() {
             }
         } catch (error) {
             console.error("🔴 [Network Error] GET /messages/unread/count failed:", error);
+        }
+    };
+
+    // --- API FALLBACK: Fetch Messages Function ---
+    const fetchMessages = async (showLoadingState = false) => {
+        if (!activeChatId) return;
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        if (showLoadingState) setInitialLoadingMessages(true);
+
+        try {
+            const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const sorted = data.sort((a: Message, b: Message) => 
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                
+                setMessages(prev => {
+                    if (prev.length !== sorted.length) {
+                        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                        return sorted;
+                    }
+                    return prev;
+                });
+            }
+
+            await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+                method: "PATCH",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            fetchUnreadCount(token);
+            
+        } catch (error) {
+            console.error("🔴 [Fallback Polling Error]:", error);
+        } finally {
+            if (showLoadingState) setInitialLoadingMessages(false);
         }
     };
 
@@ -155,63 +205,39 @@ export default function CreatorMessagesClient() {
         fetchConversations();
     }, []);
 
-    // --- 2. FETCH MESSAGES (POLLING) ---
+    // Reworked Chat UseEffect to incorporate polling
     useEffect(() => {
-        if (!activeChatId) return;
-
-        const fetchMessages = async (isBackground = false) => {
-            if (!isBackground) setInitialLoadingMessages(true);
-            
-            const token = localStorage.getItem("accessToken");
-            if (!token) return;
-
-            try {
-                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
-                
-                const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (!isBackground) console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS:`, data);
-                    
-                    const sorted = data.sort((a: Message, b: Message) => 
-                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    );
-                    setMessages(sorted);
-                } else {
-                    if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
-                }
-
-                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
-                
-                const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
-                    method: "PATCH",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (readRes.ok) {
-                    if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
-                    fetchUnreadCount(token); 
-                } else {
-                    if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
-                }
-
-            } catch (error) {
-                console.error("🔴 [Network Error] Failed to fetch messages:", error);
-            } finally {
-                if (!isBackground) setInitialLoadingMessages(false);
+        if (!activeChatId) {
+            if (socket && isConnected) {
+                socket.emit("active_chat", { conversationId: null });
             }
+            return;
+        }
+
+        if (socket && isConnected) {
+            console.log(`🔵 [WebSocket] Emitting active_chat for: ${activeChatId}`);
+            socket.emit("active_chat", { conversationId: activeChatId });
+        }
+
+        fetchMessages(true);
+
+        const pollInterval = setInterval(() => {
+            fetchMessages();
+        }, 3000);
+
+        const handleIncomingMessage = (payload: any) => {
+            console.log("🟢 [WebSocket] Real-time message detected, triggering fetch...");
+            fetchMessages(); 
         };
 
-        fetchMessages(false);
-        const poller = setInterval(() => fetchMessages(true), 3000); 
-        return () => clearInterval(poller);
+        if (socket) socket.on("new_message", handleIncomingMessage);
 
-    }, [activeChatId]);
+        return () => {
+            clearInterval(pollInterval);
+            if (socket) socket.off("new_message", handleIncomingMessage);
+        };
+    }, [activeChatId, socket, isConnected]); 
 
-    // --- 3. SEND TEXT MESSAGE ---
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
@@ -222,29 +248,31 @@ export default function CreatorMessagesClient() {
         setNewMessage(""); 
 
         try {
-            const formData = new FormData();
-            formData.append("content", messageToSend);
-            formData.append("type", "TEXT");
+            const payload = {
+                type: "TEXT", 
+                content: messageToSend
+            };
 
-            console.log(`🔵 [API Request] POST /messages/${activeChatId} PAYLOAD:`, { content: messageToSend, type: "TEXT" });
+            console.log(`🔵 [API Request] POST /messages/${activeChatId} PAYLOAD:`, payload);
 
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: formData
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
-                const savedMessage = await res.json();
-                console.log("🟢 [API Response] POST /messages SUCCESS:", savedMessage);
-                
-                setMessages(prev => [...prev, savedMessage]);
-                scrollToBottom();
+                console.log("🟢 [API Response] POST /messages SUCCESS");
+                fetchMessages(); 
             } else {
-                console.error("🔴 [API Error] POST /messages FAILED:", await res.text());
+                const errText = await res.text();
+                console.error("🔴 [API Error] POST /messages FAILED:", errText);
                 setNewMessage(messageToSend); 
+                showToast("Failed to send message. Check console.", "error");
             }
         } catch (error) {
             console.error("🔴 [Network Error] POST /messages crashed:", error);
@@ -252,7 +280,6 @@ export default function CreatorMessagesClient() {
         }
     };
 
-    // --- 4. HANDLE FILE UPLOAD ---
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !activeChatId) return;
@@ -271,13 +298,6 @@ export default function CreatorMessagesClient() {
         formData.append("content", ""); 
         formData.append("file", file); 
 
-        console.log("-----------------------------------------");
-        console.log("📦 FORM DATA ENTRIES BEING SENT TO BACKEND:");
-        for (let [key, value] of (formData as any).entries()) {
-            console.log(`- ${key}:`, value instanceof File ? `File(${value.name}, type: ${value.type})` : value);
-        }
-        console.log("-----------------------------------------");
-
         try {
             console.log(`🔵 [API Request] POST /messages/${activeChatId} (File) | Sent: FormData`);
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
@@ -287,10 +307,8 @@ export default function CreatorMessagesClient() {
             });
 
             if (msgRes.ok) {
-                const savedMessage = await msgRes.json();
-                console.log("🟢 [API Response] POST /messages (File) SUCCESS:", savedMessage);
-                setMessages(prev => [...prev, savedMessage]);
-                scrollToBottom();
+                console.log("🟢 [API Response] POST /messages (File) SUCCESS");
+                fetchMessages();
             } else {
                 const errData = await msgRes.json().catch(() => null);
                 console.error(`🔴 [API Error] POST /messages (File) FAILED:`, errData || msgRes.statusText);
@@ -305,7 +323,6 @@ export default function CreatorMessagesClient() {
         }
     };
 
-    // --- 5. VERIFY PAYMENT ---
     const handleVerifyPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!paymentReference.trim()) return;
@@ -351,9 +368,6 @@ export default function CreatorMessagesClient() {
         }, 100);
     };
 
-    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
-
-    // Helpers
     const getBusinessName = (conv?: Conversation) => {
         if (!conv) return "Business";
         return conv.displayName || `User ${conv.userId.substring(0, 4)}`; 
@@ -362,14 +376,6 @@ export default function CreatorMessagesClient() {
     const getInitial = (nameFallback?: string) => {
         if (!nameFallback) return "B";
         return nameFallback.charAt(0).toUpperCase();
-    };
-
-    const isMe = (msg: Message) => {
-        if (!activeConversation) return false;
-        const senderId = msg?.sender?.id;
-        
-        if (!senderId) return false;
-        return senderId !== activeConversation.userId;
     };
 
     const handleChatSelect = (id: string) => {
@@ -383,7 +389,6 @@ export default function CreatorMessagesClient() {
         setActiveChatId(null); 
     };
 
-    // only show conversations that match the search query
     const filteredConversations = conversations.filter(chat => 
         getBusinessName(chat).toLowerCase().includes(searchQuery.toLowerCase())
     );

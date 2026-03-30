@@ -11,12 +11,12 @@ import {
     ShieldCheckIcon,
     ArrowLeftIcon,
     XMarkIcon,
-    // Removed InformationCircleIcon since details panel is gone
     BanknotesIcon,
     CheckCircleIcon,
     XCircleIcon
 } from "@heroicons/react/24/outline";
 import { Inter } from "next/font/google";
+import { useSocket } from "@/components/SocketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -74,7 +74,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     return (
         <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
-            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
             <span className="font-bold text-sm">{message}</span>
@@ -88,19 +88,16 @@ export default function BusinessMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    // --- SEARCH STATE ---
+    const { socket, isConnected } = useSocket();
     const [searchQuery, setSearchQuery] = useState("");
     
-    // --- PAYMENT MODAL STATES ---
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState<string>("");
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     
-    // Loading States
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [initialLoadingMessages, setInitialLoadingMessages] = useState(false); 
     
-    // Message and File states
     const [newMessage, setNewMessage] = useState("");
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
@@ -110,7 +107,46 @@ export default function BusinessMessagesClient() {
 
     const showToast = (message: string, type: "success"|"error") => setToast({ message, type, isVisible: true });
 
-    // --- 1. FETCH CONVERSATIONS & UNREAD COUNT ---
+    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
+
+    const getCreatorName = (conv?: Conversation) => {
+        if (!conv) return "Creator";
+        return conv.displayName || `User ${conv.userId.substring(0, 4)}`;
+    };
+
+    const getInitial = (nameFallback?: string) => {
+        if (!nameFallback) return "C";
+        return nameFallback.charAt(0).toUpperCase();
+    };
+
+    const isMe = (msg: Message) => {
+        if (!activeConversation) return false;
+        if (msg?.sender?.id === "me") return true; 
+        
+        const senderId = msg?.sender?.id;
+        if (!senderId) return false;
+        
+        return senderId !== activeConversation.userId;
+    };
+
+    const handleChatSelect = (id: string) => {
+        setActiveChatId(id);
+    };
+
+    const handleBackToList = () => { 
+        setActiveChatId(null); 
+    };
+
+    const filteredConversations = conversations.filter(chat => 
+        getCreatorName(chat).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const scrollToBottom = () => {
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+    };
+
     const fetchUnreadCount = async (token: string) => {
         try {
             const res = await fetch(`${BASE_URL}/messages/unread/count`, {
@@ -126,6 +162,49 @@ export default function BusinessMessagesClient() {
         }
     };
 
+    // --- API FALLBACK: Fetch Messages Function ---
+    const fetchMessages = async (showLoadingState = false) => {
+        if (!activeChatId) return;
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        if (showLoadingState) setInitialLoadingMessages(true);
+
+        try {
+            const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const sorted = data.sort((a: Message, b: Message) => 
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                
+                // Only update state if the length changed to prevent aggressive re-renders
+                setMessages(prev => {
+                    if (prev.length !== sorted.length) {
+                        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+                        return sorted;
+                    }
+                    return prev;
+                });
+            }
+
+            // Silently mark as read in the background
+            await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+                method: "PATCH",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            fetchUnreadCount(token);
+            
+        } catch (error) {
+            console.error("🔴 [Fallback Polling Error]:", error);
+        } finally {
+            if (showLoadingState) setInitialLoadingMessages(false);
+        }
+    };
+
     useEffect(() => {
         const fetchConversations = async () => {
             try {
@@ -134,7 +213,7 @@ export default function BusinessMessagesClient() {
 
                 await fetchUnreadCount(token);
 
-                console.log("🔵 [API Request] GET /conversations | Sent: No body");
+                console.log("🔵 [API Request] GET /conversations");
                 const res = await fetch(`${BASE_URL}/conversations`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -156,61 +235,42 @@ export default function BusinessMessagesClient() {
         fetchConversations();
     }, []);
 
-    // --- 2. FETCH MESSAGES (POLLING) ---
+    // Reworked Chat UseEffect to incorporate polling
     useEffect(() => {
-        if (!activeChatId) return;
-
-        const fetchMessages = async (isBackground = false) => {
-            if (!isBackground) setInitialLoadingMessages(true);
-            
-            const token = localStorage.getItem("accessToken");
-            if (!token) return;
-
-            try {
-                if (!isBackground) console.log(`🔵 [API Request] GET /messages/${activeChatId} | Sent: No body`);
-                const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (!isBackground) console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS:`, data);
-                    
-                    const sorted = data.sort((a: Message, b: Message) => 
-                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    );
-                    setMessages(sorted);
-                } else {
-                    if (!isBackground) console.error(`🔴 [API Error] GET /messages/${activeChatId} FAILED:`, await res.text());
-                }
-
-                if (!isBackground) console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId} | Sent: No body`);
-                const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
-                    method: "PATCH",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (readRes.ok) {
-                    if (!isBackground) console.log(`🟢 [API Response] PATCH /messages/read/${activeChatId} SUCCESS`);
-                    fetchUnreadCount(token);
-                } else {
-                    if (!isBackground) console.error(`🔴 [API Error] PATCH /messages/read/${activeChatId} FAILED:`, await readRes.text());
-                }
-
-            } catch (error) {
-                console.error("🔴 [Network Error] Failed to fetch messages:", error);
-            } finally {
-                if (!isBackground) setInitialLoadingMessages(false);
+        if (!activeChatId) {
+            if (socket && isConnected) {
+                socket.emit("active_chat", { conversationId: null });
             }
+            return;
+        }
+
+        if (socket && isConnected) {
+            console.log(`🔵 [WebSocket] Emitting active_chat for: ${activeChatId}`);
+            socket.emit("active_chat", { conversationId: activeChatId });
+        }
+
+        // 1. Fetch immediately on load with loading spinner
+        fetchMessages(true);
+
+        // 2. Set up the 3-second polling fallback
+        const pollInterval = setInterval(() => {
+            fetchMessages();
+        }, 3000);
+
+        // 3. Keep the socket listener for instant updates if the backend fixes it
+        const handleIncomingMessage = (payload: any) => {
+            console.log("🟢 [WebSocket] Real-time message detected, triggering fetch...");
+            fetchMessages(); 
         };
 
-        fetchMessages(false);
-        const poller = setInterval(() => fetchMessages(true), 3000); 
-        return () => clearInterval(poller);
+        if (socket) socket.on("new_message", handleIncomingMessage);
 
-    }, [activeChatId]);
+        return () => {
+            clearInterval(pollInterval);
+            if (socket) socket.off("new_message", handleIncomingMessage);
+        };
+    }, [activeChatId, socket, isConnected]); 
 
-    // --- 3. SEND TEXT MESSAGE ---
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
@@ -221,28 +281,33 @@ export default function BusinessMessagesClient() {
         setNewMessage("");
 
         try {
-            const formData = new FormData();
-            formData.append("content", messageToSend);
-            formData.append("type", "TEXT");
+            // Ensure payload exactly matches backend expectations with uppercase TEXT
+            const payload = {
+                type: "TEXT", 
+                content: messageToSend
+            };
 
-            console.log(`🔵 [API Request] POST /messages/${activeChatId} PAYLOAD:`, { content: messageToSend, type: "TEXT" });
-            
+            console.log(`🔵 [API Request] POST /messages/${activeChatId} PAYLOAD:`, payload);
+
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "application/json", 
                     "Authorization": `Bearer ${token}`
                 },
-                body: formData 
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
-                const savedMessage = await res.json();
-                console.log("🟢 [API Response] POST /messages SUCCESS:", savedMessage);
-                setMessages(prev => [...prev, savedMessage]);
-                scrollToBottom();
+                console.log("🟢 [API Response] POST /messages SUCCESS");
+                // Immediately trigger a fetch so the sender sees their message instantly
+                fetchMessages(); 
             } else {
-                console.error("🔴 [API Error] POST /messages FAILED:", await res.text());
+                const errText = await res.text();
+                console.error("🔴 [API Error] POST /messages FAILED:", errText);
                 setNewMessage(messageToSend); 
+                showToast("Failed to send message. Check console.", "error");
             }
         } catch (error) {
             console.error("🔴 [Network Error] POST /messages crashed:", error);
@@ -250,7 +315,6 @@ export default function BusinessMessagesClient() {
         }
     };
 
-    // --- 4. HANDLE FILE UPLOAD & SEND MESSAGE ---
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !activeChatId) return;
@@ -269,13 +333,6 @@ export default function BusinessMessagesClient() {
         formData.append("content", ""); 
         formData.append("file", file); 
 
-        console.log("-----------------------------------------");
-        console.log("📦 FORM DATA ENTRIES BEING SENT TO BACKEND:");
-        for (let [key, value] of (formData as any).entries()) {
-            console.log(`- ${key}:`, value instanceof File ? `File(${value.name}, type: ${value.type})` : value);
-        }
-        console.log("-----------------------------------------");
-
         try {
             console.log(`🔵 [API Request] POST /messages/${activeChatId} (File) | Sent: FormData`);
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
@@ -287,10 +344,8 @@ export default function BusinessMessagesClient() {
             });
 
             if (msgRes.ok) {
-                const savedMessage = await msgRes.json();
-                console.log("🟢 [API Response] POST /messages (File) SUCCESS:", savedMessage);
-                setMessages(prev => [...prev, savedMessage]);
-                scrollToBottom();
+                console.log("🟢 [API Response] POST /messages (File) SUCCESS");
+                fetchMessages(); // Trigger UI update
             } else {
                 const errData = await msgRes.json().catch(() => null);
                 console.error(`🔴 [API Error] POST /messages (File) FAILED: Status ${msgRes.status}`, errData || msgRes.statusText);
@@ -305,15 +360,6 @@ export default function BusinessMessagesClient() {
         }
     };
 
-    const scrollToBottom = () => {
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-    };
-
-    const activeConversation = conversations.find(c => c.conversationId === activeChatId);
-
-    // --- 5. HANDLE PAYMENT LOGIC ---
     const handlePaymentSubmit = async () => {
         if (!paymentAmount || isNaN(Number(paymentAmount)) || !activeConversation || !activeChatId) return;
 
@@ -349,16 +395,18 @@ export default function BusinessMessagesClient() {
                     
                     try {
                         const messageContent = `Payment initiated successfully. Reference ID: ${reference}`;
-                        const autoMsgFormData = new FormData();
-                        autoMsgFormData.append("content", messageContent);
-                        autoMsgFormData.append("type", "TEXT");
+                        const automatedPayload = { type: "TEXT", content: messageContent }; 
 
-                        console.log(`🔵 [API Request] POST /messages/${activeChatId} (Automated Reference) PAYLOAD:`, { content: messageContent, type: "TEXT" });
+                        console.log(`🔵 [API Request] POST /messages/${activeChatId} (Automated Reference) PAYLOAD:`, automatedPayload);
                         
                         const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                             method: "POST",
-                            headers: { "Authorization": `Bearer ${token}` },
-                            body: autoMsgFormData 
+                            headers: { 
+                                "Content-Type": "application/json",
+                                "Accept": "application/json",
+                                "Authorization": `Bearer ${token}` 
+                            },
+                            body: JSON.stringify(automatedPayload) 
                         });
 
                         if (msgRes.ok) {
@@ -393,37 +441,6 @@ export default function BusinessMessagesClient() {
     const numericAmount = Number(paymentAmount);
     const platformFee = isNaN(numericAmount) ? 0 : numericAmount * 0.10;
     const totalAmount = isNaN(numericAmount) ? 0 : numericAmount + platformFee;
-
-    const isMe = (msg: Message) => {
-        if (!activeConversation) return false;
-        const senderId = msg?.sender?.id;
-        if (!senderId) return false;
-        
-        return senderId !== activeConversation.userId;
-    };
-
-    const getCreatorName = (conv?: Conversation) => {
-        if (!conv) return "Creator";
-        return conv.displayName || `User ${conv.userId.substring(0, 4)}`;
-    };
-
-    const getInitial = (nameFallback?: string) => {
-        if (!nameFallback) return "C";
-        return nameFallback.charAt(0).toUpperCase();
-    };
-
-    const handleChatSelect = (id: string) => {
-        setActiveChatId(id);
-    };
-
-    const handleBackToList = () => { 
-        setActiveChatId(null); 
-    };
-
-    // Filter conversations based on the search query
-    const filteredConversations = conversations.filter(chat => 
-        getCreatorName(chat).toLowerCase().includes(searchQuery.toLowerCase())
-    );
 
     return (
         <div className={`h-screen w-full flex flex-col bg-[#F8F9FB] ${inter.className} overflow-hidden`}>
@@ -589,7 +606,7 @@ export default function BusinessMessagesClient() {
                                         <button 
                                             onClick={() => fileInputRef.current?.click()}
                                             disabled={isUploadingFile}
-                                            className="p-2 text-gray-400 hover:text-[#5B4DFF] transition-colors rounded-full hover:bg-gray-100 disabled:opacity-50"
+                                            className="p-2 text-gray-400 hover:text-[#5B4DFF] transition-colors rounded-full hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
                                         >
                                             {isUploadingFile ? (
                                                 <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>

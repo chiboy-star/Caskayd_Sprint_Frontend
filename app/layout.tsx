@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import OfflineIndicator from "@/components/OfflineIndicator"
 import InstallBanner from "@/components/InstallBanner"
+import { SocketProvider } from "@/components/SocketContext";
  
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,13 +27,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <SocketProvider>
         <OfflineIndicator />
         <InstallBanner />
         {children}
+        </SocketProvider>
       </body>
     </html>
   );
