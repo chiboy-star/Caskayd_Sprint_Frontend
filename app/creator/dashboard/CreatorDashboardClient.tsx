@@ -17,7 +17,6 @@ import {
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Show temporary feedback messages to the user
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
         if (isVisible) {
@@ -28,7 +27,6 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     if (!isVisible) return null;
 
-    // Moved toast to the bottom to avoid overlapping with top navigation
     return (
         <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
@@ -43,7 +41,6 @@ export default function CreatorDashboardClient() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
-  // Track which invite is selected for the modal
   const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
   
   const [earningsData, setEarningsData] = useState({
@@ -54,7 +51,6 @@ export default function CreatorDashboardClient() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
-  // Helper to trigger toast notifications
   const showToast = (message: string, type: "success"|"error") => {
       setToast({ message, type, isVisible: true });
   };
@@ -70,24 +66,28 @@ export default function CreatorDashboardClient() {
     }
   }, [router]);
 
-  // Fetch all pending requests for the creator
+  // Fix: Lock background scroll when the invite modal is open
+  useEffect(() => {
+      if (selectedInvite) {
+          document.body.style.overflow = 'hidden';
+      } else {
+          document.body.style.overflow = 'unset';
+      }
+      return () => {
+          document.body.style.overflow = 'unset';
+      };
+  }, [selectedInvite]);
+
   const fetchRequests = async (token: string) => {
       try {
-          console.log("🔵 [API Request] GET /chat-requests/creator | Sent: No body");
           const res = await fetch(`${BASE_URL}/chat-requests/creator`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              console.log("🟢 [API Response] GET /chat-requests/creator SUCCESS:", data);
-              
-              // Sort data by createdAt in descending order (newest first)
               const sortedData = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
               setInvites(sortedData);
-          } else {
-              const errorText = await res.text();
-              console.error("🔴 [API Error] GET /chat-requests/creator FAILED:", errorText);
           }
       } catch (error) {
           console.error("🔴 [Network Error] GET /chat-requests/creator crashed:", error);
@@ -96,68 +96,53 @@ export default function CreatorDashboardClient() {
       }
   };
 
-  // Fetch creator earnings summary
   const fetchEarnings = async (token: string) => {
       try {
-          console.log("🔵 [API Request] GET /payments/earnings | Sent: No body");
           const res = await fetch(`${BASE_URL}/payments/earnings`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
               setEarningsData({
                   totalEarned: data?.totalEarned || 0,
                   totalTransactions: data?.totalTransactions || 0
               });
-          } else {
-              const errorText = await res.text();
-              console.error("🔴 [API Error] GET /payments/earnings FAILED:", errorText);
           }
       } catch (error) {
           console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
       }
   };
 
-  // Process accepting or rejecting an invite
   const handleAction = async (id: string, action: "accept" | "reject", e?: React.MouseEvent) => {
-      // Prevent click from bubbling up to the card and opening the modal
       if (e) e.stopPropagation(); 
       
       const token = localStorage.getItem("accessToken");
       if (!token) return;
 
       try {
-          console.log(`🔵 [API Request] PATCH /chat-requests/${id}/${action} | Sent: No body`);
           const res = await fetch(`${BASE_URL}/chat-requests/${id}/${action}`, {
               method: "PATCH",
               headers: { "Authorization": `Bearer ${token}` }
           });
 
           if (res.ok) {
-              const data = await res.json().catch(() => ({})); 
-              console.log(`🟢 [API Response] PATCH /chat-requests/${id}/${action} SUCCESS:`, data);
               if (action === "reject") {
                   showToast(`Request declined`, "error");
               } else {
                   showToast(`Request accepted successfully`, "success");
               }
               setInvites(prev => prev.filter(invite => invite.id !== id));
-              // Close modal if the action was taken from inside it
               setSelectedInvite(null); 
           } else {
               const errorData = await res.json();
-              console.error(`🔴 [API Error] PATCH /chat-requests/${id}/${action} FAILED:`, errorData);
               throw new Error(errorData.message || "Action failed");
           }
       } catch (error: any) {
-          console.error(`🔴 [Network Error] PATCH /chat-requests/${id}/${action} crashed:`, error);
           showToast(error.message || "Something went wrong", "error");
       }
   };
 
-  // Format the date strings
   const formatCreatedAt = (dateString: string) => {
       if (!dateString) return "";
       const date = new Date(dateString);
@@ -172,7 +157,6 @@ export default function CreatorDashboardClient() {
       return `${s.toLocaleDateString('en-US', options)} - ${e.toLocaleDateString('en-US', options)}`;
   };
 
-  // SEO: Structured data for the Creator Dashboard page
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -185,23 +169,13 @@ export default function CreatorDashboardClient() {
 
   return (
     <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className}`}>
-      {/* Inject Structured Data into the DOM */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       
-      <Toast 
-        message={toast.message} 
-        type={toast.type} 
-        isVisible={toast.isVisible} 
-        onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} 
-      />
+      <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} />
 
       <CreatorNavigationPill />
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 md:px-8 pb-20 pt-[140px] md:pt-[160px]">
-        {/* SEO Fix: Hidden H1 for context */}
         <h1 className="sr-only">Creator Dashboard Overview</h1>
         
         <div className="rounded-[3rem] p-6 md:p-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative bg-white">
@@ -327,19 +301,18 @@ export default function CreatorDashboardClient() {
         </div>
       </main>
 
-      {/* MODAL OVERLAY - Added padding for mobile breathing space */}
+      {/* MODAL OVERLAY */}
       <div 
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 transition-opacity duration-300 ${selectedInvite ? "opacity-100 visible" : "opacity-0 invisible"}`}
         onClick={() => setSelectedInvite(null)} 
       >
-        {/* MODAL CONTENT - Added max height and overflow for scrolling on small screens */}
         <div 
           className={`bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-10 relative shadow-2xl transform transition-all duration-300 ${selectedInvite ? "scale-100 translate-y-0" : "scale-95 translate-y-8"}`}
           onClick={(e) => e.stopPropagation()} 
         >
             <button 
               onClick={() => setSelectedInvite(null)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-gray-800 transition-colors z-10"
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-800 transition-colors z-10 cursor-pointer"
             >
               <XMarkIcon className="w-8 h-8" />
             </button>
@@ -352,11 +325,9 @@ export default function CreatorDashboardClient() {
 
                 <div className="bg-[#F8F9FB] border border-gray-100 p-6 rounded-2xl mb-8">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Brand-Note</span>
-                    {/* Added break-words to handle continuous long strings without spaces */}
                     <p className="text-gray-800 text-lg leading-relaxed break-words whitespace-pre-wrap">{selectedInvite.message}</p>
                 </div>
 
-                {/* Updated grid to 3 columns to include Date Sent */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                     <div className="bg-gray-50 p-4 rounded-xl">
                         <span className="text-xs text-gray-500 block mb-1">Proposed Price</span>
@@ -375,13 +346,13 @@ export default function CreatorDashboardClient() {
                 <div className="flex gap-4 justify-end border-t border-gray-100 pt-6">
                     <button 
                         onClick={(e) => handleAction(selectedInvite.id, "reject", e)}
-                        className="flex-1 sm:flex-none bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 font-bold py-3 px-8 rounded-xl transition-colors shadow-sm"
+                        className="flex-1 sm:flex-none bg-white border-2 border-red-500 hover:bg-red-50 text-red-600 font-bold py-3 px-8 rounded-xl transition-colors shadow-sm cursor-pointer"
                     >
                         Decline
                     </button>
                     <button 
                         onClick={(e) => handleAction(selectedInvite.id, "accept", e)}
-                        className="flex-1 sm:flex-none bg-[#00D68F] hover:bg-[#00c080] text-black font-bold py-3 px-8 rounded-xl transition-colors shadow-sm"
+                        className="flex-1 sm:flex-none bg-[#00D68F] hover:bg-[#00c080] text-black font-bold py-3 px-8 rounded-xl transition-colors shadow-sm cursor-pointer"
                     >
                         Accept Invite
                     </button>

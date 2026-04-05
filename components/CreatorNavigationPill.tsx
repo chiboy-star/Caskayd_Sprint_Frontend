@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { toast } from "react-hot-toast"; 
 import { 
     ChatBubbleOvalLeftIcon, 
     WalletIcon, 
@@ -40,7 +39,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     return (
         <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
-            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
             <span className="font-bold text-sm">{message}</span>
@@ -52,13 +51,10 @@ export default function CreatorNavigationPill() {
     const pathname = usePathname();
     const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    
     const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; displayName?: string; companyName?: string } | null>(null);
-
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [toastState, setToastState] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
@@ -72,16 +68,11 @@ export default function CreatorNavigationPill() {
     };
 
     usePushNotifications((payload) => {
-    // This runs when a message hits while the app is actively open
-    const title = payload?.notification?.title || "New Message";
-    const body = payload?.notification?.body || "You have a new message.";
-    
-    // Fire your custom toast or react-hot-toast
-    showToast(`${title}: ${body}`, "success");
-    
-    // You can also manually increment your unreadMessages state here!
-    setUnreadMessages(prev => prev + 1);
-});
+        const title = payload?.notification?.title || "New Message";
+        const body = payload?.notification?.body || "You have a new message.";
+        showToast(`${title}: ${body}`, "success");
+        setUnreadMessages(prev => prev + 1);
+    });
 
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
@@ -89,23 +80,18 @@ export default function CreatorNavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
-                console.log("🔵 [API Request] GET /users/profile");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
-                    console.log("🟢 [API Response] GET /users/profile SUCCESS:", profileData);
-                    
                     if (Array.isArray(profileData) && profileData.length > 0) {
                         const activeCreatorProfile = profileData.find((p: any) => p.displayName) || profileData[0];
                         setUserProfile(activeCreatorProfile);
                     } else if (profileData && typeof profileData === 'object') {
                         setUserProfile(profileData);
                     }
-                } else {
-                    console.error("🔴 [API Error] GET /users/profile FAILED:", await profileRes.text());
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /users/profile crashed:", error);
@@ -113,38 +99,6 @@ export default function CreatorNavigationPill() {
         };
 
         const fetchAlerts = async () => {
-            try {
-                console.log("🔵 [API Request] GET /messages/unread/count");
-                const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (msgRes.ok) {
-                    const msgCount = await msgRes.text(); 
-                    console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", msgCount);
-                    setUnreadMessages(Number(msgCount) || 0);
-                } else {
-                    console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
-                }
-            } catch (error) {
-                console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
-            }
-
-            try {
-                console.log("🔵 [API Request] GET /notifications");
-                const notifRes = await fetch(`${BASE_URL}/notifications`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (notifRes.ok) {
-                    const notifData = await notifRes.json();
-                    console.log("🟢 [API Response] GET /notifications SUCCESS:", notifData);
-                    setNotifications(notifData);
-                } else {
-                    console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
-                }
-            } catch (error) {
-                console.error("🔴 [Network Error] GET /notifications crashed:", error);
-            }
-
             try {
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -154,26 +108,34 @@ export default function CreatorNavigationPill() {
                     const count = Number(msgCount) || 0;
                     setUnreadMessages(count);
 
-                    // --- NEW: UPDATE THE APP ICON BADGE ---
                     if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
                         if (count > 0) {
-                            navigator.setAppBadge(count); // Shows the red dot with the number
+                            navigator.setAppBadge(count); 
                         } else {
-                            navigator.clearAppBadge(); // Removes the red dot when read
+                            navigator.clearAppBadge(); 
                         }
                     }
-                    // --------------------------------------
-
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
+            }
+
+            try {
+                const notifRes = await fetch(`${BASE_URL}/notifications`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (notifRes.ok) {
+                    const notifData = await notifRes.json();
+                    setNotifications(notifData);
+                }
+            } catch (error) {
+                console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
         };
 
         fetchUserProfile(); 
         fetchAlerts();      
-        const interval = setInterval(fetchAlerts, 15000); 
-        return () => clearInterval(interval);
+        // Fix: Removed redundant setInterval polling. Relying on WebSockets/FCM.
     }, []);
 
     const handleMarkAsRead = async (id: string, currentlyRead: boolean) => {
@@ -185,25 +147,19 @@ export default function CreatorNavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            console.log(`🔵 [API Request] PATCH /notifications/${id}/read`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (res.ok) {
-                console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
-            } else {
-                console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, await res.text());
+            if (!res.ok) {
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
             }
         } catch (error) {
-            console.error(`🔴 [Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };
 
-    // --- UPDATED AVATAR UPLOAD LOGIC ---
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -212,36 +168,26 @@ export default function CreatorNavigationPill() {
         if (!token) return;
 
         setIsUploadingAvatar(true);
-        const loadingToastId = toast.loading("Uploading profile image...");
-
         const formData = new FormData();
         formData.append("file", file);
 
         try {
-            console.log("🔵 [API Request] POST /upload/avatar");
             const res = await fetch(`${BASE_URL}/upload/avatar`, {
-                method: "POST", // Changed to POST
+                method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
                 body: formData, 
             });
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] POST /upload/avatar SUCCESS", data);
-                
-                toast.success("Profile image uploaded successfully!", { id: loadingToastId });
-                
-                // Extracting URL from new response structure and setting local state only
+                showToast("Profile image uploaded successfully!", "success");
                 const newAvatarUrl = data.url || URL.createObjectURL(file);
                 setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
             } else {
-                const errorData = await res.json().catch(() => null);
-                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData);
-                toast.error(`Failed to upload: ${errorData?.message || "Bad Request"}`, { id: loadingToastId });
+                showToast("Failed to upload image", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] POST /upload/avatar crashed:", error);
-            toast.error("Network error. Please try again later.", { id: loadingToastId });
+            showToast("Network error. Please try again later.", "error");
         } finally {
             setIsUploadingAvatar(false);
         }
@@ -257,10 +203,9 @@ export default function CreatorNavigationPill() {
 
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
-                    
                     <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 md:gap-4">
                         
-                                                <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                        <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                         <div className="flex items-center shrink-0">
                             <div className="relative w-32 h-8 md:w-40 md:h-10 hidden sm:block">
                                 <Image 
@@ -318,7 +263,7 @@ export default function CreatorNavigationPill() {
                             </Link>
                         </div>
 
-                        <div className="flex items-center gap-3 sm:gap-4 shrink-0 relative">
+                        <div className="flex items-center gap-1 sm:gap-4 shrink-0 relative">
                             <button 
                                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                                 className="relative p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
@@ -387,7 +332,6 @@ export default function CreatorNavigationPill() {
                 </div>
             </div>
 
-            {/* --- PROFILE MODAL OVERLAY --- */}
             {isProfileOpen && (
                 <div onClick={() => setIsProfileOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A0A0A]/50 animate-in fade-in duration-300">
                     <div onClick={(e) => e.stopPropagation()} className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10">
@@ -399,8 +343,6 @@ export default function CreatorNavigationPill() {
                         </button>
 
                         <div className="flex flex-col items-center mt-4 relative z-0">
-                            
-                            {/* Modal Avatar Container */}
                             <div className="relative mb-4 group cursor-pointer">
                                 <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center overflow-hidden relative border border-gray-700">
                                     {userProfile?.avatar ? (

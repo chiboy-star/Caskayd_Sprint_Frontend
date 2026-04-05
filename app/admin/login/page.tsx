@@ -46,6 +46,10 @@ export default function AdminLogin() {
     setIsLoading(true);
 
     try {
+      // log the attempt and what we are sending
+      console.log("--- API CALL: Admin Login ---");
+      console.log("Payload:", { email: formData.email, password: "***" });
+
       const response = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,6 +59,9 @@ export default function AdminLogin() {
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message || "Invalid admin credentials");
+
+      // log the success response
+      console.log("Response:", data);
 
       const token = data.access_token || data.token;
       localStorage.setItem("accessToken", token);
@@ -66,6 +73,9 @@ export default function AdminLogin() {
       router.push("/admin/dashboard");
 
     } catch (error: unknown) {
+      // log the error
+      console.error("API Error (Admin Login):", error);
+      
       let msg = "Login failed";
       if (error instanceof Error) msg = error.message;
       setToast({ message: msg, type: "error", isVisible: true });

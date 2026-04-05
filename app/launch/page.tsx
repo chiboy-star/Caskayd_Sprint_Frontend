@@ -7,7 +7,6 @@ import { Inter } from "next/font/google";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
-
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -20,33 +19,37 @@ export default function PWALaunchScreen() {
             const token = localStorage.getItem("accessToken");
             
             if (!token) {
-                // No token found. Add a slight delay so the splash screen doesn't 
-                // just flash aggressively before showing the buttons.
                 setTimeout(() => setIsCheckingAuth(false), 1200);
                 return;
             }
 
             try {
-                // 1. Try to get role from Token instantly
-                const payloadBase64 = token.split('.')[1];
-                const payload = JSON.parse(atob(payloadBase64));
+                // 1. Try to get role from Token safely
+                let role = null;
+                try {
+                    const payloadBase64 = token.split('.')[1];
+                    // Fix: Handle Base64URL encoding to prevent atob crashes
+                    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(window.atob(base64));
+                    role = payload.role;
+                } catch (decodeError) {
+                    console.warn("Could not safely decode JWT role, falling back to profile fetch...");
+                }
                 
-                if (payload.role === 'business') {
+                if (role === 'business') {
                     return router.replace('/business/discover');
-                } else if (payload.role === 'creator') {
+                } else if (role === 'creator') {
                     return router.replace('/creator/discover');
                 }
 
-                // 2. FALLBACK: If token exists but role is missing, fetch profile
-                console.log("No role found in token, fetching profile as fallback...");
+                // 2. FALLBACK: If token exists but role is missing/undecodable, fetch profile
+                console.log("Fetching profile as fallback...");
                 const res = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const profileData = await res.json();
-                    
-                    // Logic check: if they have a companyName, they are a business.
                     const isBusiness = Array.isArray(profileData) 
                         ? profileData.some((p: any) => p.companyName) 
                         : !!profileData?.companyName;
@@ -62,7 +65,7 @@ export default function PWALaunchScreen() {
 
             } catch (error) {
                 console.error("Auth check failed, showing selection screen.", error);
-                localStorage.removeItem("accessToken"); // Clear bad/expired token
+                localStorage.removeItem("accessToken"); 
                 setIsCheckingAuth(false);
             }
         };
@@ -72,39 +75,28 @@ export default function PWALaunchScreen() {
 
     return (
         <div className={`min-h-screen w-full flex flex-col items-center justify-center bg-slate-900 ${inter.className} transition-all duration-700`}>
-            
-            {/* STATE 1: SPLASH SCREEN 
-                Shows while checking for a token
-            */}
             <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${isCheckingAuth ? "opacity-100 z-10" : "opacity-0 pointer-events-none -z-10"}`}>
-                {/* Fixed container size and animation. Changed from square to rectangle. */}
                 <div className="relative animate-pulse">
-                    {/* Container for logo. Wide aspect ratio, emerald background removed for clean look. */}
                     <div className="w-[300px] h-[100px] flex items-center justify-center rounded-[2rem] shadow-2xl shadow-emerald-500/20">
                         <Image 
                             src="/images/Logo_transparent.png" 
                             alt="Caskayd" 
-                            width={220} // Display width
-                            height={60} // Display height - Next.js will maintain the intrinsic aspect ratio
-                            className="object-contain" // Use contain to scale without cropping
+                            width={220} 
+                            height={60} 
+                            className="object-contain" 
                         />
                     </div>
                 </div>
             </div>
 
-            {/* STATE 2: ROLE SELECTION
-                Fades in if no token is found
-            */}
             <div className={`w-full max-w-md px-6 flex flex-col items-center transition-all duration-700 delay-300 transform ${!isCheckingAuth ? "opacity-100 translate-y-0 z-10" : "opacity-0 translate-y-8 pointer-events-none -z-10"}`}>
-                
-                {/* Changed square container to rectangle. Wide aspect ratio, emerald background removed. */}
                 <div className="w-[200px] h-[60px] flex items-center justify-center rounded-2xl shadow-lg shadow-emerald-500/20 mb-8">
                     <Image 
                         src="/images/Logo_transparent.png" 
                         alt="Caskayd" 
-                        width={150} // Smaller size for this screen
-                        height={40} // Smaller size, maintaining aspect ratio
-                        className="object-contain" // Use contain to scale without cropping
+                        width={150} 
+                        height={40} 
+                        className="object-contain" 
                     />
                 </div>
 
@@ -112,7 +104,6 @@ export default function PWALaunchScreen() {
                 <p className="text-gray-400 text-center mb-10">How would you like to use the app today?</p>
 
                 <div className="w-full flex flex-col gap-4">
-                    {/* Brand Route */}
                     <Link 
                         href="/business/login"
                         className="w-full group relative bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl p-6 transition-all cursor-pointer flex items-center justify-between overflow-hidden"
@@ -126,7 +117,6 @@ export default function PWALaunchScreen() {
                         </div>
                     </Link>
 
-                    {/* Creator Route */}
                     <Link 
                         href="/creator/login"
                         className="w-full group relative bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl p-6 transition-all cursor-pointer flex items-center justify-between overflow-hidden"
@@ -145,7 +135,6 @@ export default function PWALaunchScreen() {
                     <p className="text-gray-500 text-xs">Don&apos;t have an account? Head to the web version to sign up.</p>
                 </div>
             </div>
-
         </div>
     );
 }

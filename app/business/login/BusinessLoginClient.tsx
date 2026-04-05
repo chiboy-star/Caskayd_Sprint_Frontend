@@ -11,12 +11,11 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   XMarkIcon,
-  ArrowLeftIcon // added the back arrow icon // Added this for the modal close button
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
 const inter = Inter({ subsets: ["latin"] });
-
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
@@ -48,7 +47,6 @@ export default function BusinessLoginClient() {
   const [isRedirecting, setIsRedirecting] = useState(false); 
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
-  // Keep track of our new forgot password modal states
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState<1 | 2>(1);
   const [forgotPasswordData, setForgotPasswordData] = useState({ email: "", code: "", newPassword: "" });
@@ -58,7 +56,6 @@ export default function BusinessLoginClient() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle inputs for the forgot password modal
   const handleForgotDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForgotPasswordData((prev) => ({ ...prev, [name]: value }));
@@ -71,8 +68,6 @@ export default function BusinessLoginClient() {
     setIsLoading(true);
     
     try {
-        console.log("🔵 [API Request] POST /auth/login PAYLOAD:", { email: formData.email, password: "***" });
-
         const response = await fetch(`${BASE_URL}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -81,12 +76,7 @@ export default function BusinessLoginClient() {
 
         const data = await response.json();
 
-        if (!response.ok) {
-            console.error("🔴 [API Error] POST /auth/login FAILED:", data);
-            throw new Error(data.message || "Invalid credentials");
-        }
-
-        console.log("🟢 [API Response] POST /auth/login SUCCESS:", data);
+        if (!response.ok) throw new Error(data.message || "Invalid credentials");
 
         const token = data.access_token || data.token;
         if (token) {
@@ -99,15 +89,12 @@ export default function BusinessLoginClient() {
         } else {
             throw new Error("Login successful but no token received.");
         }
-
     } catch (error: any) {
-        console.error("🔴 Login Process Error:", error);
         setToast({ message: error.message || "Login failed", type: "error", isVisible: true });
         setIsLoading(false);
     }
   };
 
-  // Fire off the email to get the reset code
   const handleRequestPasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.email) return setToast({ message: "Please enter your email", type: "error", isVisible: true });
@@ -115,8 +102,6 @@ export default function BusinessLoginClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
-        console.log("🔵 [API Request] POST /auth/forgot-password PAYLOAD:", payload);
-
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -125,15 +110,9 @@ export default function BusinessLoginClient() {
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/forgot-password FAILED:", data || res.statusText);
-            throw new Error(data.message || "Failed to send reset email.");
-        }
+        if (!res.ok) throw new Error(data.message || "Failed to send reset email.");
 
-        console.log("🟢 [API Response] POST /auth/forgot-password SUCCESS:", data);
         setToast({ message: "Reset code sent to your email", type: "success", isVisible: true });
-        
-        // Move to the code verification step
         setForgotPasswordStep(2);
     } catch (error: any) {
         setToast({ message: error.message || "Error requesting reset", type: "error", isVisible: true });
@@ -142,7 +121,6 @@ export default function BusinessLoginClient() {
     }
   };
 
-  // Submit the new password with the code
   const handleSubmitNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.code || !forgotPasswordData.newPassword) return setToast({ message: "Please fill all fields", type: "error", isVisible: true });
@@ -154,8 +132,6 @@ export default function BusinessLoginClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
-        console.log("🔵 [API Request] POST /auth/reset-password PAYLOAD:", payload);
-
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -164,15 +140,10 @@ export default function BusinessLoginClient() {
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/reset-password FAILED:", data || res.statusText);
-            throw new Error(data.message || "Failed to reset password.");
-        }
+        if (!res.ok) throw new Error(data.message || "Failed to reset password.");
 
-        console.log("🟢 [API Response] POST /auth/reset-password SUCCESS:", data);
         setToast({ message: "Password reset successfully!", type: "success", isVisible: true });
         
-        // Close modal and clean up
         setTimeout(() => {
             setShowForgotPasswordModal(false);
             setForgotPasswordStep(1);
@@ -198,18 +169,23 @@ export default function BusinessLoginClient() {
 
   return (
     <div className={`min-h-screen flex flex-col md:flex-row bg-white ${inter.className} overflow-hidden`}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
       <Toast message={toast.message} type={toast.type} isVisible={toast.isVisible} onClose={() => setToast(prev => ({ ...prev, isVisible: false }))} />
 
-      {/* --- FORGOT PASSWORD MODAL --- */}
       {showForgotPasswordModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in">
             <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative">
-                <button aria-label="Close modal" onClick={() => setShowForgotPasswordModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer">
+                {/* Fix: Clear state on manual close */}
+                <button 
+                  aria-label="Close modal" 
+                  onClick={() => {
+                    setShowForgotPasswordModal(false);
+                    setForgotPasswordStep(1);
+                    setForgotPasswordData({ email: "", code: "", newPassword: "" });
+                  }} 
+                  className="absolute top-4 right-4 text-gray-400 hover:text-black cursor-pointer"
+                >
                     <XMarkIcon className="h-6 w-6" />
                 </button>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h2>
@@ -278,7 +254,6 @@ export default function BusinessLoginClient() {
             <div className="relative">
                 <div className="flex justify-between items-center mb-2">
                     <label className="block text-sm font-semibold text-gray-700">Password</label>
-                    {/* The trigger to open our new modal */}
                     <button type="button" onClick={() => setShowForgotPasswordModal(true)} className="text-xs text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer">
                         Forgot Password?
                     </button>

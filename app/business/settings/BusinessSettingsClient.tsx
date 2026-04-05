@@ -29,7 +29,6 @@ export default function BusinessSettingsClient() {
     const [activeTab, setActiveTab] = useState<"general" | "security" | "danger">("general");
     const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
-    // Forms State
     const [isSaving, setIsSaving] = useState(false);
     const [generalData, setGeneralData] = useState({
         companyName: "",
@@ -38,28 +37,23 @@ export default function BusinessSettingsClient() {
         category: ""
     });
     
-    // New states for the OTP-based reset flow in settings
     const [resetStep, setResetStep] = useState<1 | 2>(1);
     const [resetData, setResetData] = useState({ email: "", code: "", newPassword: "" });
 
     const showToast = (message: string, type: "success" | "error") => setToast({ message, type, isVisible: true });
 
-    // Fetch initial profile data
     useEffect(() => {
         const fetchProfile = async () => {
             const token = localStorage.getItem("accessToken");
             if (!token) return;
 
             try {
-                console.log("🔵 [API Request] GET /users/profile");
                 const res = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
 
                 if (res.ok) {
                     const data = await res.json();
-                    console.log("🟢 [API Response] GET /users/profile SUCCESS:", data);
-                    
                     const profile = Array.isArray(data) ? (data.find((p: any) => p.companyName) || data[0]) : data;
 
                     if (profile) {
@@ -70,8 +64,6 @@ export default function BusinessSettingsClient() {
                             category: profile.category || ""
                         });
                     }
-                } else {
-                    console.error("🔴 [API Error] GET /users/profile FAILED:", await res.text());
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] Failed to load profile:", error);
@@ -88,7 +80,6 @@ export default function BusinessSettingsClient() {
 
         setIsSaving(true);
         try {
-            console.log("🔵 [API Request] PATCH /users/business/profile PAYLOAD:", generalData);
             const res = await fetch(`${BASE_URL}/users/business/profile`, {
                 method: "PATCH",
                 headers: {
@@ -99,23 +90,18 @@ export default function BusinessSettingsClient() {
             });
 
             if (res.ok) {
-                const data = await res.json();
-                console.log("🟢 [API Response] PATCH /users/business/profile SUCCESS:", data);
                 showToast("Profile updated successfully!", "success");
             } else {
                 const err = await res.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /users/business/profile FAILED:", err || res.statusText);
                 showToast(err?.message || "Failed to update profile.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Profile update crashed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Trigger the forgot password email
     const handleRequestPasswordReset = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!resetData.email) return showToast("Please enter your email", "error");
@@ -123,33 +109,26 @@ export default function BusinessSettingsClient() {
         setIsSaving(true);
         try {
             const payload = { email: resetData.email };
-            console.log("🔵 [API Request] POST /auth/forgot-password PAYLOAD:", payload);
-
             const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
-            const data = await res.json().catch(() => ({}));
-
             if (res.ok) {
-                console.log("🟢 [API Response] POST /auth/forgot-password SUCCESS:", data);
                 showToast("Reset code sent to your email!", "success");
-                setResetStep(2); // Move to code entry step
+                setResetStep(2); 
             } else {
-                console.error("🔴 [API Error] POST /auth/forgot-password FAILED:", data || res.statusText);
+                const data = await res.json().catch(() => ({}));
                 showToast(data.message || "Failed to send reset email.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Forgot password crashed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
         }
     };
 
-    // Submit the code and new password
     const handleSubmitNewPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!resetData.code || !resetData.newPassword) return showToast("Please fill all fields", "error");
@@ -157,29 +136,21 @@ export default function BusinessSettingsClient() {
         setIsSaving(true);
         try {
             const payload = { email: resetData.email, code: resetData.code, newPassword: resetData.newPassword };
-            console.log("🔵 [API Request] POST /auth/reset-password PAYLOAD:", payload);
-
             const res = await fetch(`${BASE_URL}/auth/reset-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
-            const data = await res.json().catch(() => ({}));
-
             if (res.ok) {
-                console.log("🟢 [API Response] POST /auth/reset-password SUCCESS:", data);
                 showToast("Password updated successfully!", "success");
-                
-                // Clean up and go back to step 1
                 setResetStep(1);
                 setResetData({ email: "", code: "", newPassword: "" });
             } else {
-                console.error("🔴 [API Error] POST /auth/reset-password FAILED:", data || res.statusText);
+                const data = await res.json().catch(() => ({}));
                 showToast(data.message || "Failed to update password.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Reset password crashed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -195,24 +166,21 @@ export default function BusinessSettingsClient() {
 
         setIsSaving(true);
         try {
-            console.log("🔵 [API Request] DELETE /users/account");
             const res = await fetch(`${BASE_URL}/users/account`, {
                 method: "DELETE",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] DELETE /users/account SUCCESS");
                 showToast("Account deleted successfully.", "success");
-                localStorage.clear();
+                // Fix: Replace localStorage.clear() with targeted removal
+                localStorage.removeItem("accessToken");
                 window.location.href = "/business/login";
             } else {
                 const err = await res.json().catch(() => null);
-                console.error("🔴 [API Error] DELETE /users/account FAILED:", err || res.statusText);
                 showToast(err?.message || "Failed to delete account.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Delete account crashed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -241,7 +209,6 @@ export default function BusinessSettingsClient() {
                 
                 <h1 className="sr-only">Business Settings</h1>
 
-                {/* --- SIDEBAR --- */}
                 <div className="w-full md:w-64 bg-white rounded-3xl p-4 shadow-sm border border-gray-100 shrink-0">
                     <h2 className="text-xl font-bold mb-6 px-4 pt-2 text-black">Settings</h2>
                     <div className="flex flex-col gap-2">
@@ -270,7 +237,6 @@ export default function BusinessSettingsClient() {
                     </div>
                 </div>
 
-                {/* --- MAIN CONTENT AREA --- */}
                 <div className="flex-1 w-full max-w-3xl bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-gray-100 min-h-[500px]">
 
                     {activeTab === "general" && (
@@ -304,7 +270,6 @@ export default function BusinessSettingsClient() {
                         </div>
                     )}
 
-                    {/* --- REWORKED SECURITY TAB --- */}
                     {activeTab === "security" && (
                         <div className="animate-in fade-in duration-300">
                             <h2 className="text-2xl font-bold text-gray-900 mb-8 border-b border-gray-100 pb-4">Reset Password</h2>

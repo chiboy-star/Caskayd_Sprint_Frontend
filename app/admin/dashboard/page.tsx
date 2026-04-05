@@ -49,13 +49,16 @@ export default function AdminDashboard() {
     avgComments: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // new state to prevent UI flash
   const [toast, setToast] = useState({ message: "", type: "success" as "success" | "error", isVisible: false });
 
-  // Auth Check
+  // check if user is allowed here before showing the page
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
         router.push("/admin/login");
+    } else {
+        setIsCheckingAuth(false); // safe to show UI now
     }
   }, [router]);
 
@@ -77,19 +80,26 @@ export default function AdminDashboard() {
     try {
         const token = localStorage.getItem("accessToken");
 
+        // prep the payload so we can log it easily
+        const payload = {
+            creator: { id: formData.id },
+            platform: formData.platform,
+            followers: Number(formData.followers),
+            avgLikes: Number(formData.avgLikes),
+            avgComments: Number(formData.avgComments)
+        };
+
+        // log the api call intent and what we are sending
+        console.log("--- API CALL: Update Metrics ---");
+        console.log("Payload:", payload);
+
         const response = await fetch(`${BASE_URL}/creator/metrics`, {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}` 
             },
-            body: JSON.stringify({
-                creator: { id: formData.id }, // Updated structure
-                platform: formData.platform,
-                followers: Number(formData.followers),
-                avgLikes: Number(formData.avgLikes),
-                avgComments: Number(formData.avgComments)
-            }),
+            body: JSON.stringify(payload),
         });
 
         const data = await response.json();
@@ -98,12 +108,17 @@ export default function AdminDashboard() {
             throw new Error(data.message || "Failed to update metrics");
         }
 
+        // log the success response
+        console.log("Response:", data);
+
         setToast({ message: "Metrics updated successfully!", type: "success", isVisible: true });
         
-        // Reset form except ID for faster entry
+        // reset the numbers but keep the ID to save time for the next entry
         setFormData(prev => ({ ...prev, followers: "", avgLikes: "", avgComments: "" }));
- 
+
     } catch (error: any) {
+        // log the error if things go wrong
+        console.error("API Error (Update Metrics):", error);
         setToast({ message: error.message || "Something went wrong", type: "error", isVisible: true });
     } finally {
         setIsLoading(false);
@@ -114,6 +129,9 @@ export default function AdminDashboard() {
     localStorage.removeItem("accessToken");
     router.push("/admin/login"); 
   };
+
+  // hide the whole page until we confirm they have a token
+  if (isCheckingAuth) return null;
 
   return (
     <div className={`min-h-screen bg-gray-50 flex flex-col ${inter.className}`}>

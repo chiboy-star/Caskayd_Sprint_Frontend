@@ -52,7 +52,17 @@ export default function AdminSignup() {
     setIsLoading(true);
 
     try {
+      // prep payload for logging
+      const signupPayload = {
+          email: formData.email,
+          password: "***", 
+          role: "admin"
+      };
+
       // 1. SIGNUP API
+      console.log("--- API CALL: Admin Signup ---");
+      console.log("Payload:", signupPayload);
+
       const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,9 +74,15 @@ export default function AdminSignup() {
       });
 
       const signupData = await signupRes.json();
+      
       if (!signupRes.ok) throw new Error(signupData.message || "Signup failed");
+      
+      console.log("Signup Response:", signupData);
 
       // 2. AUTO-LOGIN API
+      console.log("--- API CALL: Auto-Login ---");
+      console.log("Payload:", { email: formData.email, password: "***" });
+
       const loginRes = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -76,6 +92,8 @@ export default function AdminSignup() {
       if (!loginRes.ok) throw new Error("Account created, but auto-login failed.");
       
       const loginData = await loginRes.json();
+      console.log("Login Response:", loginData);
+
       const token = loginData.access_token || loginData.token;
 
       // 3. STORE TOKEN & REDIRECT
@@ -87,6 +105,9 @@ export default function AdminSignup() {
       router.push("/admin/dashboard");
 
     } catch (error: unknown) {
+      // log whichever error tripped the catch block
+      console.error("API Error (Admin Signup/Login process):", error);
+
       let msg = "Something went wrong";
       if (error instanceof Error) msg = error.message;
       setToast({ message: msg, type: "error", isVisible: true });

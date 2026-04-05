@@ -10,19 +10,29 @@ import {
     CheckCircleIcon,
     ExclamationCircleIcon,
     AdjustmentsHorizontalIcon,
-    ArrowLeftIcon,
     MapPinIcon,
     ArrowTopRightOnSquareIcon,
-    PaperAirplaneIcon
+    PaperAirplaneIcon,
+    PlayCircleIcon
 } from "@heroicons/react/24/outline";
-import { CheckBadgeIcon } from "@heroicons/react/24/solid"; 
+import { CheckBadgeIcon, PlayIcon } from "@heroicons/react/24/solid"; 
 import NavigationPill from "@/components/NavigationPill"; 
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// --- TYPES ---
 type FilterOption = string | { label: string; value: string };
+
+// Added storedVideoUrl to the interface
+interface SpotlightVideo {
+    position: number;
+    provider: string;
+    originalUrl: string | null;
+    embedUrl: string | null;
+    thumbnailUrl: string | null;
+    customThumbnailUrl?: string | null;
+    storedVideoUrl?: string | null;
+}
 
 interface CreatorProfile {
     id?: string;
@@ -44,10 +54,9 @@ interface CreatorProfile {
     tiktokEngagementRate?: number;
     pricePerPost?: number | string;
     location?: string;
+    spotlightVideos?: SpotlightVideo[];
 }
 
-// --- CONFIGURATION ---
-// updated niches to the new provided list
 const AVAILABLE_NICHES = [
     "Food & Food Stuff", "Beverages", "Electronics/Gadgets", "Flowers & Floral-inspired Gifts",
     "Gifts & Gift packages", "Arts & Crafts", "Retail (General)", "Clothing", 
@@ -65,7 +74,6 @@ const FILTER_OPTIONS = {
   platform: ["instagram", "tiktok"]
 };
 
-// --- PLACEHOLDER IMAGES ---
 const PLACEHOLDERS = [
     "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=60",
     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
@@ -73,7 +81,6 @@ const PLACEHOLDERS = [
     "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500&auto=format&fit=crop&q=60"
 ];
 
-// --- UTILS ---
 const formatNumber = (num: number | undefined) => {
     if (!num) return "0";
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -81,7 +88,6 @@ const formatNumber = (num: number | undefined) => {
     return num.toString();
 };
 
-// --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
         if (isVisible) {
@@ -102,7 +108,6 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
     );
 };
 
-// --- ICONS ---
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M7.8,2H16.2C19.4,2 22,4.6 22,7.8V16.2A5.8,5.8 0 0,1 16.2,22H7.8C4.6,22 2,19.4 2,16.2V7.8A5.8,5.8 0 0,1 7.8,2M7.6,4A3.6,3.6 0 0,0 4,7.6V16.4C4,18.39 5.61,20 7.6,20H16.4A3.6,3.6 0 0,0 20,16.4V7.6C20,5.61 18.39,4 16.4,4H7.6M17.25,5.5A1.25,1.25 0 0,1 18.5,6.75A1.25,1.25 0 0,1 17.25,8A1.25,1.25 0 0,1 16,6.75A1.25,1.25 0 0,1 17.25,5.5M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" />
@@ -162,7 +167,6 @@ const FilterDropdown = ({ label, options, onSelect }: { label: string, options: 
     );
 };
 
-// added a custom multi-select dropdown for the niches
 const MultiSelectDropdown = ({ label, options, selectedValues, onToggle }: { label: string, options: string[], selectedValues: string[], onToggle: (val: string[]) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -220,8 +224,44 @@ const MultiSelectDropdown = ({ label, options, selectedValues, onToggle }: { lab
     );
 };
 
-// --- CREATOR DETAILS MODAL (RESPONSIVE) ---
-const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onInvite: (c: CreatorProfile) => void }) => {
+// Now accepts the whole video object to dictate how to render the player
+const VideoPlayerModal = ({ video, onClose }: { video: SpotlightVideo | null, onClose: () => void }) => {
+    if (!video) return null;
+
+    const isUpload = video.provider === 'upload' && video.storedVideoUrl;
+    const isTikTok = video.embedUrl?.includes('tiktok.com');
+
+    return (
+        <div onClick={onClose} className="fixed inset-0 z-[120] bg-black/90 flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+            <button onClick={onClose} className="absolute top-4 right-4 md:top-6 md:right-6 text-white hover:text-gray-300 cursor-pointer z-10 p-2 bg-black/50 rounded-full">
+                <XMarkIcon className="w-6 h-6 md:w-8 md:h-8" />
+            </button>
+            
+            <div onClick={e => e.stopPropagation()} className={`w-full bg-black rounded-xl overflow-hidden shadow-2xl relative ${isTikTok ? 'max-w-sm aspect-[9/16]' : 'max-w-5xl aspect-video'}`}>
+                {/* Dynamically render standard iframe or native HTML5 video */}
+                {isUpload ? (
+                    <video 
+                        src={video.storedVideoUrl!} 
+                        controls 
+                        autoPlay 
+                        className="w-full h-full object-contain"
+                    />
+                ) : video.embedUrl ? (
+                    <iframe 
+                        src={video.embedUrl} 
+                        className="w-full h-full border-0" 
+                        allowFullScreen 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    ></iframe>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white">Video unavailable</div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite, onPlayVideo }: { isOpen: boolean, onClose: () => void, creator: CreatorProfile | null, onInvite: (c: CreatorProfile) => void, onPlayVideo: (video: SpotlightVideo) => void }) => {
     if (!isOpen || !creator) return null;
 
     const igLink = creator.links?.instagram || creator.instagram;
@@ -235,16 +275,59 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
     const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
     const placeholderImg = PLACEHOLDERS[0]; 
 
+    const renderSpotlightCards = () => {
+        if (!creator.spotlightVideos || creator.spotlightVideos.length === 0) return null;
+
+        return (
+            <div className="mb-10">
+                <h3 className="text-xl font-bold text-slate-900 mb-4">Spotlight Work</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {creator.spotlightVideos.map((video) => {
+                        const thumb = video.customThumbnailUrl || video.thumbnailUrl || placeholderImg;
+                        const isIG = video.provider === 'instagram';
+                        const isUpload = video.provider === 'upload';
+
+                        return (
+                            <div 
+                                key={video.position} 
+                                onClick={() => {
+                                    // Let native uploaded videos or videos with valid embed URLs trigger the modal
+                                    if (isUpload || video.embedUrl) {
+                                        onPlayVideo(video);
+                                    } else if (video.originalUrl) {
+                                        window.open(video.originalUrl, '_blank');
+                                    }
+                                }}
+                                className="group relative aspect-video bg-gray-100 rounded-2xl overflow-hidden cursor-pointer border border-gray-200 shadow-sm hover:shadow-md transition-all"
+                            >
+                                <Image src={thumb} alt="Spotlight" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                                
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                                    {isIG ? <ArrowTopRightOnSquareIcon className="w-10 h-10 text-white drop-shadow-md" /> : <PlayIcon className="w-12 h-12 text-white drop-shadow-md" />}
+                                </div>
+
+                                <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+                                    {isIG ? <InstagramIcon className="w-4 h-4 text-white" /> : (video.provider === 'tiktok' ? <TiktokIcon className="w-4 h-4 text-white" /> : <PlayCircleIcon className="w-4 h-4 text-white" />)}
+                                    <span className="text-white text-xs font-bold capitalize drop-shadow-md">{video.provider}</span>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md md:max-w-4xl bg-[#0A0A0A]/90 md:bg-white backdrop-blur-xl rounded-[2.5rem] md:rounded-[3rem] p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 text-white md:text-slate-900 border border-white/10 md:border-none overflow-y-auto max-h-[90vh] md:flex md:p-10 md:gap-10">
                 
-                {/* Close Button */}
                 <button onClick={onClose} className="absolute top-6 right-6 md:top-8 md:right-8 text-gray-400 hover:text-white md:hover:text-black transition-colors cursor-pointer z-10 p-2 md:bg-gray-100 md:rounded-full">
                     <XMarkIcon className="w-6 h-6 md:w-5 md:h-5" />
                 </button>
 
-                {/* --- MOBILE VIEW: VERTICAL DARK (Visible only on small screens) --- */}
+                {/* --- MOBILE VIEW --- */}
                 <div className="flex flex-col items-center mt-2 text-center md:hidden w-full">
                     <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-800 relative mb-4 border-2 border-white/10 shrink-0">
                         {creator.profileImageUrl ? (
@@ -289,11 +372,15 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                         </div>
                     </div>
 
+                    <div className="w-full text-left">
+                        {renderSpotlightCards()}
+                    </div>
+
                     <div className="flex w-full gap-3 mb-6">
                         <button 
                             onClick={() => handleSocialClick(igLink)} 
                             disabled={!igLink} 
-                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:opacity-90 transition-opacity cursor-pointer"
+                            className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:opacity-90 transition-opacity cursor-pointer"
                         >
                             <InstagramIcon className="w-5 h-5"/> View IG
                         </button>
@@ -314,10 +401,8 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                     </button>
                 </div>
 
-                {/* --- DESKTOP VIEW: HORIZONTAL WHITE SPLIT (Visible only on md+ screens) --- */}
+                {/* --- DESKTOP VIEW --- */}
                 <div className="hidden md:flex w-full items-stretch gap-10 lg:gap-12">
-                    
-                    {/* Left: Huge Image */}
                     <div className="w-[45%] relative rounded-[2rem] overflow-hidden bg-gray-100 shrink-0 shadow-inner min-h-[450px]">
                         {creator.profileImageUrl ? (
                             <Image 
@@ -336,9 +421,7 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                         )}
                     </div>
 
-                    {/* Right: Details & Actions */}
                     <div className="flex-1 flex flex-col py-2">
-                        
                         <div className="mb-8 pr-12 relative">
                             <div className="flex items-start gap-3 mb-1">
                                 <h2 className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight break-words line-clamp-2">{creator.displayName || "Unknown Creator"}</h2>
@@ -346,7 +429,6 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                             </div>
                         </div>
 
-                        {/* Bio Section */}
                         <div className="mb-6">
                             <h3 className="text-xl font-bold text-slate-900 mb-2">Bio</h3>
                             <p className="text-gray-600 leading-relaxed text-[15px]">
@@ -354,7 +436,6 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                             </p>
                         </div>
 
-                        {/* Niches */}
                         {creator.niches && creator.niches.length > 0 && (
                             <div className="mb-8">
                                 <div className="flex flex-wrap gap-2">
@@ -367,21 +448,19 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                             </div>
                         )}
 
-                        {/* Price */}
                         <div className="mb-10 flex items-baseline gap-2">
                             <span className="text-lg text-gray-500 font-medium">Base Rate:</span>
                             <span className="text-3xl font-extrabold text-slate-900">{price}</span>
                         </div>
 
-                        {/* Action Buttons - Pushed to bottom */}
+                        {renderSpotlightCards()}
+
                         <div className="flex flex-col gap-4 mt-auto">
-                            
-                            {/* Social Links Row */}
                             <div className="flex gap-4 w-full">
                                 <button 
                                     onClick={() => handleSocialClick(igLink)} 
                                     disabled={!igLink} 
-                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200/50 transition-all cursor-pointer"
+                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white hover:shadow-lg hover:shadow-pink-200/50 transition-all cursor-pointer"
                                 >
                                     <InstagramIcon className="w-5 h-5" /> Instagram
                                 </button>
@@ -395,19 +474,15 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite }: { isOpen: b
                                 </button>
                             </div>
 
-                            {/* Invite Button */}
                             <button 
                                 onClick={() => { onClose(); onInvite(creator); }}
                                 className="w-full bg-white hover:bg-gray-50 text-slate-900 font-extrabold py-4 rounded-2xl transition-all active:scale-[0.98] cursor-pointer text-lg mt-3 border-2 border-gray-100 shadow-sm"
                             >
                                 Send Request +
                             </button>
-
                         </div>
-
                     </div>
                 </div>
-                
             </div>
         </div>
     );
@@ -459,16 +534,15 @@ const InviteModal = ({
         try {
             const token = localStorage.getItem("accessToken");
             const payload = {
-                creatorId: creator?.userId, // Using userId as requested
+                creatorId: creator?.userId,
                 message: formData.description,
                 proposedPrice: Number(formData.budget),
                 startDate: formData.startDate,
                 endDate: formData.endDate,
-                briefUrl: "https://caskayd.com/brief-template.pdf" // Hardcoded as requested
+                briefUrl: "https://caskayd.com/brief-template.pdf"
             };
 
             console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
-
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
                 headers: { 
@@ -479,8 +553,8 @@ const InviteModal = ({
             });
 
             if (!res.ok) {
-                const errorText = await res.text();
-                console.error("🔴 [API Error] POST /chat-requests FAILED:", errorText);
+                const err = await res.json().catch(() => null);
+                console.error("🔴 [API Error] POST /chat-requests FAILED:", err);
                 throw new Error("Failed to send collaboration request");
             }
 
@@ -488,6 +562,7 @@ const InviteModal = ({
             onShowToast("Request Sent Successfully!", "success");
             onClose();
         } catch (error: any) {
+            console.error("🔴 [Network Error] Chat request failed:", error);
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
@@ -551,8 +626,6 @@ const InviteModal = ({
     );
 };
 
-
-// --- CREATOR CARD ---
 const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: CreatorProfile, onViewDetails: (c: CreatorProfile) => void, onInvite: (c: CreatorProfile) => void, index: number }) => {
     const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
 
@@ -579,7 +652,6 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
     };
 
     const displayName = creator.displayName || getHandle();
-    
     const price = creator.pricePerPost ? `₦${Number(creator.pricePerPost).toLocaleString()}` : "N/A";
     const location = creator.location || "Unknown";
 
@@ -626,7 +698,7 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
                         onClick={togglePlatform}
                         className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 cursor-pointer ${
                             platform === 'instagram' 
-                            ? 'bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:shadow-pink-200' 
+                            ? 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:shadow-pink-200' 
                             : 'bg-black hover:shadow-gray-300'
                         }`}
                     >
@@ -645,39 +717,32 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
     );
 };
 
-// --- MAIN PAGE ---
 export default function DiscoverPageClient() {
   const [searchQuery, setSearchQuery] = useState("");
-
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedInviteCreator, setSelectedInviteCreator] = useState<CreatorProfile | null>(null);
-  
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDetailsCreator, setSelectedDetailsCreator] = useState<CreatorProfile | null>(null);
-
   const [toast, setToast] = useState<{msg: string, type: "success"|"error", visible: boolean}>({ msg: "", type: "success", visible: false });
+
+  const [creators, setCreators] = useState<CreatorProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ niche: [] as string[], price: "", platform: "" });
+
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [isSearchScrolledPast, setIsSearchScrolledPast] = useState(false);
+  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
+  const [showFloatingFilterModal, setShowFloatingFilterModal] = useState(false);
+
+  // Updated state to hold the entire spotlight video object
+  const [playingVideo, setPlayingVideo] = useState<SpotlightVideo | null>(null);
 
   const showToast = (msg: string, type: "success"|"error") => {
       setToast({ msg, type, visible: true });
   };
 
-  const [creators, setCreators] = useState<CreatorProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [showFilters, setShowFilters] = useState(false);
-  // updated filters state to hold an array of niches
-  const [filters, setFilters] = useState({ niche: [] as string[], price: "", platform: "" });
-
-  // tracking when the main search bar scrolls out of view
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-  const [isSearchScrolledPast, setIsSearchScrolledPast] = useState(false);
-
-  // floating UI states
-  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
-  const [showFloatingFilterModal, setShowFloatingFilterModal] = useState(false);
-
   useEffect(() => {
-      // observer to toggle floating action bar
       const observer = new IntersectionObserver(([entry]) => {
           setIsSearchScrolledPast(!entry.isIntersecting);
       }, { threshold: 0 });
@@ -694,12 +759,11 @@ export default function DiscoverPageClient() {
           setLoading(true);
           try {
               const params = new URLSearchParams();
-              // updated to join multiple niches by comma
               if (filters.niche.length > 0) params.append("niche", filters.niche.join(",").toLowerCase());
               
               const url = `${BASE_URL}/creator${params.toString() ? `?${params.toString()}` : ''}`;
-              console.log(`🔵 [API Request] GET ${url}`);
               
+              console.log("🔵 [API Request] GET", url);
               const res = await fetch(url, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
@@ -717,7 +781,12 @@ export default function DiscoverPageClient() {
               setLoading(false);
           }
       };
-      fetchCreators();
+
+      const timeoutId = setTimeout(() => {
+          fetchCreators();
+      }, 500); 
+
+      return () => clearTimeout(timeoutId);
   }, [filters.niche]); 
 
   const handleFilterSelect = (type: string, value: string | string[]) => {
@@ -735,15 +804,12 @@ export default function DiscoverPageClient() {
   };
 
   const displayedCreators = creators.filter((creator) => {
-      
-      // 1. Relaxed Real-Time Search Filter
       let matchesSearch = true;
       if (searchQuery) {
           const normalize = (str: string) => (str || "").toLowerCase().replace(/[@_\-\s]/g, "");
           const query = normalize(searchQuery);
 
           const name = normalize(creator.displayName || "");
-          
           const extractHandle = (url: string) => {
               if (!url) return "";
               let clean = url.replace(/(^\w+:|^)\/\//, '').replace("www.", "");
@@ -757,12 +823,10 @@ export default function DiscoverPageClient() {
           matchesSearch = name.includes(query) || igHandle.includes(query) || tkHandle.includes(query);
       }
 
-      // 2. Local Price Filter (using pricePerPost)
       let matchesPrice = true;
       if (filters.price) {
           const priceVal = Number(filters.price);
           const creatorPrice = Number(creator.pricePerPost) || 0;
-          
           if (priceVal === 500001) { 
               matchesPrice = creatorPrice >= 500000;
           } else { 
@@ -770,11 +834,9 @@ export default function DiscoverPageClient() {
           }
       }
 
-      // 3. Local Niche Filter (handles arrays now)
       let matchesNiche = true;
       if (filters.niche.length > 0) {
           const creatorNichesLower = (creator.niches || []).map(n => n.toLowerCase());
-          // check if the creator has AT LEAST ONE of the selected niches
           matchesNiche = filters.niche.some(selected => creatorNichesLower.includes(selected.toLowerCase()));
       }
 
@@ -791,19 +853,12 @@ export default function DiscoverPageClient() {
 
   return (
     <div className={`flex flex-col min-h-screen bg-[#F8F9FB] ${inter.className} overflow-x-hidden relative`}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      <Toast 
-        message={toast.msg} 
-        type={toast.type} 
-        isVisible={toast.visible} 
-        onClose={() => setToast(prev => ({ ...prev, visible: false }))} 
-      />
+      <Toast message={toast.msg} type={toast.type} isVisible={toast.visible} onClose={() => setToast(prev => ({ ...prev, visible: false }))} />
 
-      {/* Transparent Floating Filter Modal */}
+      <VideoPlayerModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
+
       {showFloatingFilterModal && (
         <div onClick={() => setShowFloatingFilterModal(false)} className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-sm flex items-start justify-center pt-32 animate-in fade-in duration-200">
             <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm flex flex-col gap-4 animate-in slide-in-from-top-4">
@@ -814,7 +869,6 @@ export default function DiscoverPageClient() {
                     </button>
                 </div>
                 
-                {/* Reusing our custom components inside the modal */}
                 <div className="flex flex-col gap-4">
                     <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches Selected" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
                     <FilterDropdown label="Price Range" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
@@ -828,12 +882,8 @@ export default function DiscoverPageClient() {
         </div>
       )}
 
-      {/* Floating Action Bar (Top Right) */}
       {isSearchScrolledPast && (
-          // Adjusted the top value and z-index to clear the NavigationPill
           <div className="fixed top-[130px] md:top-[140px] right-4 md:right-8 z-50 flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
-              
-              {/* Sliding Search Input */}
               <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showFloatingSearch ? 'w-48 md:w-64 opacity-100 mr-1' : 'w-0 opacity-0 mr-0'}`}>
                   <input 
                       type="text" 
@@ -844,7 +894,6 @@ export default function DiscoverPageClient() {
                   />
               </div>
 
-              {/* Toggle Search Button */}
               <button 
                   onClick={() => setShowFloatingSearch(!showFloatingSearch)}
                   className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
@@ -852,13 +901,11 @@ export default function DiscoverPageClient() {
                   {showFloatingSearch ? <XMarkIcon className="w-5 h-5" /> : <MagnifyingGlassIcon className="w-5 h-5" />}
               </button>
 
-              {/* Open Filter Modal Button */}
               <button 
                   onClick={() => setShowFloatingFilterModal(true)}
                   className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-900 transition-colors cursor-pointer relative"
               >
                   <AdjustmentsHorizontalIcon className="w-5 h-5" />
-                  {/* notification dot if filters are active */}
                   {(filters.niche.length > 0 || filters.price) && (
                       <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-black"></span>
                   )}
@@ -878,18 +925,16 @@ export default function DiscoverPageClient() {
         onClose={() => setIsDetailsModalOpen(false)}
         creator={selectedDetailsCreator}
         onInvite={openInviteModal}
+        onPlayVideo={setPlayingVideo}
       />
 
       <NavigationPill />
 
       <main className="w-full flex-1 pb-32 pt-[160px] md:pt-[180px]">
-        
         <h1 className="sr-only">Discover Top Content Creators</h1>
 
-        {/* SEARCH & FILTERS SECTION */}
         <div className="px-4 md:px-8" ref={searchContainerRef}>
             <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
-                
                 <div className="w-full max-w-lg relative group">
                     <input 
                         type="text" 
@@ -912,7 +957,6 @@ export default function DiscoverPageClient() {
                     {showFilters && (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                             <div className="bg-white rounded-full px-2 py-1 shadow-sm border border-gray-100 flex items-center">
-                                {/* Using the new multi-select component */}
                                 <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
                                 <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
                                 <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
@@ -929,7 +973,6 @@ export default function DiscoverPageClient() {
             </div>
         </div>
 
-        {/* CREATORS GRID */}
         <div className="px-4 md:px-8 mt-16">
             <div className="max-w-7xl mx-auto">
                 {loading ? (

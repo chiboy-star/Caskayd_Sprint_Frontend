@@ -17,7 +17,6 @@ import {
     Cog6ToothIcon
 } from "@heroicons/react/24/outline";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { toast } from "react-hot-toast"; // Or use your custom Toast
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -28,7 +27,6 @@ interface AppNotification {
     isRead: boolean;
 }
 
-// Show temporary feedback messages to the user
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
         if (isVisible) {
@@ -41,7 +39,7 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     return (
         <div className={`fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
-            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
         } ${type === "success" ? "bg-emerald-500 text-black" : "bg-red-500 text-white"}`}>
             {type === "success" ? <CheckCircleIcon className="w-5 h-5"/> : <XCircleIcon className="w-5 h-5"/>}
             <span className="font-bold text-sm">{message}</span>
@@ -53,19 +51,12 @@ export default function NavigationPill() {
     const pathname = usePathname();
     const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    
-    // Store user profile data
     const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; companyName?: string; displayName?: string } | null>(null);
-
-    // Notification and unread state
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
-    
-    // Sent invites counter
     const [sentCount, setSentCount] = useState<number>(0);
     const [showSentCount, setShowSentCount] = useState(false);
-    
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
@@ -73,18 +64,12 @@ export default function NavigationPill() {
     const isActive = (path: string) => pathname?.includes(path);
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
 
-    // Fetch initial data on mount and poll alerts
     usePushNotifications((payload) => {
-    // This runs when a message hits while the app is actively open
-    const title = payload?.notification?.title || "New Message";
-    const body = payload?.notification?.body || "You have a new message.";
-    
-    // Fire your custom toast or react-hot-toast
-    showToast(`${title}: ${body}`, "success");
-    
-    // You can also manually increment your unreadMessages state here!
-    setUnreadMessages(prev => prev + 1);
-});
+        const title = payload?.notification?.title || "New Message";
+        const body = payload?.notification?.body || "You have a new message.";
+        showToast(`${title}: ${body}`, "success");
+        setUnreadMessages(prev => prev + 1);
+    });
 
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
@@ -92,23 +77,18 @@ export default function NavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
-                console.log("🔵 [API Request] GET /users/profile | Sent: No body");
                 const profileRes = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
-                    console.log("🟢 [API Response] GET /users/profile SUCCESS:", profileData);
-                    
                     if (Array.isArray(profileData) && profileData.length > 0) {
                         const activeBusinessProfile = profileData.find((p: any) => p.companyName) || profileData[0];
                         setUserProfile(activeBusinessProfile);
                     } else if (profileData && typeof profileData === 'object') {
                         setUserProfile(profileData);
                     }
-                } else {
-                    console.error("🔴 [API Error] GET /users/profile FAILED:", await profileRes.text());
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /users/profile crashed:", error);
@@ -116,43 +96,40 @@ export default function NavigationPill() {
         };
 
         const fetchAlerts = async () => {
-            // Fetch unread message count
             try {
-                console.log("🔵 [API Request] GET /messages/unread/count | Sent: No body");
                 const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
                     const msgCount = await msgRes.text(); 
-                    console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", msgCount);
-                    setUnreadMessages(Number(msgCount) || 0);
-                } else {
-                    console.error("🔴 [API Error] GET /messages/unread/count FAILED:", await msgRes.text());
+                    const count = Number(msgCount) || 0;
+                    setUnreadMessages(count);
+
+                    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+                        if (count > 0) {
+                            navigator.setAppBadge(count); 
+                        } else {
+                            navigator.clearAppBadge(); 
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
-            // Fetch app notifications
             try {
-                console.log("🔵 [API Request] GET /notifications | Sent: No body");
                 const notifRes = await fetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
                     const notifData = await notifRes.json();
-                    console.log("🟢 [API Response] GET /notifications SUCCESS:", notifData);
                     setNotifications(notifData);
-                } else {
-                    console.error("🔴 [API Error] GET /notifications FAILED:", await notifRes.text());
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
 
-            // Fetch sent chat requests count
             try {
-                console.log("🔵 [API Request] GET /chat-requests/business/sent-count | Sent: No body");
                 const sentRes = await fetch(`${BASE_URL}/chat-requests/business/sent-count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -165,71 +142,34 @@ export default function NavigationPill() {
                     } catch {
                         parsedCount = Number(countData) || 0;
                     }
-                    console.log("🟢 [API Response] GET /chat-requests/business/sent-count SUCCESS:", parsedCount);
                     setSentCount(parsedCount);
-                } else {
-                    console.error("🔴 [API Error] GET /chat-requests/business/sent-count FAILED:", await sentRes.text());
                 }
             } catch (error) {
                 console.error("🔴 [Network Error] GET /chat-requests/business/sent-count crashed:", error);
-            }
-
-            try {
-                const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (msgRes.ok) {
-                    const msgCount = await msgRes.text(); 
-                    const count = Number(msgCount) || 0;
-                    setUnreadMessages(count);
-
-                    // --- NEW: UPDATE THE APP ICON BADGE ---
-                    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
-                        if (count > 0) {
-                            navigator.setAppBadge(count); // Shows the red dot with the number
-                        } else {
-                            navigator.clearAppBadge(); // Removes the red dot when read
-                        }
-                    }
-                    // --------------------------------------
-
-                }
-            } catch (error) {
-                console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
         };
 
         fetchUserProfile(); 
         fetchAlerts();      
-        const interval = setInterval(fetchAlerts, 15000); 
-        return () => clearInterval(interval);
+        // Fix: Removed redundant setInterval polling. Relying on WebSockets/FCM.
     }, []);
 
-    // Mark a notification as read locally and on the server
     const handleMarkAsRead = async (id: string, currentlyRead: boolean) => {
         if (currentlyRead) return; 
-
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            console.log(`🔵 [API Request] PATCH /notifications/${id}/read | Sent: No body`);
             const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
-
             if (!res.ok) {
-                const errorText = await res.text();
-                console.error(`🔴 [API Error] PATCH /notifications/${id}/read FAILED:`, errorText);
                 setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
-            } else {
-                console.log(`🟢 [API Response] PATCH /notifications/${id}/read SUCCESS`);
             }
         } catch (error) {
-            console.error(`🔴 [Network Error] PATCH /notifications/${id}/read crashed:`, error);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
         }
     };
@@ -242,12 +182,10 @@ export default function NavigationPill() {
         if (!token) return;
 
         setIsUploadingAvatar(true);
-
         const formData = new FormData();
         formData.append("file", file);
 
         try {
-            console.log("🔵 [API Request] POST /upload/avatar");
             const res = await fetch(`${BASE_URL}/upload/avatar`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
@@ -256,19 +194,13 @@ export default function NavigationPill() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] POST /upload/avatar SUCCESS", data);
-                
                 showToast("Profile image updated successfully!", "success");
-                
                 const newAvatarUrl = data.url || URL.createObjectURL(file);
                 setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
             } else {
-                const errorData = await res.json().catch(() => null);
-                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData);
-                showToast(`Failed to update: ${errorData?.message || "Bad Request"}`, "error");
+                showToast(`Failed to update image`, "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] POST /upload/avatar crashed:", error);
             showToast("Network error. Please try again later.", "error");
         } finally {
             setIsUploadingAvatar(false);
@@ -276,13 +208,11 @@ export default function NavigationPill() {
         }
     };
 
-    // Logout and clear tokens
     const handleLogout = () => {
         localStorage.removeItem("accessToken");
         router.push("/business/login");
     };
 
-    // Display Name Fallback logic
     const dispName = userProfile?.displayName || userProfile?.companyName || "Business Account";
     const userEmail = userProfile?.email || "business@example.com";
     const initial = dispName.charAt(0).toUpperCase();
@@ -293,11 +223,8 @@ export default function NavigationPill() {
 
             <div className="fixed top-0 left-0 right-0 z-40 w-full px-4 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
                 <div className="max-w-5xl mx-auto">
-                    
-                    {/* Main Nav Container */}
                     <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 sm:gap-4">
                         
-                        {/* Responsive Logo Container */}
                         <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
                             <div className="relative w-40 h-10 shrink-0 hidden sm:block">
@@ -319,7 +246,6 @@ export default function NavigationPill() {
                         </div>
                         </Link>
 
-                        {/* Central Pill Menu */}
                         <div className="flex flex-1 justify-center items-center gap-4 sm:gap-6 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
                             <Link href="/business/discover" className="group">
                                 <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/business/discover') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
@@ -347,10 +273,7 @@ export default function NavigationPill() {
                             </Link>
                         </div>
 
-                        {/* Right Section Icons */}
                         <div className="flex items-center gap-1 sm:gap-4 shrink-0 relative z-10">
-                            
-                            {/* Sent Invites Button */}
                             <div className="relative flex items-center">
                                 <button 
                                     onClick={() => setShowSentCount(!showSentCount)}
@@ -369,7 +292,6 @@ export default function NavigationPill() {
                                 )}
                             </div>
 
-                            {/* Notifications Button & Dropdown UI */}
                             <div className="relative flex items-center">
                                 <button 
                                     onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -383,7 +305,6 @@ export default function NavigationPill() {
                                     )}
                                 </button>
 
-                                {/* Added the missing Dropdown UI for notifications */}
                                 {isNotificationsOpen && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
@@ -420,7 +341,6 @@ export default function NavigationPill() {
                                 )}
                             </div>
 
-                            {/* Profile Button */}
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
                                 className="w-10 h-10 md:w-11 md:h-11 ml-1 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden shrink-0"
@@ -438,7 +358,6 @@ export default function NavigationPill() {
                 </div>
             </div>
 
-            {/* --- PROFILE MODAL OVERLAY --- */}
             {isProfileOpen && (
                 <div onClick={() => setIsProfileOpen(false)} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50  animate-in fade-in duration-300">
                     <div onClick={(e) => e.stopPropagation()} className="bg-[#0A0A0A]/50 backdrop-blur-xl w-full max-w-sm rounded-[2rem] p-8 relative shadow-2xl animate-in slide-in-from-bottom-10 duration-300 text-white border border-white/10 overflow-hidden">
