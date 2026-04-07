@@ -63,14 +63,12 @@ export default function CreatorWalletClient() {
   // --- FETCH EARNINGS ---
   const fetchWalletData = async (token: string) => {
       try {
-          console.log("🔵 [API Request] GET /payments/earnings");
           const res = await fetch(`${BASE_URL}/payments/earnings`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
           
           if (res.ok) {
               const data = await res.json();
-              console.log("🟢 [API Response] GET /payments/earnings SUCCESS:", data);
               
               // Set the state dynamically using the backend response
               setWalletData({
@@ -80,10 +78,8 @@ export default function CreatorWalletClient() {
                   totalTransactions: data?.totalTransactions || 0
               });
           } else {
-              console.error("🔴 [API Error] GET /payments/earnings FAILED:", await res.text());
           }
       } catch (error) {
-          console.error("🔴 [Network Error] GET /payments/earnings crashed:", error);
       } finally {
           setLoading(false);
       }

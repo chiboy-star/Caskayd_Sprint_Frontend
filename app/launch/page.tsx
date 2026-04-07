@@ -33,7 +33,6 @@ export default function PWALaunchScreen() {
                     const payload = JSON.parse(window.atob(base64));
                     role = payload.role;
                 } catch (decodeError) {
-                    console.warn("Could not safely decode JWT role, falling back to profile fetch...");
                 }
                 
                 if (role === 'business') {
@@ -43,7 +42,6 @@ export default function PWALaunchScreen() {
                 }
 
                 // 2. FALLBACK: If token exists but role is missing/undecodable, fetch profile
-                console.log("Fetching profile as fallback...");
                 const res = await fetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
@@ -64,7 +62,6 @@ export default function PWALaunchScreen() {
                 }
 
             } catch (error) {
-                console.error("Auth check failed, showing selection screen.", error);
                 localStorage.removeItem("accessToken"); 
                 setIsCheckingAuth(false);
             }

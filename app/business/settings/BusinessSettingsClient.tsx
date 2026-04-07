@@ -66,7 +66,6 @@ export default function BusinessSettingsClient() {
                     }
                 }
             } catch (error) {
-                console.error("🔴 [Network Error] Failed to load profile:", error);
             }
         };
 

@@ -34,16 +34,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         socketInstance.on("connect", () => {
-            console.log("🟢 [WebSocket] Connected to Socket.io server:", socketInstance.id);
             setIsConnected(true);
         });
 
         socketInstance.on("connect_error", (err) => {
-            console.error("🔴 [WebSocket] Connection error:", err.message);
         });
 
         socketInstance.on("disconnect", (reason) => {
-            console.log(`🔴 [WebSocket] Disconnected. Reason: ${reason}`);
             setIsConnected(false);
         });
 

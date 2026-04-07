@@ -15,7 +15,6 @@ if (configString) {
 
     // 2. Handle background messages
     messaging.onBackgroundMessage(function(payload) {
-        console.log('[Service Worker] Received background message ', payload);
         
         const notificationTitle = payload.notification?.title || 'New Message';
         const notificationOptions = {

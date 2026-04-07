@@ -125,7 +125,6 @@ export default function BusinessSignupClient() {
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
-          console.log(`🔵 [API Request] POST /auth/login (Recovery flow to ${destination})`, loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -135,7 +134,6 @@ export default function BusinessSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
-              console.error("🔴 [API Error] POST /auth/login FAILED:", errorData || loginRes.statusText);
               
               if (destination === "discover") {
                   showError("Wrong password. Redirecting to login page...");
@@ -152,7 +150,6 @@ export default function BusinessSignupClient() {
           const loginData = await loginRes.json();
           const token = loginData.access_token || loginData.token;
           
-          console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received:", loginData);
           localStorage.setItem("accessToken", token);
           setShowEmailExistsModal(false);
 
@@ -168,7 +165,6 @@ export default function BusinessSignupClient() {
           }
 
       } catch (error: any) {
-          console.error("🔴 [Network Error] Recovery login crashed:", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -189,7 +185,6 @@ export default function BusinessSignupClient() {
 
     try {
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
-        console.log("🔵 [API Request] POST /auth/signup PAYLOAD:", signupPayload);
         
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
@@ -200,7 +195,6 @@ export default function BusinessSignupClient() {
         const signupData = await signupRes.json();
         
         if (!signupRes.ok) {
-            console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
             
             if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
                 setShowEmailExistsModal(true);
@@ -211,7 +205,6 @@ export default function BusinessSignupClient() {
             throw new Error(signupData.message || "Signup failed. Please try again.");
         }
         
-        console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
         showSuccess("Account created! Sending OTP...");
         await delay(600);
         
@@ -240,7 +233,6 @@ export default function BusinessSignupClient() {
             role: "business",
             code: otpCode
         };
-        console.log("🔵 [API Request] POST /auth/verify-signup PAYLOAD:", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -251,11 +243,9 @@ export default function BusinessSignupClient() {
         const verifyData = await verifyRes.json();
 
         if (!verifyRes.ok) {
-            console.error("🔴 [API Error] POST /auth/verify-signup FAILED:", verifyData);
             throw new Error(verifyData.message || "Invalid OTP code.");
         }
 
-        console.log("🟢 [API Response] POST /auth/verify-signup SUCCESS:", verifyData);
         
         // Save the token from OTP response
         const token = verifyData.access_token || verifyData.token;
@@ -281,7 +271,6 @@ export default function BusinessSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
-        console.log("🔵 [API Request] POST /auth/forgot-password PAYLOAD:", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -292,11 +281,9 @@ export default function BusinessSignupClient() {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/forgot-password FAILED:", data || res.statusText);
             throw new Error(data.message || "Failed to send reset email.");
         }
 
-        console.log("🟢 [API Response] POST /auth/forgot-password SUCCESS:", data);
         showSuccess("Password reset code sent to your email.");
         // Move to the next step in the modal
         setForgotPasswordStep(2);
@@ -320,7 +307,6 @@ export default function BusinessSignupClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
-        console.log("🔵 [API Request] POST /auth/reset-password PAYLOAD:", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -331,11 +317,9 @@ export default function BusinessSignupClient() {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/reset-password FAILED:", data || res.statusText);
             throw new Error(data.message || "Failed to reset password.");
         }
 
-        console.log("🟢 [API Response] POST /auth/reset-password SUCCESS:", data);
         showSuccess("Password reset successfully! You can now log in.");
         
         // Clean up and close modal
@@ -366,7 +350,6 @@ export default function BusinessSignupClient() {
 
     try {
         const profilePayload = { companyName: formData.companyName };
-        console.log("🔵 [API Request] PATCH /users/business/profile PAYLOAD:", profilePayload);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/business/profile`, {
             method: "PATCH",
@@ -379,13 +362,10 @@ export default function BusinessSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileData = await profileUpdateRes.json();
-            console.log("🟢 [API Response] PATCH /users/business/profile SUCCESS:", profileData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
-            console.warn("🟠 [API Warning] PATCH /users/business/profile FAILED:", errorData || profileUpdateRes.statusText);
         }
 
-        console.log("🔵 [API Request] POST /upload/avatar (Uploading Logo...)");
         let uploadedLogoUrl = null;
         const uploadData = new FormData();
         uploadData.append("file", formData.businessLogo);
@@ -398,13 +378,11 @@ export default function BusinessSignupClient() {
 
         if (uploadRes.ok) {
             const uploadResult = await uploadRes.json();
-            console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadResult);
             uploadedLogoUrl = uploadResult.url; 
             showSuccess("Logo uploaded successfully!");
             await delay(500);
         } else {
             const errorData = await uploadRes.json().catch(() => null);
-            console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData || uploadRes.statusText);
             const errorMessage = errorData?.message || errorData?.error || "Failed to upload logo. File might be too large.";
             throw new Error(errorMessage);
         }
@@ -417,7 +395,6 @@ export default function BusinessSignupClient() {
             description: formData.description
         };
         
-        console.log("🔵 [API Request] POST /business PAYLOAD:", JSON.stringify(businessPayload, null, 2));
 
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
@@ -430,13 +407,11 @@ export default function BusinessSignupClient() {
 
         if (!businessRes.ok) {
             const errorData = await businessRes.json().catch(() => null);
-            console.error("🔴 [API Error] POST /business FAILED:", errorData || businessRes.statusText);
             const errorMessage = errorData?.message || errorData?.error || "Failed to finalize business details. Please try again.";
             throw new Error(errorMessage);
         }
         
         const businessData = await businessRes.json();
-        console.log("🟢 [API Response] POST /business SUCCESS:", businessData);
 
         showSuccess("Profile Complete! Redirecting...");
         

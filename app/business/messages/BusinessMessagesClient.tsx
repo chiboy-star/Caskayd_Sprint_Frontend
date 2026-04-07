@@ -154,20 +154,20 @@ export default function BusinessMessagesClient() {
 
     const fetchUnreadCount = async (token: string) => {
         try {
-            console.log("🔵 [API Request] GET /messages/unread/count");
+           
             const res = await fetch(`${BASE_URL}/messages/unread/count`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] GET /messages/unread/count SUCCESS:", data);
+                
                 const count = typeof data === 'number' ? data : (data.count || data.unreadCount || 0);
                 setGlobalUnreadCount(count);
             } else {
-                console.error("🔴 [API Error] GET /messages/unread/count FAILED");
+                
             }
         } catch (error) {
-            console.error("🔴 [Network Error] GET /messages/unread/count failed:", error);
+            
         }
     };
 
@@ -178,20 +178,20 @@ export default function BusinessMessagesClient() {
 
             await fetchUnreadCount(token);
 
-            console.log("🔵 [API Request] GET /conversations");
+            
             const res = await fetch(`${BASE_URL}/conversations`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] GET /conversations SUCCESS:", data);
+                
                 setConversations(data);
             } else {
-                console.error("🔴 [API Error] GET /conversations FAILED:", await res.text());
+                
             }
         } catch (error) {
-            console.error("🔴 [Network Error] GET /conversations crashed:", error);
+            
         } finally {
             setLoadingConversations(false);
         }
@@ -209,14 +209,14 @@ export default function BusinessMessagesClient() {
         if (showLoadingState) setInitialLoadingMessages(true);
 
         try {
-            console.log(`🔵 [API Request] GET /messages/${activeChatId}`);
+            
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                console.log(`🟢 [API Response] GET /messages/${activeChatId} SUCCESS`);
+                
                 const sorted = data.sort((a: Message, b: Message) => 
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
@@ -230,7 +230,7 @@ export default function BusinessMessagesClient() {
                 });
             }
 
-            console.log(`🔵 [API Request] PATCH /messages/read/${activeChatId}`);
+           
             await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
@@ -238,7 +238,7 @@ export default function BusinessMessagesClient() {
             fetchUnreadCount(token);
             
         } catch (error) {
-            console.error("🔴 [Fallback Polling Error]:", error);
+            
         } finally {
             if (showLoadingState) setInitialLoadingMessages(false);
         }
@@ -253,7 +253,7 @@ export default function BusinessMessagesClient() {
         }
 
         if (socket && isConnected) {
-            console.log(`🔵 [WebSocket] Emitting active_chat for: ${activeChatId}`);
+            
             socket.emit("active_chat", { conversationId: activeChatId });
         }
 
@@ -264,7 +264,7 @@ export default function BusinessMessagesClient() {
         }, 3000);
 
         const handleIncomingMessage = (payload: any) => {
-            console.log("🟢 [WebSocket] Real-time message detected, triggering fetch...");
+            
             fetchMessages(); 
         };
 
@@ -291,7 +291,7 @@ export default function BusinessMessagesClient() {
                 content: messageToSend
             };
 
-            console.log(`🔵 [API Request] POST /messages/${activeChatId} PAYLOAD:`, payload);
+            
 
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
@@ -304,16 +304,16 @@ export default function BusinessMessagesClient() {
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] POST /messages SUCCESS");
+                
                 fetchMessages(); 
             } else {
                 const errText = await res.text();
-                console.error("🔴 [API Error] POST /messages FAILED:", errText);
+                
                 setNewMessage(messageToSend); 
-                showToast("Failed to send message. Check console.", "error");
+                showToast("Failed to send message", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] POST /messages crashed:", error);
+            
             setNewMessage(messageToSend); 
         }
     };
@@ -337,7 +337,7 @@ export default function BusinessMessagesClient() {
         formData.append("file", file); 
 
         try {
-            console.log(`🔵 [API Request] POST /messages/${activeChatId} (File) | Sent: FormData`);
+            
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: {
@@ -347,15 +347,13 @@ export default function BusinessMessagesClient() {
             });
 
             if (msgRes.ok) {
-                console.log("🟢 [API Response] POST /messages (File) SUCCESS");
+                
                 fetchMessages(); 
             } else {
                 const errData = await msgRes.json().catch(() => null);
-                console.error(`🔴 [API Error] POST /messages (File) FAILED: Status ${msgRes.status}`, errData || msgRes.statusText);
                 throw new Error(errData?.message || errData?.error || `Server responded with status ${msgRes.status}`);
             }
         } catch (error: any) {
-            console.error("🔴 [Network Error] File upload process crashed:", error);
             showToast(error.message || "An error occurred during file upload", "error");
         } finally {
             setIsUploadingFile(false);
@@ -370,7 +368,6 @@ export default function BusinessMessagesClient() {
         if (!token) return;
 
         try {
-            console.log(`🔵 [API Request] PATCH /conversations/${activeChatId}/end`);
             const res = await fetch(`${BASE_URL}/conversations/${activeChatId}/end`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
@@ -378,16 +375,13 @@ export default function BusinessMessagesClient() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] PATCH /end SUCCESS:", data);
                 showToast("Request to end conversation submitted.", "success");
                 fetchConversations();
             } else {
                 const errData = await res.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /end FAILED:", errData);
                 showToast(errData?.message || "Failed to end conversation.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] PATCH /end crashed:", error);
             showToast("Network error. Please try again.", "error");
         }
     };
@@ -406,7 +400,6 @@ export default function BusinessMessagesClient() {
                 amount: Number(paymentAmount)
             };
 
-            console.log("🔵 [API Request] POST /payments/pay PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/payments/pay`, {
                 method: "POST",
                 headers: { 
@@ -418,7 +411,6 @@ export default function BusinessMessagesClient() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] POST /payments/pay SUCCESS:", data);
 
                 const authUrl = data.paymentUrl || data.data?.authorization_url;
                 const reference = data.reference || data.data?.reference;
@@ -429,7 +421,6 @@ export default function BusinessMessagesClient() {
                         const messageContent = `Payment initiated successfully. Reference ID: ${reference}`;
                         const automatedPayload = { type: "TEXT", content: messageContent }; 
 
-                        console.log(`🔵 [API Request] POST /messages/${activeChatId} (Automated Reference) PAYLOAD:`, automatedPayload);
                         
                         const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                             method: "POST",
@@ -442,29 +433,22 @@ export default function BusinessMessagesClient() {
                         });
 
                         if (msgRes.ok) {
-                            console.log("🟢 [API Response] POST /messages (Automated Reference) SUCCESS");
                         } else {
-                            console.error("🔴 [API Error] POST /messages (Automated Reference) FAILED:", await msgRes.text());
                         }
                     } catch (msgError) {
-                        console.error("🔴 [Network Error] Failed to send automated reference message:", msgError);
                     }
 
-                    console.log("🔵 [Redirect] Redirecting user to Paystack checkout:", authUrl);
                     window.location.href = authUrl;
 
                 } else {
-                    console.error("🔴 [API Error] Missing authorization_url or reference in response:", data);
                     alert("Payment initialized, but checkout link or reference was missing from server.");
                     setIsProcessingPayment(false);
                 }
             } else {
-                console.error("🔴 [API Error] POST /payments/pay FAILED:", await res.text());
                 alert("Payment failed to initialize.");
                 setIsProcessingPayment(false);
             }
         } catch (error) {
-            console.error("🔴 [Network Error] POST /payments/pay crashed:", error);
             alert("Network error during payment.");
             setIsProcessingPayment(false);
         }

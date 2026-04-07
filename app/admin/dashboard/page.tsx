@@ -89,9 +89,7 @@ export default function AdminDashboard() {
             avgComments: Number(formData.avgComments)
         };
 
-        // log the api call intent and what we are sending
-        console.log("--- API CALL: Update Metrics ---");
-        console.log("Payload:", payload);
+        
 
         const response = await fetch(`${BASE_URL}/creator/metrics`, {
             method: "POST",
@@ -108,8 +106,7 @@ export default function AdminDashboard() {
             throw new Error(data.message || "Failed to update metrics");
         }
 
-        // log the success response
-        console.log("Response:", data);
+       
 
         setToast({ message: "Metrics updated successfully!", type: "success", isVisible: true });
         
@@ -118,7 +115,7 @@ export default function AdminDashboard() {
 
     } catch (error: any) {
         // log the error if things go wrong
-        console.error("API Error (Update Metrics):", error);
+        
         setToast({ message: error.message || "Something went wrong", type: "error", isVisible: true });
     } finally {
         setIsLoading(false);

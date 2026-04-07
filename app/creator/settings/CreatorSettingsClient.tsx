@@ -70,14 +70,12 @@ export default function CreatorSettingsClient() {
         if (!token) return;
 
         try {
-            console.log("🔵 [API Request] GET /users/creator/profile");
             const res = await fetch(`${BASE_URL}/users/creator/profile`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("🟢 [API Response] GET /users/creator/profile SUCCESS:", data);
                 
                 const profile = Array.isArray(data) ? (data.find((p: any) => p.displayName) || data[0]) : data;
 
@@ -94,10 +92,8 @@ export default function CreatorSettingsClient() {
                     setSpotlightVideos(profile.spotlightVideos || []);
                 }
             } else {
-                console.error("🔴 [API Error] GET /users/profile FAILED", await res.text());
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Failed to load profile:", error);
         }
     };
 
@@ -117,7 +113,6 @@ export default function CreatorSettingsClient() {
                 pricePerPost: profileData.pricePerPost ? Number(profileData.pricePerPost) : undefined
             };
 
-            console.log("🔵 [API Request] PATCH /users/creator/profile (General) PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/users/creator/profile`, {
                 method: "PATCH",
                 headers: { 
@@ -129,15 +124,12 @@ export default function CreatorSettingsClient() {
 
             if (res.ok) {
                 const data = await res.json().catch(() => ({}));
-                console.log("🟢 [API Response] PATCH /users/creator/profile SUCCESS:", data);
                 showToast("Profile updated successfully", "success");
             } else {
                 const err = await res.json().catch(() => null);
-                console.error("🔴 [API Error] PATCH /users/creator/profile FAILED:", err);
                 showToast(err?.message || "Failed to update profile", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Profile update failed:", error);
             showToast("Network error occurred", "error");
         } finally {
             setIsLoading(false);
@@ -196,7 +188,6 @@ export default function CreatorSettingsClient() {
                 const thumbFormData = new FormData();
                 thumbFormData.append("file", thumbnailFile);
 
-                console.log("🔵 [API Request] POST /users/creator/profile/spotlight/thumbnail PAYLOAD: FormData (Image)");
                 const thumbRes = await fetch(`${BASE_URL}/users/creator/profile/spotlight/thumbnail`, {
                     method: "POST",
                     headers: { "Authorization": `Bearer ${token}` },
@@ -205,11 +196,9 @@ export default function CreatorSettingsClient() {
 
                 if (thumbRes.ok) {
                     const thumbData = await thumbRes.json();
-                    console.log("🟢 [API Response] POST .../thumbnail SUCCESS:", thumbData);
                     customThumbnailUrl = thumbData.url;
                 } else {
                     const err = await thumbRes.json().catch(() => null);
-                    console.error("🔴 [API Error] POST .../thumbnail FAILED:", err);
                     return showToast(err?.message || "Failed to upload thumbnail", "error");
                 }
             }
@@ -220,7 +209,6 @@ export default function CreatorSettingsClient() {
                 videoFormData.append("customThumbnailUrl", customThumbnailUrl);
             }
 
-            console.log("🔵 [API Request] POST /users/creator/profile/spotlight/upload PAYLOAD: FormData (Video)");
             const videoRes = await fetch(`${BASE_URL}/users/creator/profile/spotlight/upload`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
@@ -229,7 +217,6 @@ export default function CreatorSettingsClient() {
 
             if (videoRes.ok) {
                 const videoData = await videoRes.json();
-                console.log("🟢 [API Response] POST .../upload SUCCESS:", videoData);
                 showToast("Video uploaded and compressed successfully", "success");
                 
                 setVideoFile(null);
@@ -239,11 +226,9 @@ export default function CreatorSettingsClient() {
                 await fetchProfile(); 
             } else {
                 const err = await videoRes.json().catch(() => null);
-                console.error("🔴 [API Error] POST .../upload FAILED:", err);
                 showToast(err?.message || "Failed to upload video", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Add spotlight failed:", error);
             showToast("Network error occurred during upload", "error");
         } finally {
             setIsUpdatingSpotlight(false);
@@ -256,23 +241,19 @@ export default function CreatorSettingsClient() {
 
         setIsUpdatingSpotlight(true);
         try {
-            console.log(`🔵 [API Request] DELETE /users/creator/profile/spotlight/${position}`);
             const res = await fetch(`${BASE_URL}/users/creator/profile/spotlight/${position}`, {
                 method: "DELETE",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
-                console.log(`🟢 [API Response] DELETE /users/creator/profile/spotlight/${position} SUCCESS`);
                 showToast("Video removed successfully", "success");
                 await fetchProfile(); 
             } else {
                 const err = await res.json().catch(() => null);
-                console.error(`🔴 [API Error] DELETE /users/creator/profile/spotlight/${position} FAILED:`, err);
                 showToast(err?.message || "Failed to remove video", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Delete spotlight failed:", error);
             showToast("Network error occurred", "error");
         } finally {
             setIsUpdatingSpotlight(false);
@@ -286,7 +267,6 @@ export default function CreatorSettingsClient() {
         setIsLoading(true);
         try {
             const payload = { email: resetData.email };
-            console.log("🔵 [API Request] POST /auth/forgot-password PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -294,16 +274,13 @@ export default function CreatorSettingsClient() {
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] POST /auth/forgot-password SUCCESS");
                 showToast("Reset code sent to your email!", "success");
                 setResetStep(2); 
             } else {
                 const data = await res.json().catch(() => ({}));
-                console.error("🔴 [API Error] POST /auth/forgot-password FAILED:", data);
                 showToast(data.message || "Failed to send reset email.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Forgot password failed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsLoading(false);
@@ -317,7 +294,6 @@ export default function CreatorSettingsClient() {
         setIsLoading(true);
         try {
             const payload = { email: resetData.email, code: resetData.code, newPassword: resetData.newPassword };
-            console.log("🔵 [API Request] POST /auth/reset-password PAYLOAD:", payload);
             const res = await fetch(`${BASE_URL}/auth/reset-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -325,17 +301,14 @@ export default function CreatorSettingsClient() {
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] POST /auth/reset-password SUCCESS");
                 showToast("Password updated successfully!", "success");
                 setResetStep(1);
                 setResetData({ email: "", code: "", newPassword: "" });
             } else {
                 const data = await res.json().catch(() => ({}));
-                console.error("🔴 [API Error] POST /auth/reset-password FAILED:", data);
                 showToast(data.message || "Failed to update password.", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Reset password failed:", error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsLoading(false);
@@ -351,24 +324,20 @@ export default function CreatorSettingsClient() {
 
         setIsLoading(true);
         try {
-            console.log("🔵 [API Request] DELETE /users/account");
             const res = await fetch(`${BASE_URL}/users/account`, {
                 method: "DELETE",
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
-                console.log("🟢 [API Response] DELETE /users/account SUCCESS");
                 showToast("Account deleted successfully", "success");
                 localStorage.removeItem("accessToken");
                 window.location.href = "/creator/login";
             } else {
                 const err = await res.json().catch(() => ({}));
-                console.error("🔴 [API Error] DELETE /users/account FAILED:", err);
                 showToast(err?.message || "Failed to delete account", "error");
             }
         } catch (error) {
-            console.error("🔴 [Network Error] Account deletion failed:", error);
             showToast("Network error occurred", "error");
         } finally {
             setIsLoading(false);

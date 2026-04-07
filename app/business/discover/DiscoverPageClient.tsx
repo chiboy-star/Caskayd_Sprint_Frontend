@@ -539,7 +539,7 @@ const InviteModal = ({
                 briefUrl: "https://caskayd.com/brief-template.pdf"
             };
 
-            console.log("🔵 [API Request] POST /chat-requests PAYLOAD:", payload);
+            
             const res = await fetch(`${BASE_URL}/chat-requests`, {
                 method: "POST",
                 headers: { 
@@ -551,7 +551,7 @@ const InviteModal = ({
 
             if (!res.ok) {
                 const err = await res.json().catch(() => null);
-                console.error("🔴 [API Error] POST /chat-requests FAILED:", err || res.statusText);
+                
                 
                 if (res.status === 400) {
                     onShowToast("You already have an active conversation with this creator.", "error");
@@ -562,11 +562,11 @@ const InviteModal = ({
                 throw new Error("Failed to send collaboration request");
             }
 
-            console.log("🟢 [API Response] POST /chat-requests SUCCESS");
+            
             onShowToast("Request Sent Successfully!", "success");
             onClose();
         } catch (error: any) {
-            console.error("🔴 [Network Error] Chat request failed:", error);
+            
             onShowToast(error.message || "Something went wrong.", "error");
         } finally {
             setIsSubmitting(false);
@@ -766,20 +766,20 @@ export default function DiscoverPageClient() {
               
               const url = `${BASE_URL}/creator${params.toString() ? `?${params.toString()}` : ''}`;
               
-              console.log("🔵 [API Request] GET", url);
+             
               const res = await fetch(url, {
                   headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` }
               });
                 
               if (res.ok) {
                   const data = await res.json();
-                  console.log("🟢 [API Response] GET /creator SUCCESS:", data);
+                  
                   setCreators(data); 
               } else {
-                  console.error("🔴 [API Error] GET /creator FAILED:", await res.text());
+                  
               }
           } catch (error) {
-              console.error("🔴 [Network Error] GET /creator crashed:", error);
+              
           } finally {
               setLoading(false);
           }

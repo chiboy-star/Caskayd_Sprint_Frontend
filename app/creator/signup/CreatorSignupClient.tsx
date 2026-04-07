@@ -129,11 +129,9 @@ export default function CreatorSignupClient() {
   useEffect(() => {
     const fetchBanks = async () => {
         try {
-            console.log("🔵 [API Request] GET https://api.paystack.co/bank");
             const response = await fetch("https://api.paystack.co/bank", { method: "GET" });
             if (response.ok) {
                 const data = await response.json();
-                console.log("🟢 [API Response] GET https://api.paystack.co/bank SUCCESS");
                 if (data.status) {
                     const uniqueBanksMap = new Map();
                     data.data.forEach((bank: {name: string, code: string}) => {
@@ -149,11 +147,9 @@ export default function CreatorSignupClient() {
                     return;
                 }
             } else {
-                console.error("🔴 [API Error] GET https://api.paystack.co/bank FAILED:", await response.text());
             }
             setBanks(FALLBACK_BANKS);
         } catch (error) {
-            console.error("🔴 [Network Error] Failed to fetch banks:", error);
             setBanks(FALLBACK_BANKS);
         }
     };
@@ -214,7 +210,6 @@ export default function CreatorSignupClient() {
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
-          console.log(`🔵 [API Request] POST /auth/login (Recovery flow to ${destination})`, loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -224,7 +219,6 @@ export default function CreatorSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
-              console.error("🔴 [API Error] POST /auth/login FAILED:", errorData || loginRes.statusText);
               
               if (destination === "dashboard") {
                   showError("Wrong password. Redirecting to login page...");
@@ -241,7 +235,6 @@ export default function CreatorSignupClient() {
           const loginData = await loginRes.json();
           const token = loginData.access_token || loginData.token;
           
-          console.log("🟢 [API Response] POST /auth/login SUCCESS. Token received:", loginData);
           localStorage.setItem("accessToken", token);
           setShowEmailExistsModal(false);
 
@@ -258,7 +251,6 @@ export default function CreatorSignupClient() {
           }
 
       } catch (error) {
-          console.error("🔴 [Network Error] Recovery login crashed:", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -282,7 +274,6 @@ export default function CreatorSignupClient() {
 
         try {
             const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
-            console.log("🔵 [API Request] POST /auth/signup PAYLOAD:", signupPayload);
             
             const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
                 method: "POST",
@@ -293,7 +284,6 @@ export default function CreatorSignupClient() {
             const signupData = await signupRes.json();
             
             if (!signupRes.ok) {
-                console.error("🔴 [API Error] POST /auth/signup FAILED:", signupData);
                 
                 if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
                     setShowEmailExistsModal(true);
@@ -304,7 +294,6 @@ export default function CreatorSignupClient() {
                 throw new Error(signupData.message || "Signup failed. Please try again.");
             }
             
-            console.log("🟢 [API Response] POST /auth/signup SUCCESS:", signupData);
             showSuccess("Account created! Sending OTP...");
             await delay(600);
 
@@ -347,7 +336,6 @@ export default function CreatorSignupClient() {
             role: "creator",
             code: otpCode
         };
-        console.log("🔵 [API Request] POST /auth/verify-signup PAYLOAD:", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -358,11 +346,9 @@ export default function CreatorSignupClient() {
         const verifyData = await verifyRes.json();
 
         if (!verifyRes.ok) {
-            console.error("🔴 [API Error] POST /auth/verify-signup FAILED:", verifyData);
             throw new Error(verifyData.message || "Invalid OTP code.");
         }
 
-        console.log("🟢 [API Response] POST /auth/verify-signup SUCCESS:", verifyData);
         
         const token = verifyData.access_token || verifyData.token;
         if (token) localStorage.setItem("accessToken", token);
@@ -387,7 +373,6 @@ export default function CreatorSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
-        console.log("🔵 [API Request] POST /auth/forgot-password PAYLOAD:", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -398,11 +383,9 @@ export default function CreatorSignupClient() {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/forgot-password FAILED:", data || res.statusText);
             throw new Error(data.message || "Failed to send reset email.");
         }
 
-        console.log("🟢 [API Response] POST /auth/forgot-password SUCCESS:", data);
         showSuccess("Password reset code sent to your email.");
         setForgotPasswordStep(2);
     } catch (error: any) {
@@ -424,7 +407,6 @@ export default function CreatorSignupClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
-        console.log("🔵 [API Request] POST /auth/reset-password PAYLOAD:", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -435,11 +417,9 @@ export default function CreatorSignupClient() {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            console.error("🔴 [API Error] POST /auth/reset-password FAILED:", data || res.statusText);
             throw new Error(data.message || "Failed to reset password.");
         }
 
-        console.log("🟢 [API Response] POST /auth/reset-password SUCCESS:", data);
         showSuccess("Password reset successfully! You can now log in.");
         
         await delay(1500);
@@ -471,11 +451,9 @@ export default function CreatorSignupClient() {
     setIsLoading(true);
 
     try {
-        console.log("🔵 Using Backend URL:", BASE_URL);
 
         // 1. UPDATE DISPLAY NAME
         const profilePayloadName = { displayName: formData.displayName };
-        console.log("🔵 [API Request] PATCH /users/creator/profile PAYLOAD:", profilePayloadName);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/creator/profile`, {
             method: "PATCH",
@@ -488,16 +466,13 @@ export default function CreatorSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileUpdateData = await profileUpdateRes.json();
-            console.log("🟢 [API Response] PATCH /users/creator/profile SUCCESS:", profileUpdateData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
-            console.warn("🟠 [API Warning] PATCH /users/creator/profile FAILED:", errorData || profileUpdateRes.statusText);
         }
 
         // 2. UPLOAD PROFILE PICTURE
         let uploadedProfilePicUrl = null;
         if (formData.profilePic) {
-            console.log("🔵 [API Request] POST /upload/avatar (Uploading file...)");
             const uploadData = new FormData();
             uploadData.append("file", formData.profilePic);
 
@@ -509,11 +484,9 @@ export default function CreatorSignupClient() {
 
             if (uploadRes.ok) {
                 const uploadResult = await uploadRes.json();
-                console.log("🟢 [API Response] POST /upload/avatar SUCCESS:", uploadResult);
                 uploadedProfilePicUrl = uploadResult.url; 
             } else {
                 const errorData = await uploadRes.json().catch(() => null);
-                console.error("🔴 [API Error] POST /upload/avatar FAILED:", errorData || uploadRes.statusText);
                 throw new Error("Failed to upload profile photo.");
             }
         }
@@ -529,7 +502,6 @@ export default function CreatorSignupClient() {
             pricePerPost: Number(formData.pricePerPost),
         };
         
-        console.log("🔵 [API Request] POST /creator PAYLOAD:", JSON.stringify(creatorPayload, null, 2));
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
             headers: { 
@@ -541,10 +513,8 @@ export default function CreatorSignupClient() {
         
         const profileData = await profileRes.json();
         if (!profileRes.ok) {
-            console.error("🔴 [API Error] POST /creator FAILED:", profileData);
             throw new Error(profileData.message || "Failed to create creator profile");
         }
-        console.log("🟢 [API Response] POST /creator SUCCESS:", profileData);
 
         // 4. CREATE FINANCE SETTINGS
         const financePayload = {
@@ -555,7 +525,6 @@ export default function CreatorSignupClient() {
             bankName: formData.bankName,
             accountNumber: formData.accountNumber,
         };
-        console.log("🔵 [API Request] POST /creator/finance PAYLOAD:", financePayload);
         
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
@@ -568,17 +537,14 @@ export default function CreatorSignupClient() {
 
         const financeData = await financeRes.json();
         if (!financeRes.ok) {
-            console.error("🔴 [API Error] POST /creator/finance FAILED:", financeData);
             throw new Error(financeData.message || "Failed to complete finance profile");
         }
-        console.log("🟢 [API Response] POST /creator/finance SUCCESS:", financeData);
  
         // 5. CREATE SUBACCOUNT (BANK DETAILS)
         const bankPayload = {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("🔵 [API Request] POST /creator/complete-profile PAYLOAD:", bankPayload);
         
         const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
             method: "POST",
@@ -591,10 +557,8 @@ export default function CreatorSignupClient() {
 
         const bankData = await bankRes.json();
         if (!bankRes.ok) {
-            console.error("🔴 [API Error] POST /creator/complete-profile FAILED:", bankData);
             throw new Error(bankData.message || "Failed to link bank account");
         }
-        console.log("🟢 [API Response] POST /creator/complete-profile SUCCESS:", bankData);
 
         // ALL DONE
         showSuccess("Profile complete! Redirecting...");
@@ -604,7 +568,6 @@ export default function CreatorSignupClient() {
         router.push("/creator/dashboard");
 
     } catch (error: any) {
-        console.error("🔴 Signup Process Error:", error);
         showError(error.message || "Something went wrong. Please try again.");
         setIsLoading(false);
     }

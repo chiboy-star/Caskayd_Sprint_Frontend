@@ -91,7 +91,6 @@ export default function NavigationPill() {
                     }
                 }
             } catch (error) {
-                console.error("🔴 [Network Error] GET /users/profile crashed:", error);
             }
         };
 
@@ -114,7 +113,6 @@ export default function NavigationPill() {
                     }
                 }
             } catch (error) {
-                console.error("🔴 [Network Error] GET /messages/unread/count crashed:", error);
             }
 
             try {
@@ -126,7 +124,6 @@ export default function NavigationPill() {
                     setNotifications(notifData);
                 }
             } catch (error) {
-                console.error("🔴 [Network Error] GET /notifications crashed:", error);
             }
 
             try {
@@ -145,7 +142,6 @@ export default function NavigationPill() {
                     setSentCount(parsedCount);
                 }
             } catch (error) {
-                console.error("🔴 [Network Error] GET /chat-requests/business/sent-count crashed:", error);
             }
         };
 
