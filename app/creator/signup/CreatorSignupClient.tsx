@@ -23,15 +23,29 @@ const inter = Inter({ subsets: ["latin"] });
 // --- CONFIGURATION ---
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const AVAILABLE_NICHES = ["Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Flowers & Floral-inspired Gifts","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
+const AVAILABLE_NICHES = ["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
 
-const FALLBACK_BANKS = [
+// Updated to use the explicitly requested banks and their standard NIP/Flutterwave codes
+const SUPPORTED_BANKS = [
     { name: "Access Bank", code: "044" },
-    { name: "Guaranty Trust Bank", code: "058" },
-    { name: "Kuda Bank", code: "50211" },
-    { name: "OPay", code: "999992" },
-    { name: "United Bank for Africa", code: "033" },
-    { name: "Zenith Bank", code: "057" },
+    { name: "ALAT by WEMA", code: "035A" },
+    { name: "Ecobank", code: "050" },
+    { name: "FCMB", code: "214" },
+    { name: "Fidelity Bank", code: "070" },
+    { name: "First Bank", code: "011" },
+    { name: "GTBank", code: "058" },
+    { name: "Jaiz Bank", code: "301" },
+    { name: "Keystone Bank", code: "082" },
+    { name: "Polaris Bank", code: "076" },
+    { name: "Providus Bank", code: "101" },
+    { name: "Stanbic IBTC", code: "221" },
+    { name: "Sterling Bank", code: "232" },
+    { name: "Titan Trust Bank", code: "102" },
+    { name: "UBA", code: "033" },
+    { name: "Union Bank", code: "032" },
+    { name: "Unity Bank", code: "215" },
+    { name: "Wema Bank", code: "035" },
+    { name: "Zenith Bank", code: "057" }
 ];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -104,10 +118,8 @@ export default function CreatorSignupClient() {
     instagram: "", tiktok: "", accountNumber: "", bankName: "", bankCode: ""
   });
 
-  // Keep track of the OTP code
   const [otpCode, setOtpCode] = useState("");
 
-  // Keep track of our forgot password modal states
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState<1 | 2>(1);
   const [forgotPasswordData, setForgotPasswordData] = useState({ email: "", code: "", newPassword: "" });
@@ -122,11 +134,15 @@ export default function CreatorSignupClient() {
   const [recoveryAction, setRecoveryAction] = useState<"dashboard" | "signup" | null>(null);
 
   const [isNicheModalOpen, setIsNicheModalOpen] = useState(false);
-  const [banks, setBanks] = useState<{name: string, code: string}[]>(FALLBACK_BANKS);
+  
+  // Set initial state to our hardcoded SUPPORTED_BANKS
+  const [banks, setBanks] = useState<{name: string, code: string}[]>(SUPPORTED_BANKS);
   const [bankSearchTerm, setBankSearchTerm] = useState("");
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
 
   useEffect(() => {
+    // Paystack fetching logic has been commented out to strictly use the hardcoded banks
+    /*
     const fetchBanks = async () => {
         try {
             const response = await fetch("https://api.paystack.co/bank", { method: "GET" });
@@ -146,14 +162,14 @@ export default function CreatorSignupClient() {
                     setBanks(uniqueBanks);
                     return;
                 }
-            } else {
             }
-            setBanks(FALLBACK_BANKS);
+            setBanks(SUPPORTED_BANKS);
         } catch (error) {
-            setBanks(FALLBACK_BANKS);
+            setBanks(SUPPORTED_BANKS);
         }
     };
     fetchBanks();
+    */
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -246,7 +262,6 @@ export default function CreatorSignupClient() {
           } else {
               showSuccess("Logged in successfully! Resuming setup...");
               await delay(600);
-              // Jump to profile info step
               setStep(3);
           }
 
@@ -284,20 +299,16 @@ export default function CreatorSignupClient() {
             const signupData = await signupRes.json();
             
             if (!signupRes.ok) {
-                
                 if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
                     setShowEmailExistsModal(true);
                     setIsLoading(false);
                     return; 
                 }
-
                 throw new Error(signupData.message || "Signup failed. Please try again.");
             }
             
             showSuccess("Account created! Sending OTP...");
             await delay(600);
-
-            // Move to OTP step instead of auto-logging in
             setStep(2);
 
         } catch (error: any) {
@@ -307,7 +318,6 @@ export default function CreatorSignupClient() {
         }
 
     } 
-    // This used to be step 2, now it is step 3
     else if (step === 3) {
         if (!formData.profilePic) return showError("Please upload a profile photo to continue."); 
         if (formData.nicheTags.length === 0) return showError("Please select at least one niche.");
@@ -322,7 +332,6 @@ export default function CreatorSignupClient() {
     }
   };
 
-  // Verify the OTP code
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode) return showError("Please enter the verification code.");
@@ -348,7 +357,6 @@ export default function CreatorSignupClient() {
         if (!verifyRes.ok) {
             throw new Error(verifyData.message || "Invalid OTP code.");
         }
-
         
         const token = verifyData.access_token || verifyData.token;
         if (token) localStorage.setItem("accessToken", token);
@@ -356,7 +364,6 @@ export default function CreatorSignupClient() {
         showSuccess("Email verified! Let's build your profile.");
         await delay(600);
         
-        // Move to the Profile Data step
         setStep(3);
     } catch (error: any) {
         showError(error.message || "OTP verification failed.");
@@ -365,7 +372,6 @@ export default function CreatorSignupClient() {
     }
   };
 
-  // Send the forgot password reset code
   const handleRequestPasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.email) return showError("Please enter your email.");
@@ -395,7 +401,6 @@ export default function CreatorSignupClient() {
     }
   };
 
-  // Submit the reset code and new password
   const handleSubmitNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.code || !forgotPasswordData.newPassword) return showError("Please fill all fields.");
@@ -660,7 +665,6 @@ export default function CreatorSignupClient() {
                     >
                         {isLoading && recoveryAction === "signup" ? "Checking..." : "Resume Profile Setup"}
                     </button>
-                    {/* Add our new forgot password trigger */}
                     <button 
                         onClick={() => {
                             setForgotPasswordData({ ...forgotPasswordData, email: formData.email });
@@ -716,7 +720,6 @@ export default function CreatorSignupClient() {
                 />
             </div>
             <div className="flex justify-center gap-2 mt-2">
-                {/* Updated to 4 steps */}
                 {[1, 2, 3, 4].map(i => (
                     <div key={i} className={`h-1.5 w-8 rounded-full transition-colors ${step >= i ? 'bg-emerald-500' : 'bg-gray-200'}`}></div>
                 ))}
