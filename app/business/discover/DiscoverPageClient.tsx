@@ -56,13 +56,7 @@ interface CreatorProfile {
     spotlightVideos?: SpotlightVideo[];
 }
 
-const AVAILABLE_NICHES = [
-    "Food & Food Stuff", "Beverages", "Electronics/Gadgets", "Flowers & Floral-inspired Gifts",
-    "Gifts & Gift packages", "Arts & Crafts", "Retail (General)", "Clothing", 
-    "Jewelry & Accessories", "Footwear", "Extensions", "Bags", "Perfumes", 
-    "Skincare", "Transportation / Travel", "Hospitality Services", "Product Customization"
-];
-
+const AVAILABLE_NICHES = ["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
 const FILTER_OPTIONS = {
   price: [
       { label: "Under ₦50k", value: "50000" },

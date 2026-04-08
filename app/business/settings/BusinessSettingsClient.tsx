@@ -6,13 +6,7 @@ import { UserIcon, KeyIcon, CheckCircleIcon, XCircleIcon, TrashIcon } from "@her
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const AVAILABLE_INDUSTRIES = [
-    "Lifestyle", "Events", "Food & Food Stuff", "Beverages", "Electronics/Gadgets", 
-    "Flowers & Floral-inspired Gifts", "Gifts & Gift packages", "Arts & Crafts", 
-    "Retail (General)", "Clothing", "Jewelry & Accessories", "Footwear", "Extensions", 
-    "Bags", "Perfumes", "Skincare", "Transportation / Travel", "Hospitality Services", 
-    "Product Customization"
-];
+const AVAILABLE_INDUSTRIES = ["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success" | "error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
