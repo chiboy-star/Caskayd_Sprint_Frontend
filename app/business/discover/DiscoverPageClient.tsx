@@ -354,12 +354,12 @@ const CreatorDetailsModal = ({ isOpen, onClose, creator, onInvite, onPlayVideo }
                         <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
                             <div className="flex items-center gap-2 mb-2 text-gray-400"><InstagramIcon className="w-4 h-4"/> Instagram</div>
                             <p className="text-sm font-bold">{formatNumber(creator.instagramFollowers)} <span className="text-xs font-normal text-gray-500">Followers</span></p>
-                            <p className="text-sm font-bold mt-1">{creator.instagramEngagementRate || 0}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
+                            <p className="text-sm font-bold mt-1">{creator.instagramEngagementRate ? Number(creator.instagramEngagementRate).toFixed(2) : "0"}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
                         </div>
                         <div className="bg-white/5 rounded-2xl p-4 border border-white/5 text-left">
                             <div className="flex items-center gap-2 mb-2 text-gray-400"><TiktokIcon className="w-4 h-4"/> TikTok</div>
                             <p className="text-sm font-bold">{formatNumber(creator.tiktokFollowers)} <span className="text-xs font-normal text-gray-500">Followers</span></p>
-                            <p className="text-sm font-bold mt-1">{creator.tiktokEngagementRate || 0}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
+                            <p className="text-sm font-bold mt-1">{creator.tiktokEngagementRate ? Number(creator.tiktokEngagementRate).toFixed(2) : "0"}% <span className="text-xs font-normal text-gray-500">Eng. Rate</span></p>
                         </div>
                     </div>
 
