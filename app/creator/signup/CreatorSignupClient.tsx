@@ -214,7 +214,6 @@ export default function CreatorSignupClient() {
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
-          console.log("API Call: POST /auth/login", loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -224,7 +223,6 @@ export default function CreatorSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
-              console.error("API Error: POST /auth/login", errorData);
               
               if (destination === "dashboard") {
                   showError("Wrong password. Redirecting to login page...");
@@ -239,7 +237,6 @@ export default function CreatorSignupClient() {
           }
 
           const loginData = await loginRes.json();
-          console.log("API Response: POST /auth/login", loginData);
           const token = loginData.access_token || loginData.token;
           
           localStorage.setItem("accessToken", token);
@@ -257,7 +254,6 @@ export default function CreatorSignupClient() {
           }
 
       } catch (error) {
-          console.error("API Catch Error: POST /auth/login", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -281,7 +277,6 @@ export default function CreatorSignupClient() {
 
         try {
             const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
-            console.log("API Call: POST /auth/signup", signupPayload);
             
             const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
                 method: "POST",
@@ -290,7 +285,6 @@ export default function CreatorSignupClient() {
             });
 
             const signupData = await signupRes.json();
-            console.log("API Response: POST /auth/signup", { status: signupRes.status, data: signupData });
             
             if (!signupRes.ok) {
                 if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
@@ -306,7 +300,6 @@ export default function CreatorSignupClient() {
             setStep(2);
 
         } catch (error: any) {
-            console.error("API Catch Error: POST /auth/signup", error);
             showError(error.message || "An error occurred during signup.");
         } finally {
             setIsLoading(false);
@@ -340,7 +333,6 @@ export default function CreatorSignupClient() {
             role: "creator",
             code: otpCode
         };
-        console.log("API Call: POST /auth/verify-signup", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -349,7 +341,6 @@ export default function CreatorSignupClient() {
         });
 
         const verifyData = await verifyRes.json();
-        console.log("API Response: POST /auth/verify-signup", { status: verifyRes.status, data: verifyData });
 
         if (!verifyRes.ok) {
             throw new Error(verifyData.message || "Invalid OTP code.");
@@ -363,7 +354,6 @@ export default function CreatorSignupClient() {
         
         setStep(3);
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/verify-signup", error);
         showError(error.message || "OTP verification failed.");
     } finally {
         setIsLoading(false);
@@ -377,7 +367,6 @@ export default function CreatorSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
-        console.log("API Call: POST /auth/forgot-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -386,7 +375,6 @@ export default function CreatorSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("API Response: POST /auth/forgot-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to send reset email.");
@@ -395,7 +383,6 @@ export default function CreatorSignupClient() {
         showSuccess("Password reset code sent to your email.");
         setForgotPasswordStep(2);
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/forgot-password", error);
         showError(error.message || "Error requesting password reset.");
     } finally {
         setIsLoading(false);
@@ -413,7 +400,6 @@ export default function CreatorSignupClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
-        console.log("API Call: POST /auth/reset-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -422,7 +408,6 @@ export default function CreatorSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("API Response: POST /auth/reset-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to reset password.");
@@ -436,7 +421,6 @@ export default function CreatorSignupClient() {
         setShowEmailExistsModal(false);
         router.push("/creator/login");
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/reset-password", error);
         showError(error.message || "Error resetting password.");
     } finally {
         setIsLoading(false);
@@ -463,7 +447,6 @@ export default function CreatorSignupClient() {
 
         // 1. UPDATE DISPLAY NAME
         const profilePayloadName = { displayName: formData.displayName };
-        console.log("API Call: PATCH /users/creator/profile", profilePayloadName);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/creator/profile`, {
             method: "PATCH",
@@ -476,10 +459,8 @@ export default function CreatorSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileUpdateData = await profileUpdateRes.json();
-            console.log("API Response: PATCH /users/creator/profile", profileUpdateData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
-            console.error("API Error: PATCH /users/creator/profile", errorData);
         }
 
         // 2. UPLOAD PROFILE PICTURE
@@ -488,7 +469,6 @@ export default function CreatorSignupClient() {
             const uploadData = new FormData();
             uploadData.append("file", formData.profilePic);
 
-            console.log("API Call: POST /upload/avatar", { fileName: formData.profilePic.name });
             const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
                 method: "POST", 
                 headers: { "Authorization": `Bearer ${token}` },
@@ -497,11 +477,9 @@ export default function CreatorSignupClient() {
 
             if (uploadRes.ok) {
                 const uploadResult = await uploadRes.json();
-                console.log("API Response: POST /upload/avatar", uploadResult);
                 uploadedProfilePicUrl = uploadResult.url; 
             } else {
                 const errorData = await uploadRes.json().catch(() => null);
-                console.error("API Error: POST /upload/avatar", errorData);
                 throw new Error("Failed to upload profile photo.");
             }
         }
@@ -516,7 +494,6 @@ export default function CreatorSignupClient() {
             instagram: formData.instagram,
             pricePerPost: Number(formData.pricePerPost),
         };
-        console.log("API Call: POST /creator", creatorPayload);
         
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
@@ -528,7 +505,6 @@ export default function CreatorSignupClient() {
         });
         
         const profileData = await profileRes.json();
-        console.log("API Response: POST /creator", { status: profileRes.status, data: profileData });
         
         if (!profileRes.ok) {
             throw new Error(profileData.message || "Failed to create creator profile");
@@ -543,7 +519,6 @@ export default function CreatorSignupClient() {
             bankName: formData.bankName,
             accountNumber: formData.accountNumber,
         };
-        console.log("API Call: POST /creator/finance", financePayload);
         
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
@@ -555,7 +530,6 @@ export default function CreatorSignupClient() {
         });
 
         const financeData = await financeRes.json();
-        console.log("API Response: POST /creator/finance", { status: financeRes.status, data: financeData });
         
         if (!financeRes.ok) {
             throw new Error(financeData.message || "Failed to complete finance profile");
@@ -566,7 +540,6 @@ export default function CreatorSignupClient() {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
-        console.log("API Call: POST /creator/complete-profile", bankPayload);
         
         const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
             method: "POST",
@@ -578,7 +551,6 @@ export default function CreatorSignupClient() {
         });
 
         const bankData = await bankRes.json();
-        console.log("API Response: POST /creator/complete-profile", { status: bankRes.status, data: bankData });
         
         if (!bankRes.ok) {
             throw new Error(bankData.message || "Failed to link bank account");
@@ -592,7 +564,6 @@ export default function CreatorSignupClient() {
         router.push("/creator/dashboard");
 
     } catch (error: any) {
-        console.error("API Catch Error: Final Submit", error);
         showError(error.message || "Something went wrong. Please try again.");
         setIsLoading(false);
     }

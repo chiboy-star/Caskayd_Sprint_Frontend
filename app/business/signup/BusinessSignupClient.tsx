@@ -141,7 +141,6 @@ export default function BusinessSignupClient() {
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
-          console.log("API Call: POST /auth/login", loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -151,7 +150,6 @@ export default function BusinessSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
-              console.error("API Error: POST /auth/login", errorData);
               
               if (destination === "discover") {
                   showError("Wrong password. Redirecting to login page...");
@@ -166,7 +164,6 @@ export default function BusinessSignupClient() {
           }
 
           const loginData = await loginRes.json();
-          console.log("API Response: POST /auth/login", loginData);
           const token = loginData.access_token || loginData.token;
           
           localStorage.setItem("accessToken", token);
@@ -184,7 +181,6 @@ export default function BusinessSignupClient() {
           }
 
       } catch (error: any) {
-          console.error("API Catch Error: POST /auth/login", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -205,7 +201,6 @@ export default function BusinessSignupClient() {
 
     try {
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
-        console.log("API Call: POST /auth/signup", signupPayload);
         
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
@@ -214,7 +209,6 @@ export default function BusinessSignupClient() {
         });
 
         const signupData = await signupRes.json();
-        console.log("API Response: POST /auth/signup", { status: signupRes.status, data: signupData });
         
         if (!signupRes.ok) {
             if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
@@ -231,7 +225,6 @@ export default function BusinessSignupClient() {
         setStep(2);
 
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/signup", error);
         showError(error.message || "An error occurred during signup.");
     } finally {
         setIsLoading(false);
@@ -251,7 +244,6 @@ export default function BusinessSignupClient() {
             role: "business",
             code: otpCode
         };
-        console.log("API Call: POST /auth/verify-signup", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -260,7 +252,6 @@ export default function BusinessSignupClient() {
         });
 
         const verifyData = await verifyRes.json();
-        console.log("API Response: POST /auth/verify-signup", { status: verifyRes.status, data: verifyData });
 
         if (!verifyRes.ok) {
             throw new Error(verifyData.message || "Invalid OTP code.");
@@ -274,7 +265,6 @@ export default function BusinessSignupClient() {
         
         setStep(3);
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/verify-signup", error);
         showError(error.message || "OTP verification failed.");
     } finally {
         setIsLoading(false);
@@ -288,7 +278,6 @@ export default function BusinessSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
-        console.log("API Call: POST /auth/forgot-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -297,7 +286,6 @@ export default function BusinessSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("API Response: POST /auth/forgot-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to send reset email.");
@@ -306,7 +294,6 @@ export default function BusinessSignupClient() {
         showSuccess("Password reset code sent to your email.");
         setForgotPasswordStep(2);
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/forgot-password", error);
         showError(error.message || "Error requesting password reset.");
     } finally {
         setIsLoading(false);
@@ -324,7 +311,6 @@ export default function BusinessSignupClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
-        console.log("API Call: POST /auth/reset-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -333,7 +319,6 @@ export default function BusinessSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
-        console.log("API Response: POST /auth/reset-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to reset password.");
@@ -347,7 +332,6 @@ export default function BusinessSignupClient() {
         setShowEmailExistsModal(false);
         router.push("/business/login");
     } catch (error: any) {
-        console.error("API Catch Error: POST /auth/reset-password", error);
         showError(error.message || "Error resetting password.");
     } finally {
         setIsLoading(false);
@@ -369,7 +353,6 @@ export default function BusinessSignupClient() {
 
     try {
         const profilePayload = { companyName: formData.companyName };
-        console.log("API Call: PATCH /users/business/profile", profilePayload);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/business/profile`, {
             method: "PATCH",
@@ -382,17 +365,14 @@ export default function BusinessSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileData = await profileUpdateRes.json();
-            console.log("API Response: PATCH /users/business/profile", profileData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
-            console.error("API Error: PATCH /users/business/profile", errorData);
         }
 
         let uploadedLogoUrl = null;
         const uploadData = new FormData();
         uploadData.append("file", formData.businessLogo);
 
-        console.log("API Call: POST /upload/avatar", { fileName: formData.businessLogo.name });
         const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
             method: "POST", 
             headers: { "Authorization": `Bearer ${token}` },
@@ -401,13 +381,11 @@ export default function BusinessSignupClient() {
 
         if (uploadRes.ok) {
             const uploadResult = await uploadRes.json();
-            console.log("API Response: POST /upload/avatar", uploadResult);
             uploadedLogoUrl = uploadResult.url; 
             showSuccess("Logo uploaded successfully!");
             await delay(500);
         } else {
             const errorData = await uploadRes.json().catch(() => null);
-            console.error("API Error: POST /upload/avatar", errorData);
             const errorMessage = errorData?.message || errorData?.error || "Failed to upload logo. File might be too large.";
             throw new Error(errorMessage);
         }
@@ -419,7 +397,6 @@ export default function BusinessSignupClient() {
             location: formData.location,
             description: formData.description
         };
-        console.log("API Call: POST /business", businessPayload);
         
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
@@ -432,13 +409,11 @@ export default function BusinessSignupClient() {
 
         if (!businessRes.ok) {
             const errorData = await businessRes.json().catch(() => null);
-            console.error("API Error: POST /business", errorData);
             const errorMessage = errorData?.message || errorData?.error || "Failed to finalize business details. Please try again.";
             throw new Error(errorMessage);
         }
         
         const businessData = await businessRes.json();
-        console.log("API Response: POST /business", businessData);
 
         showSuccess("Profile Complete! Redirecting...");
         
@@ -447,7 +422,6 @@ export default function BusinessSignupClient() {
         router.push("/business/discover");
 
     } catch (error: any) {
-        console.error("API Catch Error: Final Submit", error);
         showError(error.message || "Something went wrong.");
         setIsLoading(false);
     }

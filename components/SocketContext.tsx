@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
+import { usePathname } from "next/navigation";
 
 // Extract the domain without the /api path if your socket server runs on the root domain
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -19,36 +20,57 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    
+    // We listen to the pathname so we can check for a token after login redirects
+    const pathname = usePathname();
+    
+    // Use a ref to hold the connection to prevent endless re-renders/re-connections
+    const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
-        if (!token) return;
 
-        // Initialize the Socket.io connection
-        const socketInstance = io(SOCKET_URL, {
-            auth: {
-                token: token // This is the standard way Socket.io expects JWTs
-            },
-            transports: ["websocket"], // Force websocket to bypass long-polling
-            reconnection: true, // Socket.io handles auto-reconnecting automatically!
-        });
+        // 1. User is logged out: Kill the connection if it exists
+        if (!token) {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+                setSocket(null);
+                setIsConnected(false);
+            }
+            return;
+        }
 
-        socketInstance.on("connect", () => {
-            setIsConnected(true);
-        });
+        // 2. User is logged in, but no socket exists yet: Create it!
+        if (token && !socketRef.current) {
+            const socketInstance = io(SOCKET_URL, {
+                // We pass the token in every format backends typically look for
+                auth: { token: token, Authorization: `Bearer ${token}` },
+                query: { token: token },
+                extraHeaders: { Authorization: `Bearer ${token}` },
+                transports: ["websocket"], 
+                reconnection: true, 
+            });
 
-        socketInstance.on("connect_error", (err) => {
-        });
+            socketInstance.on("connect", () => {
+                setIsConnected(true);
+            });
 
-        socketInstance.on("disconnect", (reason) => {
-            setIsConnected(false);
-        });
+            socketInstance.on("disconnect", () => {
+                setIsConnected(false);
+            });
 
-        setSocket(socketInstance);
+            socketRef.current = socketInstance;
+            setSocket(socketInstance);
+        }
+    }, [pathname]); // Runs the check every time the URL changes
 
-        // Cleanup function to close connection when user leaves the app entirely
+    // Final cleanup only when the entire app unmounts
+    useEffect(() => {
         return () => {
-            socketInstance.disconnect();
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
         };
     }, []);
 

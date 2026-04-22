@@ -16,7 +16,6 @@ import {
     XCircleIcon
 } from "@heroicons/react/24/outline";
 import { Inter } from "next/font/google";
-import { useSocket } from "@/components/SocketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -67,18 +66,14 @@ interface Message {
 
 // --- RESTRICTED CONTENT CHECKER ---
 const containsRestrictedContent = (text: string): boolean => {
-    // 1. Normalize text: remove spaces, dots, dashes to catch "w h a t s a p p" or "w.a"
     const normalizedText = text.toLowerCase().replace(/[\s\.\-\_]/g, '');
 
-    // 2. Check for standard Emails
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     if (emailRegex.test(text)) return true;
 
-    // 3. Check for Phone Numbers (looks for 7-15 digits grouped together)
     const phoneRegex = /(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/;
     if (phoneRegex.test(text)) return true;
 
-    // 4. Aggressive keyword check on the normalized text
     const restrictedKeywords = [
         "whatsapp", "wa.me", "telegram", "t.me",
         "paypal", "cashapp", "venmo", "zelle", "payoneer", "crypto", "btc", "eth",
@@ -89,7 +84,6 @@ const containsRestrictedContent = (text: string): boolean => {
         if (normalizedText.includes(keyword)) return true;
     }
 
-    // 5. Phrase check on the regular text
     const restrictedPhrases = [
         /\bdm me\b/i, /\bpm me\b/i, /\bmessage me on\b/i, /\bhit me up on\b/i,
         /\bpay me directly\b/i, /\boutside the platform\b/i
@@ -129,7 +123,6 @@ export default function BusinessMessagesClient() {
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
     
-    const { socket, isConnected } = useSocket();
     const [searchQuery, setSearchQuery] = useState("");
     
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -182,28 +175,17 @@ export default function BusinessMessagesClient() {
         chat.status !== "ENDED" && getCreatorName(chat).toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const scrollToBottom = () => {
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-    };
-
     const fetchUnreadCount = async (token: string) => {
         try {
-            
             const res = await fetch(`${BASE_URL}/messages/unread/count`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
-                
                 const count = typeof data === 'number' ? data : (data.count || data.unreadCount || 0);
                 setGlobalUnreadCount(count);
-            } else {
-                
             }
         } catch (error) {
-            
         }
     };
 
@@ -214,20 +196,15 @@ export default function BusinessMessagesClient() {
 
             await fetchUnreadCount(token);
 
-            
             const res = await fetch(`${BASE_URL}/conversations`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                
                 setConversations(data);
-            } else {
-                
             }
         } catch (error) {
-            
         } finally {
             setLoadingConversations(false);
         }
@@ -245,7 +222,6 @@ export default function BusinessMessagesClient() {
         if (showLoadingState) setInitialLoadingMessages(true);
 
         try {
-            
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -257,6 +233,7 @@ export default function BusinessMessagesClient() {
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
                 
+                // Smart update: Only update state and scroll if there is a new message
                 setMessages(prev => {
                     if (prev.length !== sorted.length) {
                         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -266,7 +243,7 @@ export default function BusinessMessagesClient() {
                 });
             }
 
-            const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+            await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -279,42 +256,28 @@ export default function BusinessMessagesClient() {
         }
     }, [activeChatId]);
 
+    // --- REPLACED SOCKET WITH POLLING ---
     useEffect(() => {
-        if (!activeChatId) {
-            if (socket && isConnected) {
-                socket.emit("active_chat", { conversationId: null });
-            }
-            return;
-        }
+        if (!activeChatId) return;
 
-        if (socket && isConnected) {
-            socket.emit("active_chat", { conversationId: activeChatId });
-        }
-
+        // Initial fetch
         fetchMessages(true);
 
+        // Start polling every 3 seconds silently
         const pollInterval = setInterval(() => {
-            fetchMessages();
+            fetchMessages(false);
         }, 3000);
-
-        const handleIncomingMessage = (payload: any) => {
-            fetchMessages(); 
-        };
-
-        if (socket) socket.on("new_message", handleIncomingMessage);
 
         return () => {
             clearInterval(pollInterval);
-            if (socket) socket.off("new_message", handleIncomingMessage);
         };
-    }, [activeChatId, socket, isConnected, fetchMessages]); 
+    }, [activeChatId, fetchMessages]); 
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
         const messageToSend = newMessage.trim();
 
-        // Check for restricted content before proceeding
         if (containsRestrictedContent(messageToSend)) {
             showToast("Sharing contact details or external payment methods is not allowed. This keeps your payments secure.", "error");
             return;
@@ -342,15 +305,13 @@ export default function BusinessMessagesClient() {
             });
 
             if (res.ok) {
-                const data = await res.json();
                 fetchMessages(); 
             } else {
-                const errText = await res.text();
                 setNewMessage(messageToSend); 
                 showToast("Failed to send message", "error");
             }
         } catch (error) {
-                setNewMessage(messageToSend); 
+            setNewMessage(messageToSend); 
         }
     };
 
@@ -382,7 +343,6 @@ export default function BusinessMessagesClient() {
             });
 
             if (msgRes.ok) {
-                const data = await msgRes.json();
                 fetchMessages(); 
             } else {
                 const errData = await msgRes.json().catch(() => null);
@@ -409,7 +369,6 @@ export default function BusinessMessagesClient() {
             });
 
             if (res.ok) {
-                const data = await res.json();
                 showToast("Request to end conversation submitted.", "success");
                 fetchConversations();
             } else {
@@ -477,12 +436,10 @@ export default function BusinessMessagesClient() {
                     setIsProcessingPayment(false);
                 }
             } else {
-                const errorData = await res.json().catch(() => null);
                 alert("Payment failed to initialize.");
                 setIsProcessingPayment(false);
             }
         } catch (error) {
-            
             alert("Network error during payment.");
             setIsProcessingPayment(false);
         }
