@@ -9,7 +9,8 @@ import {
     WalletIcon
 } from "@heroicons/react/24/outline";
 
-import { FaXTwitter, FaInstagram, FaTiktok } from "react-icons/fa6";
+// added FaLinkedin here
+import { FaXTwitter, FaInstagram, FaTiktok, FaLinkedin } from "react-icons/fa6";
 
 const ScrollReveal = ({ children }: { children: React.ReactNode }) => {
     const [isVisible, setIsVisible] = useState(false);
@@ -267,7 +268,7 @@ export default function LandingPageClient() {
                                             <p className="text-gray-600">Your creative work is valuable. Say goodbye to chasing invoices and ghosting clients. When you deliver, you get paid. Period.</p>
                                         </div>
                                         <div className="flex-1 w-full relative aspect-video bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                            <Image src="/images/LandingImage1.webp" alt="Payouts Mockup" fill className="object-cover" />
+                                            <Image src="/images/NewCreatorLanding.webp" alt="Payouts Mockup" fill className="object-cover" />
                                         </div>
                                     </div>
 
@@ -277,7 +278,7 @@ export default function LandingPageClient() {
                                             <p className="text-gray-600">No more scope creep or confusing feedback. Every deliverable is tied to an actionable brief and milestone so you always know your tasks.</p>
                                         </div>
                                         <div className="flex-1 w-full relative aspect-video bg-gray-50 rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                                            <Image src="/images/LandingImage1.webp" alt="Briefing UI Mockup" fill className="object-cover" />
+                                            <Image src="/images/CreatorLanding.webp" alt="Briefing UI Mockup" fill className="object-cover" />
                                         </div>
                                     </div>
 
@@ -585,7 +586,8 @@ export default function LandingPageClient() {
             <footer className="border-t border-gray-200/60 mt-8 py-12">
                 <div className="max-w-[90rem] mx-auto px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-                        <div className="flex items-center gap-4">
+                        {/* updated to flex-wrap to keep it responsive on smaller screens if icons stack */}
+                        <div className="flex flex-wrap items-center justify-center gap-4">
                             <span className="text-gray-500 text-sm font-medium mr-2">Follow us on :</span>
                             
                             <a href="https://x.com/CaskaydApp" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-900 transition-colors group">
@@ -601,6 +603,12 @@ export default function LandingPageClient() {
                             <a href="https://www.tiktok.com/@caskaydapp?is_from_webapp=1&sender_device=pc" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-black transition-colors group ml-2">
                                 <FaTiktok className="w-5 h-5 group-hover:text-black transition-colors" />
                                 <span className="text-sm font-semibold group-hover:text-black transition-colors">TikTok</span>
+                            </a>
+
+                            {/* newly added linkedin link */}
+                            <a href="https://www.linkedin.com/company/caskayd" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-[#0A66C2] transition-colors group ml-2">
+                                <FaLinkedin className="w-5 h-5 group-hover:text-[#0A66C2] transition-colors" />
+                                <span className="text-sm font-semibold group-hover:text-[#0A66C2] transition-colors">LinkedIn</span>
                             </a>
                         </div>
                         <div className="flex items-center gap-8 text-sm text-gray-500 font-medium">

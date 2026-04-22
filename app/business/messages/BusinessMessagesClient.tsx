@@ -498,7 +498,7 @@ export default function BusinessMessagesClient() {
                                 </span>
                             )}
                         </div>
-
+ 
                         <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                             {loadingConversations ? (
                                 <div className="p-4 text-center text-gray-400 text-sm animate-pulse">Loading chats...</div>

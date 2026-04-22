@@ -13,7 +13,8 @@ import {
   ArrowUpTrayIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
-  ArrowLeftIcon // added the back arrow icon
+  ArrowLeftIcon,
+  ChevronUpDownIcon // added for the location dropdown
 } from "@heroicons/react/24/outline";
 import Loader from "@/components/Loader"; 
 
@@ -24,6 +25,15 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_REGEX = /^(https?:\/\/)?(([\da-z\.-]+)\.([a-z\.]{2,6})|localhost(:\d{1,5})?)([\/\w \.-]*)*\/?$/;
 
 const AVAILABLE_INDUSTRIES =["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
+
+// static list of nigerian states
+const NIGERIAN_STATES = [
+    "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+    "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", 
+    "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", 
+    "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", 
+    "Abuja(Federal Capital Territory)"
+];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
   useEffect(() => {
@@ -56,10 +66,8 @@ export default function BusinessSignupClient() {
     location: "", description: ""
   });
 
-  // New state for OTP verification step
   const [otpCode, setOtpCode] = useState("");
 
-  // New states for Forgot Password flow
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordStep, setForgotPasswordStep] = useState<1 | 2>(1);
   const [forgotPasswordData, setForgotPasswordData] = useState({ email: "", code: "", newPassword: "" });
@@ -74,12 +82,15 @@ export default function BusinessSignupClient() {
   const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
   const [recoveryAction, setRecoveryAction] = useState<"discover" | "signup" | null>(null);
 
+  // location dropdown states
+  const [locationSearchTerm, setLocationSearchTerm] = useState("");
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle forgot password inputs
   const handleForgotDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForgotPasswordData((prev) => ({ ...prev, [name]: value }));
@@ -120,11 +131,17 @@ export default function BusinessSignupClient() {
 
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+  // forgiving search filter for locations
+  const filteredLocations = NIGERIAN_STATES.filter(state =>
+    state.toLowerCase().includes(locationSearchTerm.toLowerCase().trim())
+  );
+
   const handleRecoveryLogin = async (destination: "discover" | "signup") => {
       setRecoveryAction(destination);
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
+          console.log("API Call: POST /auth/login", loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -134,6 +151,7 @@ export default function BusinessSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
+              console.error("API Error: POST /auth/login", errorData);
               
               if (destination === "discover") {
                   showError("Wrong password. Redirecting to login page...");
@@ -148,6 +166,7 @@ export default function BusinessSignupClient() {
           }
 
           const loginData = await loginRes.json();
+          console.log("API Response: POST /auth/login", loginData);
           const token = loginData.access_token || loginData.token;
           
           localStorage.setItem("accessToken", token);
@@ -161,10 +180,11 @@ export default function BusinessSignupClient() {
           } else {
               showSuccess("Logged in successfully! Resuming setup...");
               await delay(600);
-              setStep(3); // Changed from 2 to 3 because step 2 is now OTP
+              setStep(3); 
           }
 
       } catch (error: any) {
+          console.error("API Catch Error: POST /auth/login", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -185,6 +205,7 @@ export default function BusinessSignupClient() {
 
     try {
         const signupPayload = { email: formData.email, password: formData.password, role: "business" };
+        console.log("API Call: POST /auth/signup", signupPayload);
         
         const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
             method: "POST",
@@ -193,32 +214,30 @@ export default function BusinessSignupClient() {
         });
 
         const signupData = await signupRes.json();
+        console.log("API Response: POST /auth/signup", { status: signupRes.status, data: signupData });
         
         if (!signupRes.ok) {
-            
             if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
                 setShowEmailExistsModal(true);
                 setIsLoading(false);
                 return; 
             }
-
             throw new Error(signupData.message || "Signup failed. Please try again.");
         }
         
         showSuccess("Account created! Sending OTP...");
         await delay(600);
         
-        // Move to OTP step instead of auto-logging in
         setStep(2);
 
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/signup", error);
         showError(error.message || "An error occurred during signup.");
     } finally {
         setIsLoading(false);
     }
   };
 
-  // Handle OTP submission
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode) return showError("Please enter the verification code.");
@@ -226,13 +245,13 @@ export default function BusinessSignupClient() {
     setIsLoading(true);
 
     try {
-        // Build payload as specified in instructions
         const verifyPayload = {
             email: formData.email,
             password: formData.password,
             role: "business",
             code: otpCode
         };
+        console.log("API Call: POST /auth/verify-signup", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -241,29 +260,27 @@ export default function BusinessSignupClient() {
         });
 
         const verifyData = await verifyRes.json();
+        console.log("API Response: POST /auth/verify-signup", { status: verifyRes.status, data: verifyData });
 
         if (!verifyRes.ok) {
             throw new Error(verifyData.message || "Invalid OTP code.");
         }
 
-        
-        // Save the token from OTP response
         const token = verifyData.access_token || verifyData.token;
         if (token) localStorage.setItem("accessToken", token);
 
         showSuccess("Email verified! Moving to Profile Setup...");
         await delay(600);
         
-        // Move to Profile step
         setStep(3);
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/verify-signup", error);
         showError(error.message || "OTP verification failed.");
     } finally {
         setIsLoading(false);
     }
   };
 
-  // Handle sending the forgot password email
   const handleRequestPasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.email) return showError("Please enter your email.");
@@ -271,6 +288,7 @@ export default function BusinessSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
+        console.log("API Call: POST /auth/forgot-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -279,34 +297,34 @@ export default function BusinessSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
+        console.log("API Response: POST /auth/forgot-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to send reset email.");
         }
 
         showSuccess("Password reset code sent to your email.");
-        // Move to the next step in the modal
         setForgotPasswordStep(2);
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/forgot-password", error);
         showError(error.message || "Error requesting password reset.");
     } finally {
         setIsLoading(false);
     }
   };
 
-  // Handle completing the password reset
   const handleSubmitNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotPasswordData.code || !forgotPasswordData.newPassword) return showError("Please fill all fields.");
 
     setIsLoading(true);
     try {
-        // Assumed standard payload format based on given route
         const payload = { 
             email: forgotPasswordData.email, 
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
+        console.log("API Call: POST /auth/reset-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -315,6 +333,7 @@ export default function BusinessSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
+        console.log("API Response: POST /auth/reset-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to reset password.");
@@ -322,13 +341,13 @@ export default function BusinessSignupClient() {
 
         showSuccess("Password reset successfully! You can now log in.");
         
-        // Clean up and close modal
         await delay(1500);
         setShowForgotPasswordModal(false);
         setForgotPasswordStep(1);
         setShowEmailExistsModal(false);
         router.push("/business/login");
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/reset-password", error);
         showError(error.message || "Error resetting password.");
     } finally {
         setIsLoading(false);
@@ -350,6 +369,7 @@ export default function BusinessSignupClient() {
 
     try {
         const profilePayload = { companyName: formData.companyName };
+        console.log("API Call: PATCH /users/business/profile", profilePayload);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/business/profile`, {
             method: "PATCH",
@@ -362,14 +382,17 @@ export default function BusinessSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileData = await profileUpdateRes.json();
+            console.log("API Response: PATCH /users/business/profile", profileData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
+            console.error("API Error: PATCH /users/business/profile", errorData);
         }
 
         let uploadedLogoUrl = null;
         const uploadData = new FormData();
         uploadData.append("file", formData.businessLogo);
 
+        console.log("API Call: POST /upload/avatar", { fileName: formData.businessLogo.name });
         const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
             method: "POST", 
             headers: { "Authorization": `Bearer ${token}` },
@@ -378,11 +401,13 @@ export default function BusinessSignupClient() {
 
         if (uploadRes.ok) {
             const uploadResult = await uploadRes.json();
+            console.log("API Response: POST /upload/avatar", uploadResult);
             uploadedLogoUrl = uploadResult.url; 
             showSuccess("Logo uploaded successfully!");
             await delay(500);
         } else {
             const errorData = await uploadRes.json().catch(() => null);
+            console.error("API Error: POST /upload/avatar", errorData);
             const errorMessage = errorData?.message || errorData?.error || "Failed to upload logo. File might be too large.";
             throw new Error(errorMessage);
         }
@@ -394,8 +419,8 @@ export default function BusinessSignupClient() {
             location: formData.location,
             description: formData.description
         };
+        console.log("API Call: POST /business", businessPayload);
         
-
         const businessRes = await fetch(`${BASE_URL}/business`, {
             method: "POST",
             headers: { 
@@ -407,11 +432,13 @@ export default function BusinessSignupClient() {
 
         if (!businessRes.ok) {
             const errorData = await businessRes.json().catch(() => null);
+            console.error("API Error: POST /business", errorData);
             const errorMessage = errorData?.message || errorData?.error || "Failed to finalize business details. Please try again.";
             throw new Error(errorMessage);
         }
         
         const businessData = await businessRes.json();
+        console.log("API Response: POST /business", businessData);
 
         showSuccess("Profile Complete! Redirecting...");
         
@@ -420,6 +447,7 @@ export default function BusinessSignupClient() {
         router.push("/business/discover");
 
     } catch (error: any) {
+        console.error("API Catch Error: Final Submit", error);
         showError(error.message || "Something went wrong.");
         setIsLoading(false);
     }
@@ -510,7 +538,6 @@ export default function BusinessSignupClient() {
                     >
                         {isLoading && recoveryAction === "signup" ? "Checking..." : "Resume Profile Setup"}
                     </button>
-                    {/* Trigger the new forgot password logic here */}
                     <button 
                         onClick={() => {
                             setForgotPasswordData({ ...forgotPasswordData, email: formData.email });
@@ -591,7 +618,6 @@ export default function BusinessSignupClient() {
                 <p className="text-sm text-gray-500">Please provide us with the following information</p>
             ) : (
                 <div className="flex justify-center gap-2 mt-2">
-                   {/* Updated progress bar to reflect 3 steps */}
                    <div className={`h-1.5 w-8 rounded-full ${step >= 1 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></div>
                    <div className={`h-1.5 w-8 rounded-full ${step >= 2 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></div>
                    <div className={`h-1.5 w-8 rounded-full ${step >= 3 ? 'bg-indigo-600' : 'bg-indigo-200'}`}></div>
@@ -692,9 +718,44 @@ export default function BusinessSignupClient() {
                         <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="Your Company Ltd" />
                     </div>
                     
+                    {/* updated custom location dropdown */}
                     <div className="relative">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
-                        <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border-b border-gray-300 py-3 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 transition-all text-gray-900 placeholder-gray-400 rounded-t-md" placeholder="e.g., Lagos, Nigeria" />
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={locationSearchTerm} 
+                                onChange={(e) => { 
+                                    setLocationSearchTerm(e.target.value); 
+                                    setIsLocationDropdownOpen(true); 
+                                    setFormData(prev => ({...prev, location: ""})); 
+                                }} 
+                                onFocus={() => setIsLocationDropdownOpen(true)} 
+                                className="w-full border-b border-gray-300 py-3 px-2 pr-8 bg-white/50 md:bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md" 
+                                placeholder="Search state..." 
+                            />
+                            <ChevronUpDownIcon className="absolute right-2 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+                        </div>
+                        {isLocationDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsLocationDropdownOpen(false)}></div>
+                                <div className="absolute z-50 w-full bg-white shadow-xl max-h-48 overflow-y-auto rounded-lg mt-1 border border-gray-100">
+                                    {filteredLocations.length > 0 ? filteredLocations.map((state) => (
+                                        <div 
+                                            key={state} 
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, location: state }));
+                                                setLocationSearchTerm(state);
+                                                setIsLocationDropdownOpen(false);
+                                            }} 
+                                            className="px-4 py-3 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                                        >
+                                            {state}
+                                        </div>
+                                    )) : <div className="px-4 py-3 text-sm text-gray-400">No state found</div>}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="relative">
