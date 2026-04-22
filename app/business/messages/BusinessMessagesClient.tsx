@@ -65,6 +65,43 @@ interface Message {
     };
 }
 
+// --- RESTRICTED CONTENT CHECKER ---
+const containsRestrictedContent = (text: string): boolean => {
+    // 1. Normalize text: remove spaces, dots, dashes to catch "w h a t s a p p" or "w.a"
+    const normalizedText = text.toLowerCase().replace(/[\s\.\-\_]/g, '');
+
+    // 2. Check for standard Emails
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    if (emailRegex.test(text)) return true;
+
+    // 3. Check for Phone Numbers (looks for 7-15 digits grouped together)
+    const phoneRegex = /(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/;
+    if (phoneRegex.test(text)) return true;
+
+    // 4. Aggressive keyword check on the normalized text
+    const restrictedKeywords = [
+        "whatsapp", "wa.me", "telegram", "t.me",
+        "paypal", "cashapp", "venmo", "zelle", "payoneer", "crypto", "btc", "eth",
+        "banktransfer", "accountnumber", "sortcode"
+    ];
+
+    for (const keyword of restrictedKeywords) {
+        if (normalizedText.includes(keyword)) return true;
+    }
+
+    // 5. Phrase check on the regular text
+    const restrictedPhrases = [
+        /\bdm me\b/i, /\bpm me\b/i, /\bmessage me on\b/i, /\bhit me up on\b/i,
+        /\bpay me directly\b/i, /\boutside the platform\b/i
+    ];
+
+    for (const phrase of restrictedPhrases) {
+        if (phrase.test(text)) return true;
+    }
+
+    return false;
+};
+
 // --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -275,10 +312,17 @@ export default function BusinessMessagesClient() {
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
+        const messageToSend = newMessage.trim();
+
+        // Check for restricted content before proceeding
+        if (containsRestrictedContent(messageToSend)) {
+            showToast("Sharing contact details or external payment methods is not allowed. This keeps your payments secure.", "error");
+            return;
+        }
+
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const messageToSend = newMessage.trim();
         setNewMessage("");
 
         try {
@@ -286,8 +330,6 @@ export default function BusinessMessagesClient() {
                 type: "TEXT", 
                 content: messageToSend
             };
-
-           
 
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
@@ -331,8 +373,6 @@ export default function BusinessMessagesClient() {
         formData.append("file", file); 
 
         try {
-            
-
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: {
@@ -390,14 +430,11 @@ export default function BusinessMessagesClient() {
         setIsProcessingPayment(true);
 
         try {
-            // Added the required redirectUrl parameter
             const payload = {
                 creatorId: activeConversation.userId, 
                 amount: Number(paymentAmount),
                 redirectUrl: `${window.location.origin}/business/callback`
             };
-
-            
 
             const res = await fetch(`${BASE_URL}/payments/pay`, {
                 method: "POST",
@@ -416,7 +453,6 @@ export default function BusinessMessagesClient() {
 
                 if (authUrl && reference) {
                     
-                    // Send an automated message about the initiation
                     try {
                         const messageContent = `Payment initiated successfully. Reference ID: ${reference}`;
                         const automatedPayload = { type: "TEXT", content: messageContent }; 
@@ -433,10 +469,7 @@ export default function BusinessMessagesClient() {
                     } catch (msgError) {
                     }
 
-                    // Save reference to storage before redirecting to Flutterwave
                     localStorage.setItem("pending_payment_reference", reference);
-                    
-                    // Redirect user
                     window.location.href = authUrl;
 
                 } else {
@@ -456,7 +489,6 @@ export default function BusinessMessagesClient() {
     };
 
     const numericAmount = Number(paymentAmount);
-    // Note: The backend calculates the final fee, this is purely visual for the user
     const platformFee = isNaN(numericAmount) ? 0 : numericAmount * 0.10;
     const totalAmount = isNaN(numericAmount) ? 0 : numericAmount + platformFee;
 
@@ -498,7 +530,7 @@ export default function BusinessMessagesClient() {
                                 </span>
                             )}
                         </div>
- 
+
                         <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                             {loadingConversations ? (
                                 <div className="p-4 text-center text-gray-400 text-sm animate-pulse">Loading chats...</div>

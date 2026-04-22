@@ -63,6 +63,43 @@ interface Message {
     };
 }
 
+// --- RESTRICTED CONTENT CHECKER ---
+const containsRestrictedContent = (text: string): boolean => {
+    // 1. Normalize text: remove spaces, dots, dashes to catch "w h a t s a p p" or "w.a"
+    const normalizedText = text.toLowerCase().replace(/[\s\.\-\_]/g, '');
+
+    // 2. Check for standard Emails
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    if (emailRegex.test(text)) return true;
+
+    // 3. Check for Phone Numbers (looks for 7-15 digits grouped together)
+    const phoneRegex = /(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/;
+    if (phoneRegex.test(text)) return true;
+
+    // 4. Aggressive keyword check on the normalized text
+    const restrictedKeywords = [
+        "whatsapp", "wa.me", "telegram", "t.me",
+        "paypal", "cashapp", "venmo", "zelle", "payoneer", "crypto", "btc", "eth",
+        "banktransfer", "accountnumber", "sortcode"
+    ];
+
+    for (const keyword of restrictedKeywords) {
+        if (normalizedText.includes(keyword)) return true;
+    }
+
+    // 5. Phrase check on the regular text
+    const restrictedPhrases = [
+        /\bdm me\b/i, /\bpm me\b/i, /\bmessage me on\b/i, /\bhit me up on\b/i,
+        /\bpay me directly\b/i, /\boutside the platform\b/i
+    ];
+
+    for (const phrase of restrictedPhrases) {
+        if (phrase.test(text)) return true;
+    }
+
+    return false;
+};
+
 // --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -237,10 +274,17 @@ export default function CreatorMessagesClient() {
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
+        const messageToSend = newMessage.trim();
+
+        // Check for restricted content before proceeding
+        if (containsRestrictedContent(messageToSend)) {
+            showToast("Sharing contact details or external payment methods is not allowed. This keeps your payments secure.", "error");
+            return;
+        }
+
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const messageToSend = newMessage.trim();
         setNewMessage(""); 
 
         try {
@@ -248,8 +292,6 @@ export default function CreatorMessagesClient() {
                 type: "TEXT", 
                 content: messageToSend
             };
-
-           
 
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
@@ -293,8 +335,6 @@ export default function CreatorMessagesClient() {
         formData.append("file", file); 
 
         try {
-            
-
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
@@ -329,7 +369,6 @@ export default function CreatorMessagesClient() {
 
         try {
             const trimmedRef = paymentReference.trim();
-            
             
             const res = await fetch(`${BASE_URL}/payments/verify/${trimmedRef}`, {
                 method: "GET",
@@ -680,7 +719,7 @@ export default function CreatorMessagesClient() {
                                                 {isUploadingFile ? (
                                                     <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                                                 ) : (
-                                                    <PaperClipIcon className="w-5 h-5" />
+                                                    <PaperClipIcon className="w-5 h-5 cursor-pointer" />
                                                 )}
                                             </button>
                                             
