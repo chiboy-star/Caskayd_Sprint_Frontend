@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Inter } from "next/font/google";
 import CreatorNavigationPill from "@/components/CreatorNavigationPill";
-import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon, TrashIcon, PlayCircleIcon, CloudArrowUpIcon, PhotoIcon, FilmIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, XCircleIcon, KeyIcon, UserCircleIcon, TrashIcon, PlayCircleIcon, CloudArrowUpIcon, PhotoIcon, FilmIcon, ChevronUpDownIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,6 +18,15 @@ interface SpotlightVideo {
     customThumbnailUrl?: string | null;
     storedVideoUrl?: string | null;
 }
+
+// static list of nigerian states
+const NIGERIAN_STATES = [
+    "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+    "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", 
+    "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", 
+    "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", 
+    "Abuja(Federal Capital Territory)"
+];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -63,6 +72,10 @@ export default function CreatorSettingsClient() {
     const [resetStep, setResetStep] = useState<1 | 2>(1);
     const [resetData, setResetData] = useState({ email: "", code: "", newPassword: "" });
 
+    // location dropdown states
+    const [locationSearchTerm, setLocationSearchTerm] = useState("");
+    const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
     const showToast = (message: string, type: "success"|"error") => setToast({ message, type, isVisible: true });
 
     const fetchProfile = async () => {
@@ -90,6 +103,9 @@ export default function CreatorSettingsClient() {
                     });
                     
                     setSpotlightVideos(profile.spotlightVideos || []);
+                    
+                    // sync search term with fetched location
+                    setLocationSearchTerm(profile.location || "");
                 }
             } else {
             }
@@ -100,6 +116,11 @@ export default function CreatorSettingsClient() {
     useEffect(() => {
         fetchProfile();
     }, []);
+
+    // forgiving search filter for locations
+    const filteredLocations = NIGERIAN_STATES.filter(state =>
+        state.toLowerCase().includes(locationSearchTerm.toLowerCase().trim())
+    );
 
     const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -397,9 +418,45 @@ export default function CreatorSettingsClient() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Display Name</label>
                                         <input type="text" value={profileData.displayName} onChange={e => setProfileData({...profileData, displayName: e.target.value})} className="w-full bg-[#F8F9FB] border border-gray-200 text-gray-900 rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all" placeholder="e.g. Apex" />
                                     </div>
-                                    <div>
+                                    
+                                    {/* custom searchable location dropdown */}
+                                    <div className="relative">
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
-                                        <input type="text" value={profileData.location} onChange={e => setProfileData({...profileData, location: e.target.value})} className="w-full bg-[#F8F9FB] border border-gray-200 text-gray-900 rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all" placeholder="e.g. Lagos, NG" />
+                                        <div className="relative">
+                                            <input 
+                                                type="text" 
+                                                value={locationSearchTerm} 
+                                                onChange={(e) => { 
+                                                    setLocationSearchTerm(e.target.value); 
+                                                    setIsLocationDropdownOpen(true); 
+                                                    setProfileData(prev => ({...prev, location: ""})); 
+                                                }} 
+                                                onFocus={() => setIsLocationDropdownOpen(true)} 
+                                                placeholder="Search state..." 
+                                                className="w-full bg-[#F8F9FB] border border-gray-200 text-gray-900 rounded-xl py-3.5 px-4 pr-10 focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 outline-none transition-all"
+                                            />
+                                            <ChevronUpDownIcon className="absolute right-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                                        </div>
+                                        {isLocationDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-40" onClick={() => setIsLocationDropdownOpen(false)}></div>
+                                                <div className="absolute z-50 w-full bg-white shadow-xl max-h-48 overflow-y-auto rounded-lg mt-1 border border-gray-100">
+                                                    {filteredLocations.length > 0 ? filteredLocations.map((state) => (
+                                                        <div 
+                                                            key={state} 
+                                                            onClick={() => {
+                                                                setProfileData(prev => ({ ...prev, location: state }));
+                                                                setLocationSearchTerm(state);
+                                                                setIsLocationDropdownOpen(false);
+                                                            }} 
+                                                            className="px-4 py-3 hover:bg-emerald-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                                                        >
+                                                            {state}
+                                                        </div>
+                                                    )) : <div className="px-4 py-3 text-sm text-gray-400">No state found</div>}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
@@ -435,13 +492,11 @@ export default function CreatorSettingsClient() {
                             <div className="mt-12 pt-10 border-t border-gray-100">
                                 <div className="mb-6">
                                     <h2 className="text-xl font-bold text-gray-900">Portfolio Spotlight</h2>
-                                    {/* Copy updated to reflect the new 1 video limit */}
                                     <p className="text-sm text-gray-500 mt-1">Upload 1 video (Max 50MB) directly to your profile to showcase your best work.</p>
                                 </div>
 
                                 <div className="space-y-4 mb-6">
                                     {spotlightVideos.map((video) => (
-                                        // The flex-1 and min-w-0 classes here prevent long URLs from pushing the trash icon out of bounds
                                         <div key={video.position} className="flex items-center justify-between gap-4 p-4 border border-gray-200 bg-white rounded-2xl shadow-sm">
                                             <div className="flex items-center gap-4 flex-1 min-w-0">
                                                 <div className="relative w-20 h-14 bg-gray-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">

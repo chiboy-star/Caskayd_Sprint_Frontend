@@ -20,6 +20,13 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
+      // ADDED: The missing Supabase hostname from your error
+      {
+        protocol: 'https',
+        hostname: 'yerozrrtpngwhlrzwzeq.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com', 

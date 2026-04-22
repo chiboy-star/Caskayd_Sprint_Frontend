@@ -25,7 +25,6 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const AVAILABLE_NICHES = ["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
 
-// Updated to use the explicitly requested banks and their standard NIP/Flutterwave codes
 const SUPPORTED_BANKS = [
     { name: "Access Bank", code: "044" },
     { name: "ALAT by WEMA", code: "035A" },
@@ -46,6 +45,15 @@ const SUPPORTED_BANKS = [
     { name: "Unity Bank", code: "215" },
     { name: "Wema Bank", code: "035" },
     { name: "Zenith Bank", code: "057" }
+];
+
+// static list of nigerian states
+const NIGERIAN_STATES = [
+    "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+    "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", 
+    "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", 
+    "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", 
+    "Abuja(Federal Capital Territory)"
 ];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -135,41 +143,16 @@ export default function CreatorSignupClient() {
 
   const [isNicheModalOpen, setIsNicheModalOpen] = useState(false);
   
-  // Set initial state to our hardcoded SUPPORTED_BANKS
   const [banks, setBanks] = useState<{name: string, code: string}[]>(SUPPORTED_BANKS);
   const [bankSearchTerm, setBankSearchTerm] = useState("");
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
 
+  // location dropdown states
+  const [locationSearchTerm, setLocationSearchTerm] = useState("");
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
   useEffect(() => {
     // Paystack fetching logic has been commented out to strictly use the hardcoded banks
-    /*
-    const fetchBanks = async () => {
-        try {
-            const response = await fetch("https://api.paystack.co/bank", { method: "GET" });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status) {
-                    const uniqueBanksMap = new Map();
-                    data.data.forEach((bank: {name: string, code: string}) => {
-                        const normalizedName = bank.name.replace(/\s+/g, ' ').trim().toLowerCase();
-                        if (!uniqueBanksMap.has(normalizedName)) {
-                            uniqueBanksMap.set(normalizedName, bank);
-                        }
-                    });
-                    
-                    const uniqueBanks = Array.from(uniqueBanksMap.values()) as {name: string, code: string}[];
-                    uniqueBanks.sort((a, b) => a.name.localeCompare(b.name));
-                    setBanks(uniqueBanks);
-                    return;
-                }
-            }
-            setBanks(SUPPORTED_BANKS);
-        } catch (error) {
-            setBanks(SUPPORTED_BANKS);
-        }
-    };
-    fetchBanks();
-    */
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -218,6 +201,11 @@ export default function CreatorSignupClient() {
 
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+  // forgiving search filter for locations
+  const filteredLocations = NIGERIAN_STATES.filter(state =>
+    state.toLowerCase().includes(locationSearchTerm.toLowerCase().trim())
+  );
+
   // ==========================================
   // RECOVERY LOGIN HANDLER (For Modal)
   // ==========================================
@@ -226,6 +214,7 @@ export default function CreatorSignupClient() {
       setIsLoading(true);
       try {
           const loginPayload = { email: formData.email, password: formData.password };
+          console.log("API Call: POST /auth/login", loginPayload);
           
           const loginRes = await fetch(`${BASE_URL}/auth/login`, {
               method: "POST",
@@ -235,6 +224,7 @@ export default function CreatorSignupClient() {
 
           if (!loginRes.ok) {
               const errorData = await loginRes.json().catch(() => null);
+              console.error("API Error: POST /auth/login", errorData);
               
               if (destination === "dashboard") {
                   showError("Wrong password. Redirecting to login page...");
@@ -249,6 +239,7 @@ export default function CreatorSignupClient() {
           }
 
           const loginData = await loginRes.json();
+          console.log("API Response: POST /auth/login", loginData);
           const token = loginData.access_token || loginData.token;
           
           localStorage.setItem("accessToken", token);
@@ -266,6 +257,7 @@ export default function CreatorSignupClient() {
           }
 
       } catch (error) {
+          console.error("API Catch Error: POST /auth/login", error);
           showError("A network error occurred. Please try again.");
       } finally {
           setIsLoading(false);
@@ -289,6 +281,7 @@ export default function CreatorSignupClient() {
 
         try {
             const signupPayload = { email: formData.email, password: formData.password, role: "creator" };
+            console.log("API Call: POST /auth/signup", signupPayload);
             
             const signupRes = await fetch(`${BASE_URL}/auth/signup`, {
                 method: "POST",
@@ -297,6 +290,7 @@ export default function CreatorSignupClient() {
             });
 
             const signupData = await signupRes.json();
+            console.log("API Response: POST /auth/signup", { status: signupRes.status, data: signupData });
             
             if (!signupRes.ok) {
                 if (signupRes.status === 400 && signupData.message?.toLowerCase().includes("already registered")) {
@@ -312,6 +306,7 @@ export default function CreatorSignupClient() {
             setStep(2);
 
         } catch (error: any) {
+            console.error("API Catch Error: POST /auth/signup", error);
             showError(error.message || "An error occurred during signup.");
         } finally {
             setIsLoading(false);
@@ -322,7 +317,7 @@ export default function CreatorSignupClient() {
         if (!formData.profilePic) return showError("Please upload a profile photo to continue."); 
         if (formData.nicheTags.length === 0) return showError("Please select at least one niche.");
         if (!formData.bio) return showError("Please tell us a bit about yourself.");
-        if (!formData.location) return showError("Please enter your location.");
+        if (!formData.location) return showError("Please select your location.");
         if (!formData.rate) return showError("Please enter your base rate.");
         if (!formData.pricePerPost) return showError("Please enter your price per post.");
         if (!formData.pricePerStory) return showError("Please enter your price per story.");
@@ -345,6 +340,7 @@ export default function CreatorSignupClient() {
             role: "creator",
             code: otpCode
         };
+        console.log("API Call: POST /auth/verify-signup", verifyPayload);
 
         const verifyRes = await fetch(`${BASE_URL}/auth/verify-signup`, {
             method: "POST",
@@ -353,6 +349,7 @@ export default function CreatorSignupClient() {
         });
 
         const verifyData = await verifyRes.json();
+        console.log("API Response: POST /auth/verify-signup", { status: verifyRes.status, data: verifyData });
 
         if (!verifyRes.ok) {
             throw new Error(verifyData.message || "Invalid OTP code.");
@@ -366,6 +363,7 @@ export default function CreatorSignupClient() {
         
         setStep(3);
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/verify-signup", error);
         showError(error.message || "OTP verification failed.");
     } finally {
         setIsLoading(false);
@@ -379,6 +377,7 @@ export default function CreatorSignupClient() {
     setIsLoading(true);
     try {
         const payload = { email: forgotPasswordData.email };
+        console.log("API Call: POST /auth/forgot-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
             method: "POST",
@@ -387,6 +386,7 @@ export default function CreatorSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
+        console.log("API Response: POST /auth/forgot-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to send reset email.");
@@ -395,6 +395,7 @@ export default function CreatorSignupClient() {
         showSuccess("Password reset code sent to your email.");
         setForgotPasswordStep(2);
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/forgot-password", error);
         showError(error.message || "Error requesting password reset.");
     } finally {
         setIsLoading(false);
@@ -412,6 +413,7 @@ export default function CreatorSignupClient() {
             code: forgotPasswordData.code, 
             newPassword: forgotPasswordData.newPassword 
         };
+        console.log("API Call: POST /auth/reset-password", payload);
 
         const res = await fetch(`${BASE_URL}/auth/reset-password`, {
             method: "POST",
@@ -420,6 +422,7 @@ export default function CreatorSignupClient() {
         });
 
         const data = await res.json().catch(() => ({}));
+        console.log("API Response: POST /auth/reset-password", { status: res.status, data });
 
         if (!res.ok) {
             throw new Error(data.message || "Failed to reset password.");
@@ -433,6 +436,7 @@ export default function CreatorSignupClient() {
         setShowEmailExistsModal(false);
         router.push("/creator/login");
     } catch (error: any) {
+        console.error("API Catch Error: POST /auth/reset-password", error);
         showError(error.message || "Error resetting password.");
     } finally {
         setIsLoading(false);
@@ -459,6 +463,7 @@ export default function CreatorSignupClient() {
 
         // 1. UPDATE DISPLAY NAME
         const profilePayloadName = { displayName: formData.displayName };
+        console.log("API Call: PATCH /users/creator/profile", profilePayloadName);
 
         const profileUpdateRes = await fetch(`${BASE_URL}/users/creator/profile`, {
             method: "PATCH",
@@ -471,8 +476,10 @@ export default function CreatorSignupClient() {
 
         if (profileUpdateRes.ok) {
             const profileUpdateData = await profileUpdateRes.json();
+            console.log("API Response: PATCH /users/creator/profile", profileUpdateData);
         } else {
             const errorData = await profileUpdateRes.json().catch(() => null);
+            console.error("API Error: PATCH /users/creator/profile", errorData);
         }
 
         // 2. UPLOAD PROFILE PICTURE
@@ -481,6 +488,7 @@ export default function CreatorSignupClient() {
             const uploadData = new FormData();
             uploadData.append("file", formData.profilePic);
 
+            console.log("API Call: POST /upload/avatar", { fileName: formData.profilePic.name });
             const uploadRes = await fetch(`${BASE_URL}/upload/avatar`, {
                 method: "POST", 
                 headers: { "Authorization": `Bearer ${token}` },
@@ -489,9 +497,11 @@ export default function CreatorSignupClient() {
 
             if (uploadRes.ok) {
                 const uploadResult = await uploadRes.json();
+                console.log("API Response: POST /upload/avatar", uploadResult);
                 uploadedProfilePicUrl = uploadResult.url; 
             } else {
                 const errorData = await uploadRes.json().catch(() => null);
+                console.error("API Error: POST /upload/avatar", errorData);
                 throw new Error("Failed to upload profile photo.");
             }
         }
@@ -506,6 +516,7 @@ export default function CreatorSignupClient() {
             instagram: formData.instagram,
             pricePerPost: Number(formData.pricePerPost),
         };
+        console.log("API Call: POST /creator", creatorPayload);
         
         const profileRes = await fetch(`${BASE_URL}/creator`, {
             method: "POST",
@@ -517,6 +528,8 @@ export default function CreatorSignupClient() {
         });
         
         const profileData = await profileRes.json();
+        console.log("API Response: POST /creator", { status: profileRes.status, data: profileData });
+        
         if (!profileRes.ok) {
             throw new Error(profileData.message || "Failed to create creator profile");
         }
@@ -530,6 +543,7 @@ export default function CreatorSignupClient() {
             bankName: formData.bankName,
             accountNumber: formData.accountNumber,
         };
+        console.log("API Call: POST /creator/finance", financePayload);
         
         const financeRes = await fetch(`${BASE_URL}/creator/finance`, { 
             method: "POST",
@@ -541,6 +555,8 @@ export default function CreatorSignupClient() {
         });
 
         const financeData = await financeRes.json();
+        console.log("API Response: POST /creator/finance", { status: financeRes.status, data: financeData });
+        
         if (!financeRes.ok) {
             throw new Error(financeData.message || "Failed to complete finance profile");
         }
@@ -550,6 +566,7 @@ export default function CreatorSignupClient() {
             accountNumber: formData.accountNumber,
             bankCode: formData.bankCode 
         };
+        console.log("API Call: POST /creator/complete-profile", bankPayload);
         
         const bankRes = await fetch(`${BASE_URL}/creator/complete-profile`, { 
             method: "POST",
@@ -561,6 +578,8 @@ export default function CreatorSignupClient() {
         });
 
         const bankData = await bankRes.json();
+        console.log("API Response: POST /creator/complete-profile", { status: bankRes.status, data: bankData });
+        
         if (!bankRes.ok) {
             throw new Error(bankData.message || "Failed to link bank account");
         }
@@ -573,6 +592,7 @@ export default function CreatorSignupClient() {
         router.push("/creator/dashboard");
 
     } catch (error: any) {
+        console.error("API Catch Error: Final Submit", error);
         showError(error.message || "Something went wrong. Please try again.");
         setIsLoading(false);
     }
@@ -814,9 +834,44 @@ export default function CreatorSignupClient() {
                         <p className="text-xs font-medium text-gray-600 mt-2 bg-white/60 px-3 py-1 rounded-full">Upload profile photo <span className="text-red-500">*</span></p>
                     </div>
                     
+                    {/* updated custom location dropdown */}
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">Location</label>
-                        <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border-b border-gray-300 py-2 px-2 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 transition-all text-gray-900 placeholder-gray-400 text-sm" placeholder="City, Country" />
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={locationSearchTerm} 
+                                onChange={(e) => { 
+                                    setLocationSearchTerm(e.target.value); 
+                                    setIsLocationDropdownOpen(true); 
+                                    setFormData(prev => ({...prev, location: ""})); 
+                                }} 
+                                onFocus={() => setIsLocationDropdownOpen(true)} 
+                                className="w-full border-b border-gray-300 py-2 px-2 pr-8 bg-white/50 md:bg-transparent focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-gray-900 placeholder-gray-400 rounded-t-md text-sm" 
+                                placeholder="Search state..." 
+                            />
+                            <ChevronUpDownIcon className="absolute right-2 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+                        </div>
+                        {isLocationDropdownOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsLocationDropdownOpen(false)}></div>
+                                <div className="absolute z-50 w-full bg-white shadow-xl max-h-48 overflow-y-auto rounded-lg mt-1 border border-gray-100">
+                                    {filteredLocations.length > 0 ? filteredLocations.map((state) => (
+                                        <div 
+                                            key={state} 
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, location: state }));
+                                                setLocationSearchTerm(state);
+                                                setIsLocationDropdownOpen(false);
+                                            }} 
+                                            className="px-4 py-3 hover:bg-emerald-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                                        >
+                                            {state}
+                                        </div>
+                                    )) : <div className="px-4 py-3 text-sm text-gray-400">No state found</div>}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <div className="relative">

@@ -64,7 +64,10 @@ const FILTER_OPTIONS = {
       { label: "Under ₦500k", value: "500000" },
       { label: "₦500k+", value: "500001" }
   ],
-  platform: ["instagram", "tiktok"]
+  platform: [
+      { label: "Instagram", value: "instagram" },
+      { label: "TikTok", value: "tiktok" }
+  ]
 };
 
 const PLACEHOLDERS = [
@@ -91,7 +94,6 @@ const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "
 
     if (!isVisible) return null;
 
-    // Fix 1: Boosted z-index to 9999 so it shows over modals
     return (
         <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl transition-all duration-300 ${
             isVisible ? "translate-y-0 opacity-100" : "-translate-y-10 opacity-0"
@@ -624,22 +626,31 @@ const InviteModal = ({
     );
 };
 
-const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: CreatorProfile, onViewDetails: (c: CreatorProfile) => void, onInvite: (c: CreatorProfile) => void, index: number }) => {
-    const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
+// Updated CreatorCard to accept a global platform override
+const CreatorCard = ({ creator, onViewDetails, onInvite, index, globalPlatform }: { creator: CreatorProfile, onViewDetails: (c: CreatorProfile) => void, onInvite: (c: CreatorProfile) => void, index: number, globalPlatform: string }) => {
+    // Initialize local platform to the global one
+    const [localPlatform, setLocalPlatform] = useState<"instagram" | "tiktok">(globalPlatform as "instagram" | "tiktok" || "instagram");
+
+    // Listen for changes to the global platform filter and update this card
+    useEffect(() => {
+        if (globalPlatform) {
+            setLocalPlatform(globalPlatform as "instagram" | "tiktok");
+        }
+    }, [globalPlatform]);
 
     const placeholderImg = PLACEHOLDERS[index % PLACEHOLDERS.length];
 
     const togglePlatform = (e: React.MouseEvent) => {
         e.stopPropagation(); 
-        setPlatform(prev => prev === "instagram" ? "tiktok" : "instagram");
+        setLocalPlatform(prev => prev === "instagram" ? "tiktok" : "instagram");
     };
 
-    const handleUrl = platform === "instagram" 
+    const handleUrl = localPlatform === "instagram" 
         ? (creator.links?.instagram || creator.instagram) 
         : (creator.links?.tiktok || creator.tiktok);
 
-    const followers = platform === "instagram" ? creator.instagramFollowers : creator.tiktokFollowers;
-    const engagement = platform === "instagram" ? creator.instagramEngagementRate : creator.tiktokEngagementRate;
+    const followers = localPlatform === "instagram" ? creator.instagramFollowers : creator.tiktokFollowers;
+    const engagement = localPlatform === "instagram" ? creator.instagramEngagementRate : creator.tiktokEngagementRate;
 
     const getHandle = () => {
         if (!handleUrl) return "Unknown Creator";
@@ -695,12 +706,12 @@ const CreatorCard = ({ creator, onViewDetails, onInvite, index }: { creator: Cre
                     <button 
                         onClick={togglePlatform}
                         className={`shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white transition-all shadow-md active:scale-95 cursor-pointer ${
-                            platform === 'instagram' 
+                            localPlatform === 'instagram' 
                             ? 'bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] hover:shadow-pink-200' 
                             : 'bg-black hover:shadow-gray-300'
                         }`}
                     >
-                        {platform === 'instagram' ? <InstagramIcon className="w-4 h-4" /> : <TiktokIcon className="w-4 h-4" />}
+                        {localPlatform === 'instagram' ? <InstagramIcon className="w-4 h-4" /> : <TiktokIcon className="w-4 h-4" />}
                     </button>
 
                     <button 
@@ -726,7 +737,9 @@ export default function DiscoverPageClient() {
   const [creators, setCreators] = useState<CreatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ niche: [] as string[], price: "", platform: "" });
+  
+  // Added platform to filters
+  const [filters, setFilters] = useState({ niche: [] as string[], price: "", platform: "instagram" });
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [isSearchScrolledPast, setIsSearchScrolledPast] = useState(false);
@@ -868,11 +881,13 @@ export default function DiscoverPageClient() {
                 
                 <div className="flex flex-col gap-4">
                     <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches Selected" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
-                    <FilterDropdown label="Price Range" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
+                    <FilterDropdown label="Price Range" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />  
+                    {/* Added Platform Filter to Modal */}
+                    <FilterDropdown label={filters.platform ? (filters.platform === "instagram" ? "Instagram" : "TikTok") : "Platform"} options={FILTER_OPTIONS.platform} onSelect={(val) => handleFilterSelect("platform", val)} /> 
                 </div>
 
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <button onClick={() => setFilters({ niche: [], price: "", platform: "" })} className="flex-1 py-3 bg-gray-100 font-bold rounded-xl text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer">Clear</button>
+                    <button onClick={() => setFilters({ niche: [], price: "", platform: "instagram" })} className="flex-1 py-3 bg-gray-100 font-bold rounded-xl text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer">Clear</button>
                     <button onClick={() => setShowFloatingFilterModal(false)} className="flex-1 py-3 bg-black text-white font-bold rounded-xl hover:bg-gray-900 transition-colors cursor-pointer">Apply</button>
                 </div>
             </div>
@@ -957,10 +972,13 @@ export default function DiscoverPageClient() {
                                 <MultiSelectDropdown label={filters.niche.length > 0 ? "Niches" : "Select Niches"} options={AVAILABLE_NICHES} selectedValues={filters.niche} onToggle={(val) => handleFilterSelect("niche", val)} />
                                 <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
                                 <FilterDropdown label="Price" options={FILTER_OPTIONS.price} onSelect={(val) => handleFilterSelect("price", val)} />   
+                                <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+                                {/* Added Platform Dropdown Pill */}
+                                <FilterDropdown label={filters.platform === "tiktok" ? "TikTok" : "Instagram"} options={FILTER_OPTIONS.platform} onSelect={(val) => handleFilterSelect("platform", val)} /> 
                             </div>
                             
-                            {(filters.niche.length > 0 || filters.price || filters.platform) && (
-                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: [], price: "", platform: "" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
+                            {(filters.niche.length > 0 || filters.price || filters.platform !== "instagram") && (
+                                <button aria-label="reset fliters" onClick={() => setFilters({ niche: [], price: "", platform: "instagram" })} className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
                                     <XMarkIcon className="w-4 h-4" />
                                 </button>
                             )}
@@ -998,6 +1016,8 @@ export default function DiscoverPageClient() {
                                 onViewDetails={openDetailsModal}
                                 onInvite={openInviteModal} 
                                 index={idx} 
+                                // Pass the global platform down to the card
+                                globalPlatform={filters.platform}
                             />
                         ))}
                     </div>

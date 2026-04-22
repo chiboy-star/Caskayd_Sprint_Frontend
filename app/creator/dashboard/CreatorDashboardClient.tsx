@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Inter } from "next/font/google";
 import CreatorNavigationPill from "@/components/CreatorNavigationPill"; 
+// Import the new modal component
+import SpotlightPromptModal from "@/components/SpotlightPromptModal"; 
 import { 
   BanknotesIcon, 
   ClockIcon,
@@ -51,6 +53,9 @@ export default function CreatorDashboardClient() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ message: "", type: "success" as "success"|"error", isVisible: false });
 
+  // Spotlight Modal State
+  const [showSpotlightModal, setShowSpotlightModal] = useState(false);
+
   const showToast = (message: string, type: "success"|"error") => {
       setToast({ message, type, isVisible: true });
   };
@@ -63,6 +68,7 @@ export default function CreatorDashboardClient() {
       setIsAuthenticated(true);
       fetchRequests(token);
       fetchEarnings(token);
+      fetchProfileForSpotlightCheck(token);
     }
   }, [router]);
 
@@ -77,6 +83,34 @@ export default function CreatorDashboardClient() {
       };
   }, [selectedInvite]);
 
+  // NEW: Fetch profile just to check for spotlight videos
+  const fetchProfileForSpotlightCheck = async (token: string) => {
+      try {
+          const res = await fetch(`${BASE_URL}/users/creator/profile`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              const profile = Array.isArray(data) ? (data.find((p: any) => p.displayName) || data[0]) : data;
+              
+              if (profile) {
+                  const spotlightVideos = profile.spotlightVideos || [];
+                  const hasSeenPrompt = sessionStorage.getItem("hasSeenSpotlightPrompt");
+                  
+                  // If they have no videos AND haven't seen the prompt this session, show it
+                  if (spotlightVideos.length === 0 && !hasSeenPrompt) {
+                      setShowSpotlightModal(true);
+                      // Instantly set the flag so it doesn't show again this session
+                      sessionStorage.setItem("hasSeenSpotlightPrompt", "true");
+                  }
+              }
+          }
+      } catch (error) {
+          // Handle silently, we don't want to break the dashboard if this specific check fails
+      }
+  };
+
   const fetchRequests = async (token: string) => {
       try {
           const res = await fetch(`${BASE_URL}/chat-requests/creator`, {
@@ -87,7 +121,6 @@ export default function CreatorDashboardClient() {
               const data = await res.json();
               const sortedData = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
               setInvites(sortedData);
-          } else {
           }
       } catch (error) {
       } finally {
@@ -107,7 +140,6 @@ export default function CreatorDashboardClient() {
                   totalEarned: data?.totalEarned || 0,
                   totalTransactions: data?.totalTransactions || 0
               });
-          } else {
           }
       } catch (error) {
       }
@@ -136,7 +168,6 @@ export default function CreatorDashboardClient() {
           } else {
               const errorData = await res.json().catch(() => null);
               
-              // Handle specific 400 error for duplicate active chats upon acceptance
               if (res.status === 400 && action === "accept") {
                   throw new Error("An active conversation already exists for this business and creator");
               }
@@ -256,7 +287,7 @@ export default function CreatorDashboardClient() {
                                 
                                 <h3 className="text-xl font-bold text-gray-900 mt-1">
                                     {invite.business?.businessName || "Company"}: {invite.displayName}
-                                </h3>
+                               </h3>
                                 
                                 <div className="flex items-center gap-3 mt-2">
                                     <span className="text-sm text-gray-600 font-medium bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
@@ -306,7 +337,14 @@ export default function CreatorDashboardClient() {
         </div>
       </main>
 
-      {/* MODAL OVERLAY */}
+      {/* SPOTLIGHT PROMPT MODAL */}
+      <SpotlightPromptModal 
+          isOpen={showSpotlightModal} 
+          onClose={() => setShowSpotlightModal(false)}
+          onSuccess={() => setShowSpotlightModal(false)}
+      />
+
+      {/* INVITE DETAILS MODAL OVERLAY */}
       <div 
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 transition-opacity duration-300 ${selectedInvite ? "opacity-100 visible" : "opacity-0 invisible"}`}
         onClick={() => setSelectedInvite(null)} 

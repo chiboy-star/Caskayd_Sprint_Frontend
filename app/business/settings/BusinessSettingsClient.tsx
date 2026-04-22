@@ -2,11 +2,20 @@
 
 import { useState, useEffect } from "react";
 import NavigationPill from "@/components/NavigationPill";
-import { UserIcon, KeyIcon, CheckCircleIcon, XCircleIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { UserIcon, KeyIcon, CheckCircleIcon, XCircleIcon, TrashIcon, ChevronUpDownIcon } from "@heroicons/react/24/outline";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const AVAILABLE_INDUSTRIES = ["Fashion","Lifestyle","Events","Food & Food Stuff","Beverages","Electronics/Gadgets","Gifts & Gift packages","Arts & Crafts","Retail (General)","Clothing","Jewelry & Accessories","Footwear","Extensions","Bags","Perfumes","Skincare","Transportation / Travel","Hospitality Services","Product Customization"];
+
+// static list of nigerian states
+const NIGERIAN_STATES = [
+    "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+    "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", "Jigawa", 
+    "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", 
+    "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara", 
+    "Abuja(Federal Capital Territory)"
+];
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success" | "error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -44,6 +53,10 @@ export default function BusinessSettingsClient() {
     const [resetStep, setResetStep] = useState<1 | 2>(1);
     const [resetData, setResetData] = useState({ email: "", code: "", newPassword: "" });
 
+    // location dropdown states
+    const [locationSearchTerm, setLocationSearchTerm] = useState("");
+    const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
     const showToast = (message: string, type: "success" | "error") => setToast({ message, type, isVisible: true });
 
     // Fetch the business profile on mount
@@ -80,6 +93,9 @@ export default function BusinessSettingsClient() {
                             websiteUrl: profile.websiteUrl || "",
                             category: parsedCategory
                         });
+
+                        // sync search term with fetched location
+                        setLocationSearchTerm(profile.location || "");
                     }
                 } else {
                     console.log(`[API ERROR] Profile fetch failed with status:`, res.status);
@@ -93,6 +109,11 @@ export default function BusinessSettingsClient() {
 
         fetchProfile();
     }, []);
+
+    // forgiving search filter for locations
+    const filteredLocations = NIGERIAN_STATES.filter(state =>
+        state.toLowerCase().includes(locationSearchTerm.toLowerCase().trim())
+    );
 
     // Handle adding and removing categories from the multi-select
     const toggleCategory = (industry: string) => {
@@ -115,13 +136,9 @@ export default function BusinessSettingsClient() {
     };
 
     // Save profile changes
-// Save profile changes
-// Save profile changes
     const handleGeneralSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        
-
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
@@ -333,10 +350,47 @@ export default function BusinessSettingsClient() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Company Name</label>
                                         <input type="text" value={generalData.companyName} onChange={(e) => setGeneralData({ ...generalData, companyName: e.target.value })} className="w-full bg-[#F8F9FB] border border-gray-200 rounded-xl py-3.5 px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 focus:bg-white transition-all" />
                                     </div>
-                                    <div>
+                                    
+                                    {/* custom searchable location dropdown */}
+                                    <div className="relative">
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
-                                        <input type="text" value={generalData.location} onChange={(e) => setGeneralData({ ...generalData, location: e.target.value })} placeholder="e.g. Lagos, NG" className="w-full bg-[#F8F9FB] border border-gray-200 rounded-xl py-3.5 px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 focus:bg-white transition-all" />
+                                        <div className="relative">
+                                            <input 
+                                                type="text" 
+                                                value={locationSearchTerm} 
+                                                onChange={(e) => { 
+                                                    setLocationSearchTerm(e.target.value); 
+                                                    setIsLocationDropdownOpen(true); 
+                                                    setGeneralData(prev => ({...prev, location: ""})); 
+                                                }} 
+                                                onFocus={() => setIsLocationDropdownOpen(true)} 
+                                                placeholder="Search state..." 
+                                                className="w-full bg-[#F8F9FB] border border-gray-200 rounded-xl py-3.5 px-4 pr-10 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 focus:bg-white transition-all"
+                                            />
+                                            <ChevronUpDownIcon className="absolute right-3 top-3.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                                        </div>
+                                        {isLocationDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-40" onClick={() => setIsLocationDropdownOpen(false)}></div>
+                                                <div className="absolute z-50 w-full bg-white shadow-xl max-h-48 overflow-y-auto rounded-lg mt-1 border border-gray-100">
+                                                    {filteredLocations.length > 0 ? filteredLocations.map((state) => (
+                                                        <div 
+                                                            key={state} 
+                                                            onClick={() => {
+                                                                setGeneralData(prev => ({ ...prev, location: state }));
+                                                                setLocationSearchTerm(state);
+                                                                setIsLocationDropdownOpen(false);
+                                                            }} 
+                                                            className="px-4 py-3 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-0"
+                                                        >
+                                                            {state}
+                                                        </div>
+                                                    )) : <div className="px-4 py-3 text-sm text-gray-400">No state found</div>}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
+
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Website URL</label>
                                         <input type="url" value={generalData.websiteUrl} onChange={(e) => setGeneralData({ ...generalData, websiteUrl: e.target.value })} placeholder="https://yourwebsite.com" className="w-full bg-[#F8F9FB] border border-gray-200 rounded-xl py-3.5 px-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 focus:bg-white transition-all" />
