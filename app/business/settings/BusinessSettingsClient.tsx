@@ -66,7 +66,6 @@ export default function BusinessSettingsClient() {
             if (!token) return;
 
             try {
-                console.log(`[API CALL] GET ${BASE_URL}/users/business/profile`);
                 
                 const res = await fetch(`${BASE_URL}/users/business/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
@@ -74,7 +73,6 @@ export default function BusinessSettingsClient() {
 
                 if (res.ok) {
                     const data = await res.json();
-                    console.log(`[API RESPONSE] Profile loaded:`, data);
                     
                     const profile = Array.isArray(data) ? (data.find((p: any) => p.companyName) || data[0]) : data;
 
@@ -98,11 +96,9 @@ export default function BusinessSettingsClient() {
                         setLocationSearchTerm(profile.location || "");
                     }
                 } else {
-                    console.log(`[API ERROR] Profile fetch failed with status:`, res.status);
                     showToast("Failed to load profile data.", "error");
                 }
             } catch (error) {
-                console.error(`[API CATCH ERROR] Fetch profile:`, error);
                 showToast("Network error while loading profile.", "error");
             }
         };
@@ -149,8 +145,7 @@ export default function BusinessSettingsClient() {
                 category: generalData.category.join(", ")
             };
 
-            console.log(`[API CALL] PATCH ${BASE_URL}/users/business/profile`);
-            console.log(`[API PAYLOAD] Update profile:`, payload);
+            
 
             const res = await fetch(`${BASE_URL}/users/business/profile`, {
                 method: "PATCH",
@@ -164,15 +159,12 @@ export default function BusinessSettingsClient() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log(`[API RESPONSE] Profile updated:`, data);
                 showToast("Profile updated successfully!", "success");
             } else {
                 const err = await res.json().catch(() => null);
-                console.log(`[API ERROR] Profile update failed:`, err);
                 showToast(err?.message || "Failed to update profile.", "error");
             }
         } catch (error) {
-            console.error(`[API CATCH ERROR] Profile update:`, error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -188,9 +180,7 @@ export default function BusinessSettingsClient() {
         try {
             const payload = { email: resetData.email };
             
-            console.log(`[API CALL] POST ${BASE_URL}/auth/forgot-password`);
-            console.log(`[API PAYLOAD] Request reset code:`, payload);
-
+        
             const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -199,16 +189,13 @@ export default function BusinessSettingsClient() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log(`[API RESPONSE] Reset code sent:`, data);
                 showToast("Reset code sent to your email!", "success");
                 setResetStep(2); 
             } else {
                 const data = await res.json().catch(() => ({}));
-                console.log(`[API ERROR] Reset code request failed:`, data);
                 showToast(data.message || "Failed to send reset email.", "error");
             }
         } catch (error) {
-            console.error(`[API CATCH ERROR] Request reset code:`, error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -224,8 +211,7 @@ export default function BusinessSettingsClient() {
         try {
             const payload = { email: resetData.email, code: resetData.code, newPassword: resetData.newPassword };
             
-            console.log(`[API CALL] POST ${BASE_URL}/auth/reset-password`);
-            console.log(`[API PAYLOAD] Submit new password:`, { email: payload.email, code: payload.code, newPassword: "[REDACTED]" });
+           
 
             const res = await fetch(`${BASE_URL}/auth/reset-password`, {
                 method: "POST",
@@ -235,17 +221,14 @@ export default function BusinessSettingsClient() {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log(`[API RESPONSE] Password updated:`, data);
                 showToast("Password updated successfully!", "success");
                 setResetStep(1);
                 setResetData({ email: "", code: "", newPassword: "" });
             } else {
                 const data = await res.json().catch(() => ({}));
-                console.log(`[API ERROR] Password update failed:`, data);
                 showToast(data.message || "Failed to update password.", "error");
             }
         } catch (error) {
-            console.error(`[API CATCH ERROR] Submit new password:`, error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);
@@ -262,7 +245,6 @@ export default function BusinessSettingsClient() {
 
         setIsSaving(true);
         try {
-            console.log(`[API CALL] DELETE ${BASE_URL}/users/account`);
 
             const res = await fetch(`${BASE_URL}/users/account`, {
                 method: "DELETE",
@@ -270,17 +252,14 @@ export default function BusinessSettingsClient() {
             });
 
             if (res.ok) {
-                console.log(`[API RESPONSE] Account deleted.`);
                 showToast("Account deleted successfully.", "success");
                 localStorage.removeItem("accessToken");
                 window.location.href = "/business/login";
             } else {
                 const err = await res.json().catch(() => null);
-                console.log(`[API ERROR] Delete account failed:`, err);
                 showToast(err?.message || "Failed to delete account.", "error");
             }
         } catch (error) {
-            console.error(`[API CATCH ERROR] Delete account:`, error);
             showToast("Network error. Please try again.", "error");
         } finally {
             setIsSaving(false);

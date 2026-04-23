@@ -15,7 +15,6 @@ import {
     XCircleIcon
 } from "@heroicons/react/24/outline";
 import { Inter } from "next/font/google";
-import { useSocket } from "@/components/SocketContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -63,6 +62,38 @@ interface Message {
     };
 }
 
+// --- RESTRICTED CONTENT CHECKER ---
+const containsRestrictedContent = (text: string): boolean => {
+    const normalizedText = text.toLowerCase().replace(/[\s\.\-\_]/g, '');
+
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    if (emailRegex.test(text)) return true;
+
+    const phoneRegex = /(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/;
+    if (phoneRegex.test(text)) return true;
+
+    const restrictedKeywords = [
+        "whatsapp", "wa.me", "telegram", "t.me",
+        "paypal", "cashapp", "venmo", "zelle", "payoneer", "crypto", "btc", "eth",
+        "banktransfer", "accountnumber", "sortcode"
+    ];
+
+    for (const keyword of restrictedKeywords) {
+        if (normalizedText.includes(keyword)) return true;
+    }
+
+    const restrictedPhrases = [
+        /\bdm me\b/i, /\bpm me\b/i, /\bmessage me on\b/i, /\bhit me up on\b/i,
+        /\bpay me directly\b/i, /\boutside the platform\b/i
+    ];
+
+    for (const phrase of restrictedPhrases) {
+        if (phrase.test(text)) return true;
+    }
+
+    return false;
+};
+
 // --- TOAST COMPONENT ---
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
     useEffect(() => {
@@ -89,7 +120,6 @@ export default function CreatorMessagesClient() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null); 
     const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
-    const { socket, isConnected } = useSocket();
     
     const [searchQuery, setSearchQuery] = useState("");
     const [loadingConversations, setLoadingConversations] = useState(true);
@@ -98,7 +128,6 @@ export default function CreatorMessagesClient() {
     const [newMessage, setNewMessage] = useState("");
     const [isUploadingFile, setIsUploadingFile] = useState(false);
 
-    // Restored verification states
     const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
     const [paymentReference, setPaymentReference] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
@@ -131,7 +160,6 @@ export default function CreatorMessagesClient() {
                 const data = await res.json();
                 const count = typeof data === 'number' ? data : (data.count || data.unreadCount || 0);
                 setGlobalUnreadCount(count);
-            } else {
             }
         } catch (error) {
         }
@@ -151,7 +179,6 @@ export default function CreatorMessagesClient() {
             if (res.ok) {
                 const data = await res.json();
                 setConversations(data);
-            } else {
             }
         } catch (error) {
         } finally {
@@ -182,6 +209,7 @@ export default function CreatorMessagesClient() {
                     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 );
                 
+                // Smart update: Only update state and scroll if there is a new message
                 setMessages(prev => {
                     if (prev.length !== sorted.length) {
                         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -191,7 +219,7 @@ export default function CreatorMessagesClient() {
                 });
             }
 
-            const readRes = await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
+            await fetch(`${BASE_URL}/messages/read/${activeChatId}`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -204,43 +232,36 @@ export default function CreatorMessagesClient() {
         }
     }, [activeChatId]);
 
+    // --- REPLACED SOCKET WITH POLLING ---
     useEffect(() => {
-        if (!activeChatId) {
-            if (socket && isConnected) {
-                socket.emit("active_chat", { conversationId: null });
-            }
-            return;
-        }
+        if (!activeChatId) return;
 
-        if (socket && isConnected) {
-            socket.emit("active_chat", { conversationId: activeChatId });
-        }
-
+        // Initial fetch
         fetchMessages(true);
 
+        // Start polling every 3 seconds silently
         const pollInterval = setInterval(() => {
-            fetchMessages();
+            fetchMessages(false);
         }, 3000);
-
-        const handleIncomingMessage = (payload: any) => {
-            fetchMessages(); 
-        };
-
-        if (socket) socket.on("new_message", handleIncomingMessage);
 
         return () => {
             clearInterval(pollInterval);
-            if (socket) socket.off("new_message", handleIncomingMessage);
         };
-    }, [activeChatId, socket, isConnected, fetchMessages]); 
+    }, [activeChatId, fetchMessages]);
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !activeChatId) return;
 
+        const messageToSend = newMessage.trim();
+
+        if (containsRestrictedContent(messageToSend)) {
+            showToast("Sharing contact details or external payment methods is not allowed. This keeps your payments secure.", "error");
+            return;
+        }
+
         const token = localStorage.getItem("accessToken");
         if (!token) return;
 
-        const messageToSend = newMessage.trim();
         setNewMessage(""); 
 
         try {
@@ -248,8 +269,6 @@ export default function CreatorMessagesClient() {
                 type: "TEXT", 
                 content: messageToSend
             };
-
-           
 
             const res = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
@@ -262,10 +281,8 @@ export default function CreatorMessagesClient() {
             });
 
             if (res.ok) {
-                const data = await res.json();
                 fetchMessages(); 
             } else {
-                const errText = await res.text();
                 setNewMessage(messageToSend); 
                 showToast("Failed to send message.", "error");
             }
@@ -293,8 +310,6 @@ export default function CreatorMessagesClient() {
         formData.append("file", file); 
 
         try {
-            
-
             const msgRes = await fetch(`${BASE_URL}/messages/${activeChatId}`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
@@ -302,7 +317,6 @@ export default function CreatorMessagesClient() {
             });
 
             if (msgRes.ok) {
-                const data = await msgRes.json();
                 fetchMessages();
             } else {
                 const errData = await msgRes.json().catch(() => null);
@@ -316,7 +330,6 @@ export default function CreatorMessagesClient() {
         }
     };
 
-    // Restored verify function for creator fallback check
     const handleVerifyPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!paymentReference.trim()) return;
@@ -329,7 +342,6 @@ export default function CreatorMessagesClient() {
 
         try {
             const trimmedRef = paymentReference.trim();
-            
             
             const res = await fetch(`${BASE_URL}/payments/verify/${trimmedRef}`, {
                 method: "GET",
@@ -366,7 +378,6 @@ export default function CreatorMessagesClient() {
             });
 
             if (res.ok) {
-                const data = await res.json();
                 showToast("Request to end conversation submitted.", "success");
                 fetchConversations();
             } else {
@@ -396,7 +407,6 @@ export default function CreatorMessagesClient() {
 
     const handleChatSelect = (id: string) => {
         setActiveChatId(id);
-        // Clear modal states when changing chats
         setPaymentReference("");
         setVerificationResult(null);
         setIsVerifyModalOpen(false);
@@ -453,17 +463,7 @@ export default function CreatorMessagesClient() {
 
                         <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                             {loadingConversations ? (
-                                <div className="space-y-3 px-2 mt-2">
-                                    {[1, 2, 3].map((i) => (
-                                        <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-                                            <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0"></div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                                                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <div className="p-4 text-center text-gray-400 text-sm animate-pulse">Loading chats...</div>
                             ) : conversations.length === 0 ? (
                                 <div className="p-4 text-center text-gray-400 text-sm">No conversations yet.</div>
                             ) : filteredConversations.length === 0 ? (
@@ -538,7 +538,6 @@ export default function CreatorMessagesClient() {
                                     
                                     <div className="flex items-center gap-2 md:gap-3 shrink-0">
                                         
-                                        {/* Restored manual Verify Button */}
                                         <button 
                                             onClick={() => setIsVerifyModalOpen(true)} 
                                             className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold py-1.5 px-3 md:py-2 md:px-4 rounded-xl text-xs md:text-sm transition-colors shadow-sm cursor-pointer whitespace-nowrap"
@@ -590,15 +589,7 @@ export default function CreatorMessagesClient() {
                                     )}
 
                                     {initialLoadingMessages ? (
-                                        <div className="space-y-4 animate-pulse">
-                                            <div className="flex items-end justify-start gap-2">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 mb-4"></div>
-                                                <div className="bg-gray-100 rounded-2xl rounded-bl-none h-12 w-48"></div>
-                                            </div>
-                                            <div className="flex items-end justify-end gap-2">
-                                                <div className="bg-emerald-100 rounded-2xl rounded-br-none h-16 w-64"></div>
-                                            </div>
-                                        </div>
+                                        <div className="flex justify-center mt-10"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>
                                     ) : messages.map((msg) => {
                                         const sentByMe = isMe(msg);
                                         return (
@@ -680,7 +671,7 @@ export default function CreatorMessagesClient() {
                                                 {isUploadingFile ? (
                                                     <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                                                 ) : (
-                                                    <PaperClipIcon className="w-5 h-5" />
+                                                    <PaperClipIcon className="w-5 h-5 cursor-pointer" />
                                                 )}
                                             </button>
                                             
