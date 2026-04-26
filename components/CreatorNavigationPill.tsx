@@ -17,6 +17,7 @@ import {
     XCircleIcon
 } from "@heroicons/react/24/outline";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { apiFetch } from "@/app/utils/apiFetch";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -80,7 +81,7 @@ export default function CreatorNavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
-                const profileRes = await fetch(`${BASE_URL}/users/profile`, {
+                const profileRes = await apiFetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
@@ -99,7 +100,7 @@ export default function CreatorNavigationPill() {
 
         const fetchAlerts = async () => {
             try {
-                const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
+                const msgRes = await apiFetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
@@ -119,7 +120,7 @@ export default function CreatorNavigationPill() {
             }
 
             try {
-                const notifRes = await fetch(`${BASE_URL}/notifications`, {
+                const notifRes = await apiFetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
@@ -132,7 +133,6 @@ export default function CreatorNavigationPill() {
 
         fetchUserProfile(); 
         fetchAlerts();      
-        // Fix: Removed redundant setInterval polling. Relying on WebSockets/FCM.
     }, []);
 
     const handleMarkAsRead = async (id: string, currentlyRead: boolean) => {
@@ -144,7 +144,7 @@ export default function CreatorNavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
+            const res = await apiFetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -169,7 +169,7 @@ export default function CreatorNavigationPill() {
         formData.append("file", file);
 
         try {
-            const res = await fetch(`${BASE_URL}/upload/avatar`, {
+            const res = await apiFetch(`${BASE_URL}/upload/avatar`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
                 body: formData, 
@@ -314,7 +314,7 @@ export default function CreatorNavigationPill() {
 
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
-                                className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer transition-colors shadow-md relative overflow-hidden"
+                                className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
                             >
                                 <div className="absolute inset-[2px] rounded-full flex items-center justify-center overflow-hidden">
                                     {userProfile?.avatar ? (
@@ -349,7 +349,7 @@ export default function CreatorNavigationPill() {
                                     )}
                                 </div>
                                 
-                                <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200">
+                                <label className="absolute bottom-0 right-0 bg-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200 z-10">
                                     {isUploadingAvatar ? (
                                         <div className="w-4 h-4 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
                                     ) : (
@@ -375,7 +375,7 @@ export default function CreatorNavigationPill() {
                                     className="w-full bg-white/10 border border-white/5 hover:bg-white/20 text-white py-3.5 px-4 rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
                                 >
                                     <Cog6ToothIcon className="w-5 h-5 text-gray-300" />
-                                    <span className="font-semibold">Account Settings</span>
+                                    <span className="font-semibold text-sm">Account Settings</span>
                                 </Link>
 
                                 <button 
