@@ -17,6 +17,7 @@ import {
     Cog6ToothIcon
 } from "@heroicons/react/24/outline";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { apiFetch } from "@/app/utils/apiFetch";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -77,7 +78,7 @@ export default function NavigationPill() {
 
         const fetchUserProfile = async () => {
             try {
-                const profileRes = await fetch(`${BASE_URL}/users/profile`, {
+                const profileRes = await apiFetch(`${BASE_URL}/users/profile`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 
@@ -96,7 +97,7 @@ export default function NavigationPill() {
 
         const fetchAlerts = async () => {
             try {
-                const msgRes = await fetch(`${BASE_URL}/messages/unread/count`, {
+                const msgRes = await apiFetch(`${BASE_URL}/messages/unread/count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (msgRes.ok) {
@@ -116,7 +117,7 @@ export default function NavigationPill() {
             }
 
             try {
-                const notifRes = await fetch(`${BASE_URL}/notifications`, {
+                const notifRes = await apiFetch(`${BASE_URL}/notifications`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (notifRes.ok) {
@@ -127,7 +128,7 @@ export default function NavigationPill() {
             }
 
             try {
-                const sentRes = await fetch(`${BASE_URL}/chat-requests/business/sent-count`, {
+                const sentRes = await apiFetch(`${BASE_URL}/chat-requests/business/sent-count`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (sentRes.ok) {
@@ -147,7 +148,6 @@ export default function NavigationPill() {
 
         fetchUserProfile(); 
         fetchAlerts();      
-        // Fix: Removed redundant setInterval polling. Relying on WebSockets/FCM.
     }, []);
 
     const handleMarkAsRead = async (id: string, currentlyRead: boolean) => {
@@ -158,7 +158,7 @@ export default function NavigationPill() {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
 
         try {
-            const res = await fetch(`${BASE_URL}/notifications/${id}/read`, {
+            const res = await apiFetch(`${BASE_URL}/notifications/${id}/read`, {
                 method: "PATCH",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -182,7 +182,7 @@ export default function NavigationPill() {
         formData.append("file", file);
 
         try {
-            const res = await fetch(`${BASE_URL}/upload/avatar`, {
+            const res = await apiFetch(`${BASE_URL}/upload/avatar`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
                 body: formData, 
