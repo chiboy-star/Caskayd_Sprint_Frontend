@@ -14,7 +14,8 @@ import {
     Cog6ToothIcon,
     CameraIcon,
     CheckCircleIcon,
-    XCircleIcon
+    XCircleIcon,
+    ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { apiFetch } from "@/app/utils/apiFetch";
@@ -26,6 +27,18 @@ interface AppNotification {
     type: string;
     message: string;
     isRead: boolean;
+}
+
+interface CreatorProfileData {
+    email?: string; 
+    avatar?: string; 
+    displayName?: string; 
+    companyName?: string;
+    bio?: string;
+    instagram?: string;
+    tiktok?: string;
+    links?: { instagram?: string; tiktok?: string };
+    pricePerPost?: number;
 }
 
 const Toast = ({ message, type, isVisible, onClose }: { message: string, type: "success"|"error", isVisible: boolean, onClose: () => void }) => {
@@ -52,7 +65,9 @@ export default function CreatorNavigationPill() {
     const pathname = usePathname();
     const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [userProfile, setUserProfile] = useState<{ email?: string; avatar?: string; displayName?: string; companyName?: string } | null>(null);
+    const [userProfile, setUserProfile] = useState<CreatorProfileData | null>(null);
+    const [missingFields, setMissingFields] = useState<string[]>([]);
+    
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState<number>(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -61,6 +76,7 @@ export default function CreatorNavigationPill() {
 
     const showToast = (message: string, type: "success"|"error") => setToastState({ message, type, isVisible: true });
     const isActive = (path: string) => pathname?.includes(path);
+    const isSettingsPage = pathname?.includes('/creator/settings');
     const unreadNotificationCount = notifications.filter(n => !n.isRead).length;
 
     const handleLogout = () => {
@@ -75,6 +91,23 @@ export default function CreatorNavigationPill() {
         setUnreadMessages(prev => prev + 1);
     });
 
+    const calculateMissingFields = (profile: CreatorProfileData) => {
+        if (!profile) return [];
+        const missing: string[] = [];
+        
+        if (!profile.displayName) missing.push("Name");
+        if (!profile.avatar) missing.push("Photo");
+        if (!profile.bio) missing.push("Bio");
+        
+        const hasIG = profile.instagram || profile.links?.instagram;
+        const hasTikTok = profile.tiktok || profile.links?.tiktok;
+        if (!hasIG && !hasTikTok) missing.push("Socials");
+        
+        if (!profile.pricePerPost) missing.push("Rates");
+        
+        return missing;
+    };
+
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
         if (!token) return;
@@ -87,11 +120,17 @@ export default function CreatorNavigationPill() {
                 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json();
+                    let activeCreatorProfile = null;
+
                     if (Array.isArray(profileData) && profileData.length > 0) {
-                        const activeCreatorProfile = profileData.find((p: any) => p.displayName) || profileData[0];
-                        setUserProfile(activeCreatorProfile);
+                        activeCreatorProfile = profileData.find((p: any) => p.displayName) || profileData[0];
                     } else if (profileData && typeof profileData === 'object') {
-                        setUserProfile(profileData);
+                        activeCreatorProfile = profileData;
+                    }
+
+                    if (activeCreatorProfile) {
+                        setUserProfile(activeCreatorProfile);
+                        setMissingFields(calculateMissingFields(activeCreatorProfile));
                     }
                 }
             } catch (error) {
@@ -179,7 +218,13 @@ export default function CreatorNavigationPill() {
                 const data = await res.json();
                 showToast("Profile image uploaded successfully!", "success");
                 const newAvatarUrl = data.url || URL.createObjectURL(file);
-                setUserProfile(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+                
+                setUserProfile(prev => {
+                    if (!prev) return null;
+                    const updated = { ...prev, avatar: newAvatarUrl };
+                    setMissingFields(calculateMissingFields(updated));
+                    return updated;
+                });
             } else {
                 showToast("Failed to upload image", "error");
             }
@@ -194,136 +239,158 @@ export default function CreatorNavigationPill() {
     const userEmail = userProfile?.email || "creator@example.com";
     const initial = dispName.charAt(0).toUpperCase();
 
+    const showBanner = missingFields.length > 0 && !isSettingsPage;
+
     return (
         <>
             <Toast message={toastState.message} type={toastState.type} isVisible={toastState.isVisible} onClose={() => setToastState(prev => ({...prev, isVisible: false}))} />
 
-            <div className="fixed top-0 left-0 right-0 z-40 w-full px-3 md:px-8 pt-6 pb-4 bg-white/70 backdrop-blur-md border-b border-white/10 transition-all">
-                <div className="max-w-5xl mx-auto">
-                    <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 md:gap-4">
-                        
-                        <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
-                        <div className="flex items-center shrink-0">
-                            <div className="relative w-32 h-8 md:w-40 md:h-10 hidden sm:block">
-                                <Image 
-                                    src="/images/LandingLogo.png" 
-                                    alt="Caskayd" 
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
-                            <div className="relative w-8 h-8 shrink-0 sm:hidden">
-                                <Image 
-                                    src="/images/Logo_transparent_icon.png" 
-                                    alt="Caskayd Icon" 
-                                    fill
-                                    className="object-cover"
-                                />
-                            </div>
+            <div className="fixed top-0 left-0 right-0 z-40 w-full transition-all">
+                
+                {/* GLOBAL WARNING BANNER - Sleeker design */}
+                {showBanner && (
+                    <div className="bg-amber-50 border-b border-amber-200 text-amber-800 px-4 py-2.5 text-xs sm:text-sm flex items-center justify-center shadow-sm animate-in slide-in-from-top-4 duration-300 relative z-50">
+                        <div className="flex flex-row items-center gap-3 max-w-5xl mx-auto w-full justify-center">
+                            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0" />
+                            <span className="truncate max-w-[60%] sm:max-w-none">
+                                <span className="hidden sm:inline"><strong>Profile Incomplete:</strong> Add missing details to be visible to brands.</span>
+                                <span className="sm:hidden font-medium">Complete profile to be visible.</span>
+                            </span>
+                            <Link href="/creator/settings" className="bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 px-3 py-1 rounded-md transition-colors whitespace-nowrap shadow-sm font-bold shrink-0 ml-auto sm:ml-2">
+                                Fix Now
+                            </Link>
                         </div>
-                        </Link>
+                    </div>
+                )}
 
-                        <div className="flex flex-1 justify-evenly items-center md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
-                            <Link href="/creator/dashboard" className="group">
-                                <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/dashboard') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
-                                    <div className="flex items-center gap-2 font-bold p-1">
-                                        <Squares2X2Icon className="w-6 h-6 sm:w-5 sm:h-5" />
-                                        <span className="hidden sm:block text-[15px]">Dashboard</span>
-                                    </div>
-                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/dashboard') ? 'opacity-100' : 'opacity-0'}`}></div>
-                                </div>
-                            </Link>
-
-                            <Link href="/creator/wallet" className="group">
-                                <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/wallet') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
-                                    <div className="flex items-center gap-2 font-bold p-1">
-                                        <WalletIcon className="w-6 h-6 sm:w-5 sm:h-5" />
-                                        <span className="hidden sm:block text-[15px]">Wallet</span>
-                                    </div>
-                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/wallet') ? 'opacity-100' : 'opacity-0'}`}></div>
-                                </div>
-                            </Link>
+                {/* MAIN NAVIGATION PILL */}
+                <div className={`w-full px-3 md:px-8 pb-4 bg-white/70 backdrop-blur-md border-b border-gray-200/50 transition-all ${showBanner ? 'pt-3' : 'pt-6'}`}>
+                    <div className="max-w-5xl mx-auto">
+                        <div className="bg-white rounded-full shadow-lg shadow-gray-200/50 border border-gray-100 py-3 md:py-4 px-4 sm:px-6 md:px-8 flex items-center justify-between relative gap-1 md:gap-4">
                             
-                            <Link href="/creator/messages" className="group">
-                                <div className={`flex flex-col items-center gap-1 cursor-pointer relative ${isActive('/creator/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
-                                    <div className="flex items-center gap-2 font-bold p-1 relative">
-                                        <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
-                                        <span className="hidden sm:block text-[15px]">Messages</span>
-                                        {unreadMessages > 0 && (
-                                            <span className="absolute top-0 -right-1 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                                                {unreadMessages > 9 ? '9+' : unreadMessages}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
+                            <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                            <div className="flex items-center shrink-0">
+                                <div className="relative w-32 h-8 md:w-40 md:h-10 hidden sm:block">
+                                    <Image 
+                                        src="/images/LandingLogo.png" 
+                                        alt="Caskayd" 
+                                        fill
+                                        className="object-cover"
+                                    />
                                 </div>
+                                <div className="relative w-8 h-8 shrink-0 sm:hidden">
+                                    <Image 
+                                        src="/images/Logo_transparent_icon.png" 
+                                        alt="Caskayd Icon" 
+                                        fill
+                                        className="object-cover"
+                                    />
+                                </div>
+                            </div>
                             </Link>
-                        </div>
 
-                        <div className="flex items-center gap-1 sm:gap-4 shrink-0 relative">
-                            <button 
-                                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                                className="relative p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
-                            >
-                                <BellIcon className="w-6 h-6 sm:w-7 sm:h-7" />
-                                {unreadNotificationCount > 0 && (
-                                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                                        {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                                    </span>
-                                )}
-                            </button>
-
-                            {isNotificationsOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                                    <div className="absolute top-16 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
-                                        <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                            <h3 className="font-bold text-gray-900">Notifications</h3>
-                                            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
+                            <div className="flex flex-1 justify-evenly items-center md:gap-10 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2">
+                                <Link href="/creator/dashboard" className="group">
+                                    <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/dashboard') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
+                                        <div className="flex items-center gap-2 font-bold p-1">
+                                            <Squares2X2Icon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                            <span className="hidden sm:block text-[15px]">Dashboard</span>
                                         </div>
-                                        <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-                                            {notifications.length === 0 ? (
-                                                <div className="px-5 py-8 text-center text-sm text-gray-500">
-                                                    You're all caught up!
-                                                </div>
-                                            ) : (
-                                                notifications.map((notif) => (
-                                                    <div 
-                                                        key={notif.id}
-                                                        onClick={() => handleMarkAsRead(notif.id, notif.isRead)}
-                                                        className={`px-5 py-4 border-b border-gray-50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-indigo-50/50 hover:bg-indigo-50'}`}
-                                                    >
-                                                        <div className="flex gap-3">
-                                                            <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${notif.isRead ? 'bg-transparent' : 'bg-[#5B4DFF]'}`}></div>
-                                                            <div>
-                                                                <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
-                                                                    {notif.message}
-                                                                </p>
-                                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1 block">
-                                                                    {notif.type.replace('_', ' ')}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
+                                        <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/dashboard') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    </div>
+                                </Link>
+
+                                <Link href="/creator/wallet" className="group">
+                                    <div className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${isActive('/creator/wallet') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
+                                        <div className="flex items-center gap-2 font-bold p-1">
+                                            <WalletIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                            <span className="hidden sm:block text-[15px]">Wallet</span>
+                                        </div>
+                                        <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/wallet') ? 'opacity-100' : 'opacity-0'}`}></div>
+                                    </div>
+                                </Link>
+                                
+                                <Link href="/creator/messages" className="group">
+                                    <div className={`flex flex-col items-center gap-1 cursor-pointer relative ${isActive('/creator/messages') ? 'text-emerald-600' : 'text-gray-400 hover:text-gray-900'}`}>
+                                        <div className="flex items-center gap-2 font-bold p-1 relative">
+                                            <ChatBubbleOvalLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                                            <span className="hidden sm:block text-[15px]">Messages</span>
+                                            {unreadMessages > 0 && (
+                                                <span className="absolute top-0 -right-1 sm:-right-2 -mt-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                                                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                                                </span>
                                             )}
                                         </div>
+                                        <div className={`hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-500 transition-opacity ${isActive('/creator/messages') ? 'opacity-100' : 'opacity-0'}`}></div>
                                     </div>
-                                </>
-                            )}
+                                </Link>
+                            </div>
 
-                            <button 
-                                onClick={() => setIsProfileOpen(true)}
-                                className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
-                            >
-                                <div className="absolute inset-[2px] rounded-full flex items-center justify-center overflow-hidden">
-                                    {userProfile?.avatar ? (
-                                        <Image src={userProfile.avatar} alt="Profile" fill className="object-cover rounded-full" />
-                                    ) : (
-                                        <span className="text-white font-bold">{initial}</span>
+                            <div className="flex items-center gap-1 sm:gap-4 shrink-0 relative">
+                                <button 
+                                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                                    className="relative p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 cursor-pointer"
+                                >
+                                    <BellIcon className="w-6 h-6 sm:w-7 sm:h-7" />
+                                    {unreadNotificationCount > 0 && (
+                                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                                            {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                                        </span>
                                     )}
-                                </div>
-                            </button>
+                                </button>
+
+                                {isNotificationsOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
+                                        <div className="absolute top-16 right-12 w-80 bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+                                            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                                <h3 className="font-bold text-gray-900">Notifications</h3>
+                                                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{unreadNotificationCount} New</span>
+                                            </div>
+                                            <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+                                                {notifications.length === 0 ? (
+                                                    <div className="px-5 py-8 text-center text-sm text-gray-500">
+                                                        You're all caught up!
+                                                    </div>
+                                                ) : (
+                                                    notifications.map((notif) => (
+                                                        <div 
+                                                            key={notif.id}
+                                                            onClick={() => handleMarkAsRead(notif.id, notif.isRead)}
+                                                            className={`px-5 py-4 border-b border-gray-50 cursor-pointer transition-colors ${notif.isRead ? 'bg-white hover:bg-gray-50' : 'bg-indigo-50/50 hover:bg-indigo-50'}`}
+                                                        >
+                                                            <div className="flex gap-3">
+                                                                <div className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${notif.isRead ? 'bg-transparent' : 'bg-[#5B4DFF]'}`}></div>
+                                                                <div>
+                                                                    <p className={`text-sm ${notif.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}`}>
+                                                                        {notif.message}
+                                                                    </p>
+                                                                    <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-1 block">
+                                                                        {notif.type.replace('_', ' ')}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                <button 
+                                    onClick={() => setIsProfileOpen(true)}
+                                    className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-black text-white flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-gray-800 transition-colors shadow-md relative overflow-hidden"
+                                >
+                                    <div className="absolute inset-[2px] rounded-full flex items-center justify-center overflow-hidden">
+                                        {userProfile?.avatar ? (
+                                            <Image src={userProfile.avatar} alt="Profile" fill className="object-cover rounded-full" />
+                                        ) : (
+                                            <span className="text-white font-bold">{initial}</span>
+                                        )}
+                                    </div>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
